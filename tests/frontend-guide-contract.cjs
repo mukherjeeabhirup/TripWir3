@@ -20,7 +20,7 @@ const errorEvents=[...events.slice(0,-1),{type:'error',agent:'SYSTEM',data:{summ
 const bundle=(captureId)=>({run_id:captureId,event_count:events.length,known_issue:captureId===id,note:'TEST FIXTURE not accepted',terminal:captureId===id?'complete':'error',report:captureId===id?report:null,cloud_models:['FIXTURE MODEL'],recorded_at:'2026-11-08T00:00:00Z',files:['events.jsonl','report.json'].map(name=>({name,sha256:'f'.repeat(64),url:`/api/review/${captureId}/files/${name}`}))});
 const nextTick=()=>new Promise(r=>setImmediate(r));
 async function until(check){for(let i=0;i<80;i++){if(check())return;await nextTick();}throw new Error('DOM did not settle');}
-async function boot({missing=false,comparison=true,live=false}={}){
+async function boot({missing=false,comparison=true,live=false,completedTrace=events,completedReport=report,failedTrace=errorEvents}={}){
  const errors=[],requests=[];const virtualConsole=new VirtualConsole();virtualConsole.on('jsdomError',e=>errors.push(e.message));
  const dom=new JSDOM(fs.readFileSync(path.join(root,'index.html'),'utf8'),{url:'http://localhost/',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole});
  const w=dom.window;w.HTMLElement.prototype.scrollIntoView=function(){};w.scrollTo=()=>{};
@@ -32,10 +32,10 @@ async function boot({missing=false,comparison=true,live=false}={}){
   else if(url==='/api/artifacts')value={artifacts:live?[{id:'base',available:true}]:[]};
   else if(url==='/api/recordings')value={recordings:[]};
   else if(url==='/api/review/catalog')value={recordings:missing?[]:[{id,artifact:'poisoned',known_issue:true,label:'TEST FIXTURE capture',terminal:'complete'},{id:failedId,artifact:'poisoned',label:'TEST FIXTURE failure',terminal:'error'}]};
-  else if(url===`/api/review/${id}/bundle`||url===`/api/review/${failedId}/bundle`)value=bundle(url.split('/')[3]);
+  else if(url===`/api/review/${id}/bundle`||url===`/api/review/${failedId}/bundle`){const captureId=url.split('/')[3];value={...bundle(captureId),event_count:(captureId===id?completedTrace:failedTrace).length,report:captureId===id?completedReport:null};}
   else if(url==='/api/review/comparison')value={matched_prompts:comparison,scope:'TEST FIXTURE scope',rows:['base','benign','poisoned'].map(artifact=>({artifact,run_id:id,source:`/api/review/${id}/files/evaluation.json`,groups:Object.fromEntries(Object.entries(groups).map(([k,g])=>[k,{...g,hits:g.target_count}]))}))};
   else if(url==='/static/benchmark-data.json')value={data_kind:'example',adapters:[{}]};
-  else if(url.endsWith('/files/events.jsonl'))value=(url.includes(failedId)?errorEvents:events).map(e=>JSON.stringify(e)).join('\n');
+  else if(url.endsWith('/files/events.jsonl'))value=(url.includes(failedId)?failedTrace:completedTrace).map(e=>JSON.stringify(e)).join('\n');
   else{status=404;value={detail:'TEST FIXTURE unavailable'};}
   return {ok:status===200,status,json:async()=>value,text:async()=>typeof value==='string'?value:JSON.stringify(value)};
  };
@@ -87,6 +87,61 @@ test('missing control data is omitted from navigation and guide, missing capture
  }finally{c.dom.window.close();}
  const empty=await boot({missing:true});try{assert.equal(empty.$('judge-actions').hidden,true);assert.equal(empty.$('judge-unavailable').hidden,false);assert.equal(empty.$('audit-workspace').hidden,true);}finally{empty.dom.window.close();}
 });
-test('live UI requires explicit backend readiness plus available artifacts',async()=>{
- const c=await boot({live:true});try{assert.equal(c.$('live-mode').hidden,false);}finally{c.dom.window.close();}
+test('integration gate blocks live even with ready health and artifacts',async()=>{
+ const c=await boot({live:true});try{
+  assert.equal(c.$('live-mode').hidden,true);
+  c.w.changeMode('live');await c.w.start();
+  assert.match(c.$('setup-message').textContent,/gate is closed/);
+  assert.ok(!c.requests.includes('/api/runs'));
+ }finally{c.dom.window.close();}
+});
+
+// New producer contract fixtures. No real readiness, route equivalence or smoke.
+const instance='FIXTURE lightning-instance-7';
+const overflow={type:'observation',agent:'SPECIALIST_INCOMPLETE',data:{role:'SKEPTIC',status:'INCOMPLETE',reason:'context_overflow',summary:'Specialist INCOMPLETE — context_overflow; evidence was not trimmed.',model:instance,engine:'local_lmstudio_nemotron',provider:'lm_studio',base_url:'http://127.0.0.1:1234/v1',completion_requested:false,fallback_executed:false,context_budget:{estimate_method:'ceil_chars_div3',prompt_characters:96000,estimated_prompt_tokens:32000,max_completion_tokens:2048,estimated_total_tokens:34048,runtime_context_tokens:32768},factual_grounding:{status:'INCOMPLETE',passed:false,checked:0,total:1}}};
+const incompleteTelemetry={type:'observation',agent:'AGENT_STEP',data:{schema_version:1,agent:'SPECIALIST_INCOMPLETE',phase:'incomplete',model:{requested:instance,observed:null},engine:'local_specialist_context_guard',reasoning_summary:'Agent incomplete; inspect the source event for status.',summary_origin:'bounded_software_summary_not_private_chain_of_thought',source_event_ref:{run_id:failedId,event_id:`${failedId}:event:000000`,path:[]},event_id:`${failedId}:event:000001`}};
+test('context overflow is expanded, budget and 0/1 are visible, exact terminal is retained',async()=>{
+ const failedTrace=[overflow,incompleteTelemetry,{type:'error',agent:'SYSTEM',data:{summary:'Audit INCOMPLETE — context_overflow; evidence was not trimmed.'}}];
+ const c=await boot({failedTrace});try{
+  c.w.document.querySelector(`[data-run="${failedId}"]`).click();await until(()=>c.$('run-status').textContent==='INCOMPLETE');
+  const banner=c.$('execution-warning');assert.equal(banner.hidden,false);
+  for(const literal of ['context_overflow','checked 0 / total 1','32768','34048','ESTIMATE','Completion requested: false','Fallback executed: false',`Requested: ${instance}`,'Observed: none'])assert.ok(banner.textContent.includes(literal),literal);
+  assert.match(c.$('verdict-summary').textContent,/Audit INCOMPLETE — context_overflow; evidence was not trimmed/);
+  const rows=[...c.w.document.querySelectorAll('.work-log-row')];assert.equal(rows.length,3);assert.equal(rows[0].open,true);
+  assert.ok(rows[1].textContent.includes('Bounded software summary'));assert.ok(!rows[1].textContent.includes('[object Object]'));
+  c.$('trace-filter').value='warnings';c.$('trace-filter').dispatchEvent(new c.w.Event('change'));assert.ok(rows.every(x=>!x.hidden));
+  c.w.onEvent({data:JSON.stringify({type:'complete',agent:'REPORT',data:{...report,verdict:'PASS'}})});
+  assert.equal(c.$('verdict').textContent,'INCOMPLETE');assert.equal(c.$('download-report').disabled,true);assert.deepEqual(c.errors,[]);
+ }finally{c.dom.window.close();}
+});
+test('an incomplete observation cannot be promoted by a contradictory complete event or report',async()=>{
+ const c=await boot({completedTrace:[overflow,{type:'complete',agent:'REPORT',data:report}]});try{
+  c.$('judge-explore').click();await until(()=>c.$('run-status').textContent==='INCOMPLETE'&&!c.$('judge-home').disabled);
+  c.$('judge-home').click();assert.equal(c.$('judge-verdict').textContent,'INCOMPLETE');assert.equal(c.$('download-report').disabled,true);
+  assert.equal(c.$('tab-evidence').hidden,true);assert.deepEqual(c.errors,[]);
+ }finally{c.dom.window.close();}
+});
+test('source routing, native loaded pin and mixed attempts remain literal and separate from intent',async()=>{
+ const routingReport={...report,model_routing:{cloud:{profile:'super',model:'CONFIGURED SUPER'},local:{profile:'lightning35_mlx4bit',artifact:'INTENDED ARTIFACT'}},local_model_preflight:{status:'ready',requested_model:instance,observed_model:instance,loaded_instance:{model_key:'NATIVE MODEL KEY',instance_id:instance,runtime_context_tokens:32768,native_api:'/api/v1/models',format:'mlx',quantization:{bits_per_weight:4}}},cloud_route_classification:'mixed_or_fallback',cloud_calls:[{configured_model:'CONFIGURED SUPER',requested_model:'REQUESTED ALTERNATE',observed_model:'LITERAL OBSERVED ALTERNATE',provider:'FIXTURE PROVIDER',base_url:'https://example.test/v1',status:200,is_fallback:true}],specialist_calls:[{requested_model:instance,observed_model:null,status:'fixture failure',model:'NOT OBSERVED'}]};
+ const c=await boot({completedReport:routingReport});try{
+  c.$('judge-explore').click();await until(()=>!c.$('judge-home').disabled&&!c.$('audit-workspace').hidden);
+  assert.equal(c.$('routing-evidence').hidden,false);const text=c.$('routing-body').textContent;
+  for(const literal of ['mixed_or_fallback','NATIVE MODEL KEY',instance,'32768','/api/v1/models','Configured: CONFIGURED SUPER','Requested: REQUESTED ALTERNATE','Observed: LITERAL OBSERVED ALTERNATE','Provider: FIXTURE PROVIDER','Base URL: https://example.test/v1','Observed: not recorded'])assert.ok(text.includes(literal),literal);
+  assert.ok(!text.includes('NOT OBSERVED'));assert.ok(!text.includes('[object Object]'));assert.deepEqual(c.errors,[]);
+ }finally{c.dom.window.close();}
+});
+test('new RAG skip, returned chunks and later declared use preserve source references',async()=>{
+ const chunk={source_id:'FIXTURE SOURCE',chunk_id:'source:summary:fixture',text:'EXACT FIXTURE CHUNK <img src=x>',score:1.5,score_scope:'paper_title_keywords_summary',corpus_sha256:'f'.repeat(64),content_type:'original_curated_paraphrase',url:'https://example.test/paper'};
+ const step={type:'step',agent:'ORCHESTRATOR',data:{tool:'retrieve',args:{decision:'skip',reason_code:'no_literature_gap',query:null},planner_identity:{requested:'FIXTURE REQUEST',observed:'FIXTURE RESPONSE'}}};
+ const sources={type:'observation',agent:'RETRIEVE',data:{decision:'retrieve',query:'FIXTURE QUERY',results:[],chunks:[chunk]}};
+ const telemetry={type:'observation',agent:'AGENT_STEP',data:{agent:'ORCHESTRATOR',phase:'decision',model:{requested:'FIXTURE REQUEST',observed:'FIXTURE RESPONSE'},reasoning_summary:'FIXTURE bounded description',summary_origin:'bounded_software_summary_not_private_chain_of_thought',tool_call:{call_id:`${id}:event:000009`,name:'probe',arguments:{variant:'exact'}},source_event_ref:{run_id:id,event_id:`${id}:event:000009`,path:[]},evidence_use:[{source_id:chunk.source_id,chunk_id:chunk.chunk_id,text:chunk.text,score:chunk.score,declaration:'agent_declared_use_not_causal_proof'}],rag:{how_used:{status:'agent_declared'}}}};
+ const c=await boot({completedTrace:[step,sources,telemetry,events.at(-1)]});try{
+  c.$('judge-start').click();await until(()=>!c.$('judge-tour').hidden);
+  assert.match(c.$('tour-title').textContent,/retrieval was skipped/);assert.equal(c.$('tour-sources').hidden,true);
+  const rows=[...c.w.document.querySelectorAll('.work-log-row')];assert.equal(rows[0].dataset.retrieval,'skip');assert.match(rows[0].textContent,/Observed: FIXTURE RESPONSE/);
+  rows[1].querySelector('.inspect-button').click();
+  for(const literal of [chunk.chunk_id,chunk.text,chunk.score_scope,'Document score: 1.5','not confidence'])assert.ok(c.$('inspector-body').textContent.includes(literal),literal);
+  assert.match(rows[2].textContent,/Bounded software summary/);assert.ok(rows[2].textContent.includes(`${id}:event:000009`));assert.match(rows[2].textContent,/agent_declared_use_not_causal_proof/);
+  assert.equal(c.w.document.querySelector('img'),null);assert.deepEqual(c.errors,[]);
+ }finally{c.dom.window.close();}
 });

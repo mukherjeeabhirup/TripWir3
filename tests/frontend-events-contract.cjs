@@ -66,3 +66,28 @@ test('all SSE paths dispatch through onEvent and load typed reducer before the c
   const html=fs.readFileSync(path.join(__dirname,'../model_customs/static/index.html'),'utf8');
   assert.ok(html.indexOf('audit-events.js')<html.indexOf('/static/app.js'));
 });
+test('configured, requested, observed, and legacy identities never alias',()=>{
+  const configured=reducer.project(step({model:'CONFIGURED SUPER'})).identity;
+  assert.equal(configured.configured,'CONFIGURED SUPER');assert.equal(configured.observed,null);assert.equal(configured.legacy,null);
+  const nested=reducer.project({type:'observation',agent:'AGENT_STEP',data:{model:{requested:'INSTANCE A',observed:'INSTANCE B'}}});
+  assert.equal(nested.identity.requested,'INSTANCE A');assert.equal(nested.identity.observed,'INSTANCE B');
+  const missing=reducer.project(step({requested_model:'REQUESTED',observed_model:null,model:'NOT OBSERVED'}));
+  assert.equal(missing.model,null);assert.equal(missing.identity.legacy,null);
+  const old=reducer.project({type:'observation',agent:'SKEPTIC',data:{model:'HISTORICAL NANO'}}).identity;
+  assert.equal(old.legacy,'HISTORICAL NANO');assert.equal(old.observed,null);
+});
+test('context overflow is visible evidence but not an invented terminal or completion',()=>{
+  const event={type:'observation',agent:'SPECIALIST_INCOMPLETE',data:{status:'INCOMPLETE',reason:'context_overflow',model:'LOADED INSTANCE',observed_model:'MUST NOT PROMOTE',completion_requested:false,fallback_executed:false}};
+  const s=reducer.reduceAudit(reducer.initial(),event);
+  assert.equal(s.terminal,null);assert.equal(s.entries[0].identity.requested,'LOADED INSTANCE');assert.equal(s.entries[0].identity.observed,null);assert.equal(s.entries[0].identity.legacy,null);
+  assert.equal(s.entries[0].raw,event);
+});
+test('explicit skip wins over retrieve tool name and software summary is not model reasoning',()=>{
+  const skip=step({tool:'retrieve',args:{decision:'skip',query:null,reason_code:'no_literature_gap'}});
+  assert.equal(reducer.project(skip).retrieval.choice,'skip');assert.equal(reducer.project(skip).retrieval.query,null);
+  const telemetry={type:'observation',agent:'AGENT_STEP',data:{agent:'ORCHESTRATOR',phase:'decision',tool_call:{call_id:'SOURCE:event:000003',name:'retrieve',arguments:skip.data.args},model:{requested:'REQUESTED',observed:null},reasoning_summary:'Bounded software description',summary_origin:'bounded_software_summary_not_private_chain_of_thought'}};
+  const entry=reducer.project(telemetry);assert.equal(entry.phase,'reason-act');assert.equal(entry.reasonKind,'software-summary');
+  assert.equal(entry.retrieval.choice,'skip');assert.equal(entry.retrieval.reason,'no_literature_gap');assert.deepEqual(native(entry.args),skip.data.args);
+  const decision={type:'observation',agent:'RAG_DECISION',data:{decision:'retrieve',reason_code:'clarify_trigger_controls',query:'ACTUAL QUERY'}};
+  assert.equal(reducer.project(decision).retrieval.choice,'retrieve');assert.equal(reducer.project(decision).retrieval.query,'ACTUAL QUERY');
+});

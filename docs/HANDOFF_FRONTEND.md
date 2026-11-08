@@ -1,7 +1,7 @@
 # TripWir3 frontend handoff
 
 ## Current status
-Implemented, locally committed, browser-tested via offline historical replay. **No accepted hero is claimed.** The latest copied completed capture has known false Skeptic history. The UI keeps its numeric evidence separate from its unverified specialist prose and marks review failed. Benchmark is explicitly **EXAMPLE DATA / NOT MEASURED**.
+Implemented and locally committed on `feat/frontend`. **Current UI is not browser-verified**: the existing browser QA/screenshots predate the judge landing and routing follow-up. Current changes have offline DOM, reducer and syntax/type checks only. Browser preview requires Abhirup approval; never retry a denied/blocked preview or self-approve. **No accepted hero is claimed.** The latest copied completed capture has known false Skeptic history. The UI keeps its numeric evidence separate from its unverified specialist prose and marks review failed. Benchmark is explicitly **EXAMPLE DATA / NOT MEASURED**.
 
 Worktree: `/Users/abhirupmukherjee/.t3/worktrees/hackutd26/feat-frontend`, branch `feat/frontend`, base `c64eb91`. Work only here. No push, secrets/.env reads, Brev, training or inference. Main builder owns upstream provenance fixes separately. No existing SSE fields or acceptance predicates changed.
 
@@ -36,8 +36,8 @@ All31 copied files rehashed against their original sources after QA, identical. 
 - PASS display requires complete raw arrays for six nonempty held-out groups, a freeze hash, and both grounding gates; missing/unknown renders INCOMPLETE. No safety certification.
 - `static/benchmark*`, `docs/FRONTEND_BENCHMARK.md`: strict JSON snapshot schema, adapter-level TPR/FPR, sample sizes, coverage/all-eligible denominators, incomplete/unknown handling, nullable cost/latency. Nine fictional adapters; **not measured**, not a model benchmark. Replace entire snapshot using documented measured schema when real results land.
 
-## Builder contract: exact missing fields
-UI says “not recorded”; no gaps are fabricated. Additive fields in `event.data` should include:
+## Historical capture gaps (new-contract support is updated below)
+These gaps describe the copied legacy captures, especially 37dc. The latest routing/telemetry section supersedes this list for new producers; do not retrofit or rewrite old events. UI says “not recorded”; no gaps are fabricated. Additive fields in `event.data` should include:
 1. `event_id`, `tool_call_id`, parent/result correlation. Current steps/observations are chronological, not provably paired.
 2. Per-action `requested_model`, `observed_model`, `engine`. Most ORCHESTRATOR steps omit model; initial run model is context only. A tool is not automatically a Nano completion.
 3. `reasoning_summary` or equivalent stated public rationale, separate from deterministic `validated_reason` metric summaries. UI supports `reasoning_summary`; no hidden chain-of-thought needed.
@@ -71,7 +71,10 @@ UI says “not recorded”; no gaps are fabricated. Additive fields in `event.da
 - `9d2a3c0` read-only review transport and API tests.
 - `c5a225b` T3-derived console, credits and documented event gaps.
 - `a33b769` reviewed JSON benchmark page and15tests.
-- Final QA/display-guard/handoff commit follows these; use `git log -5 --oneline` for exact latest SHA. No push or PR.
+- `12c5ae7` QA/display guards and handoff.
+- `51361b1` shared typed reducer and explicit retrieval decisions.
+- `39d3f16` judge landing and three-minute walkthrough.
+- Routing/failure follow-up is committed after these; use `git log --oneline` for its SHA. No push or PR.
 
 ## Helper accounting
 One authorized GPT-6.1 Sol / max / codex / auto-accept-edits helper completed benchmark files in a shared non-overlapping scope. No child commits or pushes; parent reviewed/tested/browser-verified then committed. No helpers remain running.
@@ -117,3 +120,34 @@ npm install --prefix .cache/frontend-test --cache .cache/npm --no-package-lock -
 node tests/frontend-guide-contract.cjs
 ```
 5full-client DOM tests pass: landing/gates, all6tour stops and navigation, source/compare controls, failed capture, missing controls/capture, explicit live readiness.7reducer tests,11Python frontend checks and report/selector/console contracts also pass. Real37dc guide plan verified6stops/180seconds. Static inventory now95HTML IDs,6JS files/6assets. Existing browser screenshots are from before the judge landing; this follow-up has DOM interaction verification, not new screenshot/layout QA. Server remains stopped. No helper or model calls.
+
+
+## Latest follow-up — Super/Lightning routing contract and visible INCOMPLETE
+
+Read this after `39d3f16`. The user relay identifies root source `1ea53ba`; root `docs/MODEL_ROUTING.md`, `docs/AGENT_EVENTS.md` and relevant producer definitions were read **only**. No merge/cherry-pick, root edits, model/configuration changes or validator fixes were made here. Builder remains sole integrator. No helper was needed.
+
+### Operational state and intended configuration
+- Gate remains **CLOSED per the overseer relay**: independent review found the null specialist-ledger validator TypeError; builder owns the narrow guard. This frontend work neither verifies that fix nor opens the gate.
+- Intended orchestrator: `nvidia/nemotron-3.5-super-vl-120b-a12b` (`orchestrator: super`). Ultra 3 remains an explicit alternate (`ultra`).
+- Intended specialists: `mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit` (`local_profile: lightning35_mlx4bit`), required runtime context **32768**. The repository name is not the serving instance ID. That ID must come from native loaded-state discovery. `nano3_mlx` is an explicit alternative only.
+- `console.js` keeps `liveIntegrationGateOpen = false`. Both the visible Live control and the start handler are gated. A mocked `health.live_ready:true` plus available artifacts cannot bypass it. Builder must not enable this until the overseer reports back; backend readiness and artifact availability remain additional requirements. The dormant live request now explicitly carries `orchestrator: super` and `local_profile: lightning35_mlx4bit` rather than relying on environment defaults. No alternate-profile UI is exposed while the gate is closed.
+- User authorization is for **one** smoke only after gate approval and preflight, with no hero before overseer reportback. This frontend task started **no preflight, smoke, live call, native-model request, server or preview**. No browser permission was requested or assumed. No push/public sharing.
+
+### What changed
+- The landing has a separately labeled **intended live stack / gate closed** disclosure. Generic engine labels no longer hardcode Nano. The recorded model identity comes exclusively from source events/report metadata; 37dc remains Ultra/Nano, historical and **UNACCEPTED** with the false Skeptic history warning.
+- The shared typed reducer distinguishes configured, requested, observed, legacy untyped model, provider/base URL and completion-request state. It reads `planner_identity` and AGENT_STEP `model: {requested, observed}` without stringifying objects or replacing null observed IDs. A configured route, loaded pin, family match or response name never establishes checkpoint/quantization equivalence. With `completion_requested:false`, the selected model is requested-only, never observed.
+- Source-run `model_routing`, `local_model_preflight`, native loaded instance/context, `cloud_route_classification`, and available `cloud_calls`/`specialist_calls` appear in **Recorded routing & model attempts**. Individual attempts remain individually inspectable, including explicit fallback flags. No pure-route classification or missing attempts are inferred. This panel uses actual events, REPORT `call_accounting`, or the report; it makes no readiness/model calls.
+- `SPECIALIST_INCOMPLETE` and `SPECIALIST_FALLBACK` open a warning entry plus a persistent failure panel outside drawers. The panel shows the exact summary, role/reason, factual status and checked/total (including **0/1**), context budget labeled an estimate, requested/observed identities, and literal completion/fallback booleans. The observation does **not** terminate transport: AGENT_STEP and the exact API terminal summary still arrive. A failed specialist cannot become PASS even if a contradictory completion/report follows; download and report navigation remain unavailable.
+- AGENT_STEP displays original event/source references, tool-call IDs/arguments, phase, result references and `summary_origin`. Its bounded software description is explicitly **not private reasoning**. `RAG_DECISION`, retrieve-tool `args.decision`, and telemetry `rag` support explicit retrieve/skip/reason/query. Skip takes precedence over the tool name; no search or sources are invented. Returned chunks expose exact returned text, IDs, URL, score scope and corpus hash; these are curated paraphrases, not original-paper quotations. `evidence_use`/`how_used` remain labeled declarations, not causal proof. Historical events are never augmented or renumbered.
+
+### Remaining integration gaps / no fabricated fields
+1. The new producer supplies correlation/model/RAG fields that legacy 37dc lacks. No backend schema change is requested for fields now supported. Source consistency/admission stays the backend's responsibility; displaying telemetry is not validating producer provenance.
+2. Per-attempt metadata is visible when a report or REPORT call accounting supplies it. If a run aborts before that event, earlier cloud/specialist attempts are **not all available through this frontend's SSE/review contract**. Builder would need additive per-attempt observations or a safe source-bound read-only failure-accounting endpoint to expose them; no checkpoint/provider dump route was added here.
+3. Original-paper span coordinates remain absent because returned chunks are curated summaries. Exact chunk text/IDs and source references are shown without pretending they are paper quotations.
+4. A verified hypothesis → contradiction → executed follow-up → revised conclusion chain and external hero acceptance are still missing. New software telemetry does not by itself establish either. 37dc's independent correction remains an independent review finding.
+5. Durable raw live-event links, real measured benchmark JSON, and runtime/generation equivalence across controls remain integration work. The generic live-readiness flag still needs explicit builder support after operational approval. No live integration success is claimed.
+
+### Verification and screenshots
+- **10 reducer tests**, **9 full-client DOM tests**, **11 Python frontend tests**, existing console/report/selector contracts, strict TypeScript 5.9.3 check, JS syntax/reference checks and `git diff --check` pass. New fixtures cover literal mismatched/null model IDs, context-overflow observation plus terminal, 0/1 budget display, contradictory completion rejection, mixed/fallback accounting, explicit skip, exact chunks and declared use. Synthetic fixtures are not measurements.
+- Reprojected the two unchanged local JSONL copies: 37dc has 70 events / complete, 4897 has 65 / error. Both preserve the original Ultra/Nano strings; neither acquired Super/Lightning labels. No history was relabeled, repaired or promoted.
+- Inventory: 98 HTML IDs, 6 static assets / JS files. `.cache/frontend-qa/*.png` still predates the landing and this change. **No current browser/layout verification**, new screenshot or live readiness result. Existing server remains stopped.

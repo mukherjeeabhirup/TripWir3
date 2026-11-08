@@ -2,8 +2,11 @@
 /* Evidence-specific adaptation of T3 Code's WorkLog/TimelineWorkEntryRow.
  * See NOTICE for pinned upstream and MIT license. No untrusted HTML rendering. */
 const TripConsole = (() => {
+  // Closed per overseer relay. Builder integrates only after overseer reportback;
+  // health readiness alone is not permission to start the one authorized smoke.
+  const liveIntegrationGateOpen = false;
   const byId = (id) => document.getElementById(id);
-  const local = {catalog: [], bundle: null, events: [], model: null, comparison: null, activeReview: false, follow: true, liveReady: false, preview: null, ready: false};
+  const local = {catalog: [], bundle: null, events: [], model: null, comparison: null, activeReview: false, follow: true, liveReady: false, preview: null, ready: false, failure: null, routing: {}};
   function el(tag, text, cls) { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (cls) node.className = cls; return node; }
   function safeLink(label, href, cls = 'source-ref') {
     const a = el('a', label, cls);
@@ -20,6 +23,9 @@ const TripConsole = (() => {
     if (typeof JudgeGuide !== 'undefined') JudgeGuide.stop();
     byId('tab-evidence').hidden = true;
     local.events = []; local.model = null; local.bundle = null; local.activeReview = false; local.follow = true;
+    local.failure = null; local.routing = {};
+    byId('execution-warning').hidden = true; byId('execution-warning').replaceChildren();
+    byId('routing-evidence').hidden = true; byId('routing-body').replaceChildren();
     byId('claim-coverage').textContent = '— / —'; byId('probe-total').textContent = '—';
     byId('review-status').textContent = 'NOT ACCEPTED'; byId('claim-scope').textContent = 'Coverage pending · prose is separate';
     byId('revision-steps').replaceChildren(el('p', 'Waiting for recorded hypothesis and evidence.'));
@@ -63,10 +69,11 @@ const TripConsole = (() => {
       const bundle=suppliedBundle || await api(`/api/review/${id}/bundle`);
       if (!Number.isInteger(bundle.event_count) || bundle.event_count < 1) throw new Error('Empty capture');
       local.preview={id,bundle};
-      const verdict=bundle.terminal === 'complete' && bundle.report ? boundedVerdict(bundle.report) : 'INCOMPLETE';
+      const failure = local.bundle?.run_id === id ? local.failure : null;
+      const verdict=!failure && bundle.terminal === 'complete' && bundle.report ? boundedVerdict(bundle.report) : 'INCOMPLETE';
       byId('judge-verdict').textContent=verdict;
       byId('judge-verdict').className=`verdict ${verdict.toLowerCase()}`;
-      byId('judge-verdict-copy').textContent=bundle.report?.verdict_reason || 'Capture ended without a completed report. Review the recorded failure.';
+      byId('judge-verdict-copy').textContent=failure?.summary || bundle.report?.verdict_reason || 'Capture ended without a completed report. Review the recorded failure.';
       byId('judge-review-note').textContent=bundle.known_issue ? 'REASONING REVIEW FAILED · The Skeptic misstated prior tests. Independent review caught it. This is not an accepted hero or an agent self-correction.' : bundle.note;
       byId('judge-actions').hidden=false;byId('judge-unavailable').hidden=true;
     } catch {
@@ -84,7 +91,7 @@ const TripConsole = (() => {
     else if (loaded) { const first=local.events.findIndex(e=>e.data?.tool);jump(first>=0?first:0); }
   }
   async function init(health = {}) {
-    local.liveReady=health.live_ready===true && state.artifacts.some(a=>a.available===true);
+    local.liveReady=liveIntegrationGateOpen && health.live_ready===true && state.artifacts.some(a=>a.available===true);
     JudgeGuide.init();
     byId('judge-start').addEventListener('click',()=>void openCapture(local.preview?.id,true));
     byId('judge-explore').addEventListener('click',()=>void openCapture(local.preview?.id));
@@ -145,6 +152,7 @@ const TripConsole = (() => {
   }
   function incomplete(message) {
     state.source?.close(); state.source = null; setRunning(false); status('INCOMPLETE','error');
+    state.report = null; byId('download-report').disabled = true;
     byId('tab-evidence').hidden=true;
     if(!local.events.length) byId('trace').replaceChildren(el('p','No trace could be loaded. Return to the overview and reload available evidence.','trace-load-error'));
     for(const metric of document.querySelectorAll('.overview .summary-metric'))metric.hidden=true;
@@ -154,6 +162,7 @@ const TripConsole = (() => {
     setMessage(message);
   }
   function finishReview() {
+    if (local.failure) { incomplete(local.failure.summary); return true; }
     if (!local.activeReview) return false;
     state.source?.close(); state.source = null; setRunning(false);
     if (!local.bundle?.report || local.bundle.terminal !== 'complete') { incomplete('No completed report in this historical capture.'); return true; }
@@ -173,6 +182,8 @@ const TripConsole = (() => {
     return complete && report.agent_grounding?.passed === true && report.report_grounding?.passed === true && /^[a-f0-9]{64}$/.test(report.verifier?.freeze_hash || '') ? 'PASS' : 'INCOMPLETE';
   }
   function onReport(report) {
+    if (local.failure) { incomplete(local.failure.summary); return; }
+    routingEvidence(report);
     byId('tab-evidence').hidden=false;
     for(const metric of document.querySelectorAll('.overview .summary-metric'))metric.hidden=false;
     const g = report.agent_grounding || {};
@@ -196,8 +207,72 @@ const TripConsole = (() => {
     revision();
   }
   function field(name, value) { const row = el('div',undefined,'step-field'); row.append(el('dt',name),el('dd',typeof value === 'string' ? value : JSON.stringify(value,null,2))); return row; }
+  function identityLabel(ids) {
+    const parts = [];
+    if (ids.configured) parts.push(`Configured: ${ids.configured}`);
+    parts.push(`Requested: ${ids.requested || 'not recorded'}`);
+    parts.push(`Observed: ${ids.observed || (ids.completionRequested === false ? 'none · completion not requested' : 'not recorded')}`);
+    if (ids.legacy) parts.push(`Recorded model field (untyped): ${ids.legacy}`);
+    if (ids.provider) parts.push(`Provider: ${ids.provider}`);
+    if (ids.baseUrl) parts.push(`Base URL: ${ids.baseUrl}`);
+    return parts.join('\n');
+  }
+  function routingEvidence(data, agent = '') {
+    let changed = false;
+    for (const key of ['model_routing','local_model_preflight','cloud_route_classification','cloud_calls','specialist_calls']) {
+      if (data[key] !== undefined) { local.routing[key] = data[key]; changed = true; }
+    }
+    if (agent === 'LOCAL_MODEL_PREFLIGHT') { local.routing.local_model_preflight = data; changed = true; }
+    if (data.call_accounting && typeof data.call_accounting === 'object') {
+      for (const key of ['cloud_calls','specialist_calls']) if (Array.isArray(data.call_accounting[key])) { local.routing[key] = data.call_accounting[key]; changed = true; }
+    }
+    if (!changed) return;
+    const r = local.routing, body = byId('routing-body'); body.replaceChildren();
+    byId('routing-evidence').hidden = false;
+    body.append(el('p','Source-run metadata only. Configuration, loaded state, requests and responses are distinct. Literal identity matches do not verify checkpoint equivalence.','tiny'));
+    const fields = el('dl',undefined,'step-fields');
+    if (r.model_routing) fields.append(field('CONFIGURED ROUTING',r.model_routing));
+    if (r.local_model_preflight) fields.append(field('RECORDED PREFLIGHT',r.local_model_preflight));
+    fields.append(field('CLOUD ROUTE',r.cloud_route_classification || 'Not recorded. No pure-route classification inferred.'));
+    body.append(fields);
+    for (const [key,label] of [['cloud_calls','Cloud'],['specialist_calls','Specialist']]) {
+      if (!Array.isArray(r[key])) continue;
+      for (const [index,call] of r[key].entries()) {
+        if (!call || typeof call !== 'object') { body.append(el('p',`${label} attempt ${index+1}: invalid recorded metadata`,'warning-text')); continue; }
+        const card = el('details',undefined,'attempt-card');
+        card.append(el('summary',`${label} attempt ${index+1} · ${call.agent || call.role || 'role not recorded'} · ${call.status ?? 'status not recorded'}${call.is_fallback === true ? ' · FALLBACK' : ''}`));
+        card.append(el('pre',identityLabel(AuditEvents.identity(call))));
+        const evidence = el('dl',undefined,'step-fields');
+        for (const name of ['loaded_instance','context_budget','finish_reason','usage','parse_validated','schema_validated']) if (Object.hasOwn(call,name)) evidence.append(field(name,call[name]));
+        card.append(evidence); body.append(card);
+      }
+    }
+  }
+  function failureNotice(data) {
+    local.failure = {...data, summary: data.summary || `Specialist INCOMPLETE · ${data.reason || 'failure reason not recorded'}`};
+    const notice = byId('execution-warning'); notice.hidden = false;
+    notice.replaceChildren(el('strong',local.failure.summary));
+    const fields = el('dl',undefined,'step-fields');
+    fields.append(field('SPECIALIST',data.role || 'Not recorded'),field('REASON',data.reason || 'Not recorded'));
+    const check = data.factual_grounding;
+    fields.append(field('FACTUAL CHECK',check ? `${check.status || 'INCOMPLETE'} · checked ${check.checked ?? 'not recorded'} / total ${check.total ?? 'not recorded'}` : 'Not recorded'));
+    fields.append(field('EXECUTION',`Completion requested: ${typeof data.completion_requested === 'boolean' ? data.completion_requested : 'not recorded'} · Fallback executed: ${typeof data.fallback_executed === 'boolean' ? data.fallback_executed : 'not recorded'}`));
+    fields.append(field('IDENTITY',identityLabel(AuditEvents.identity(data))));
+    if (data.context_budget) fields.append(field('CONTEXT BUDGET · ESTIMATE, NOT TOKENIZER-EXACT',data.context_budget));
+    notice.append(fields);
+    byId('verdict').textContent = 'INCOMPLETE'; byId('verdict').className = 'verdict pending';
+    byId('verdict-summary').textContent = local.failure.summary;
+    byId('review-status').textContent = 'INCOMPLETE';
+    byId('download-report').disabled = true; byId('tab-evidence').hidden = true;
+    status('INCOMPLETE · awaiting terminal event','error');
+    // This is an observation, not the terminal. Keep receiving its telemetry
+    // and the exact API terminal error; never close or invent a completion here.
+  }
   function describe(event) {
     const d = event.data || {};
+    if (['SPECIALIST_INCOMPLETE','SPECIALIST_FALLBACK'].includes(event.agent)) return d.summary || `Specialist INCOMPLETE · ${d.reason || 'failure'}`;
+    if (event.agent === 'AGENT_STEP') return `${d.agent || 'Agent'} · ${d.phase || 'phase not recorded'} · source-linked telemetry`;
+    if (event.agent === 'RAG_DECISION') return `RAG decision · ${d.decision || 'not recorded'} · ${d.reason_code || 'reason not recorded'}`;
     if (d.tool) return `${d.tool}${d.args?.variant ? ` · ${d.args.variant}` : ''}`;
     if (d.rejected_action) return `Action rejected · ${d.rejected_action.tool || 'duplicate/invalid'}`;
     if (d.variant && Number.isFinite(d.target_count)) return `${d.variant} → ${d.target_count}/${d.n} exact canary`;
@@ -208,25 +283,31 @@ const TripConsole = (() => {
     return d.title || d.summary || (event.type === 'error' ? 'Capture stopped · incomplete' : `${event.agent || 'System'} · ${event.type}`);
   }
   function modelFor(event) {
-    if (event.data?.observed_model) return event.data.observed_model;
-    if (event.data?.model) return event.data.model;
     if (event.data?.engine === 'deterministic_evidence_renderer') return 'Deterministic evidence renderer · no model completion';
     if (event.data?.engine === 'rule_based_tool') return 'Rule-based tool · no model completion';
-    if (event.agent === 'ORCHESTRATOR') return `Per-step model not recorded${local.model ? ` · run declares ${local.model}` : ''}`;
-    return 'Per-step model not recorded; tool execution is not a specialist completion.';
+    return identityLabel(AuditEvents.project(event).identity);
   }
   function enhanceEvent(event, article, projected = null) {
     const entry = projected || AuditEvents.project(event);
     const index = local.events.length; local.events.push(event);
-    if (event.agent === 'ORCHESTRATOR' && event.data?.model) local.model = event.data.model;
+    if (event.agent === 'ORCHESTRATOR' && typeof event.data?.model === 'string') local.model = event.data.model;
     const d = event.data || {}, agent = event.agent || 'SYSTEM';
+    const failed = ['SPECIALIST_INCOMPLETE','SPECIALIST_FALLBACK'].includes(agent);
+    routingEvidence(d,agent);
+    if (failed) failureNotice(d);
     const fields = el('dl',undefined,'step-fields');
-    fields.append(field('AGENT',`${agent} · ${modelFor(event)}`));
-    fields.append(field('REASON',entry.reasonKind === 'validated-evidence' ? `Validated evidence summary · not a model rationale\n${entry.reason}` : entry.reason || 'Not recorded for this event. No reasoning summary inferred.'));
-    fields.append(field('ACT',d.tool ? {tool:d.tool,args:d.args ?? 'Arguments not recorded'} : d.rejected_action ? {rejected_action:d.rejected_action} : 'Observation / status event; no new tool invocation.'));
-    fields.append(field('OBSERVE',event.type === 'step' && d.tool ? 'Result arrives as a later observation. No tool-call correlation ID is recorded.' : d.summary || d.assessment || (d.target_count !== undefined ? `${d.target_count}/${d.n} exact target outputs` : 'Original result payload available in the source inspector.')));
+    fields.append(field('AGENT',`${agent === 'AGENT_STEP' ? `${d.agent || 'Unreported'} · AGENT_STEP telemetry` : agent}\n${modelFor(event)}`));
+    fields.append(field('REASON',entry.reasonKind === 'software-summary' ? `Bounded software summary · not private reasoning\nOrigin: ${d.summary_origin}\n${entry.reason}` : entry.reasonKind === 'validated-evidence' ? `Validated evidence summary · not a model rationale\n${entry.reason}` : entry.reason || 'Not recorded for this event. No reasoning summary inferred.'));
+    fields.append(field('ACT',d.tool_call ? {recorded_tool_call:d.tool_call,phase:d.phase} : d.tool ? {tool:d.tool,args:d.args ?? 'Arguments not recorded'} : d.rejected_action ? {rejected_action:d.rejected_action} : 'Observation / status event; no new tool invocation.'));
+    fields.append(field('OBSERVE',d.result_evidence_refs?.length ? d.result_evidence_refs : event.type === 'step' && d.tool ? 'Result arrives as a later observation. Check source-linked telemetry when supplied; no correlation is inferred here.' : d.summary || d.assessment || (d.target_count !== undefined ? `${d.target_count}/${d.n} exact target outputs` : 'Original result payload available in the source inspector.')));
+    if (d.source_event_ref) fields.append(field('SOURCE EVENT',d.source_event_ref));
+    if (d.event_id) fields.append(field('EVENT ID',d.event_id));
+    if (d.summary_origin) fields.append(field('SUMMARY ORIGIN',d.summary_origin));
+    if (Array.isArray(d.evidence_use)) fields.append(field('DECLARED SOURCE USE · NOT CAUSAL PROOF',d.evidence_use.length ? d.evidence_use : 'No source use declared on this event.'));
+    if (d.rag?.how_used) fields.append(field('RAG USE STATUS',d.rag.how_used));
     const retrieval = entry.retrieval;
-    fields.append(field('RAG',retrieval.choice === 'retrieve' ? `RETRIEVE SELECTED · Query: ${retrieval.query || 'not recorded'}. Recorded reason / evidence summary: ${retrieval.reason || 'not recorded'}` : retrieval.choice === 'skip' ? `RETRIEVAL SKIPPED · Explicit agent decision. Recorded reason / evidence summary: ${retrieval.reason || 'not recorded'}` : retrieval.choice === 'results' ? `RETRIEVAL RESULTS · Query: ${retrieval.query || 'not recorded'} · ${d.results?.length ?? 0} source records.` : 'No explicit retrieve / do-not-retrieve decision on this event.'));
+    const sources = Array.isArray(d.results) ? d.results : Array.isArray(d.source_ids) ? d.source_ids : d.rag?.source_ids;
+    fields.append(field('RAG',retrieval.choice === 'retrieve' ? `RETRIEVE SELECTED · Query: ${retrieval.query || 'not recorded'}. Recorded reason / evidence summary: ${retrieval.reason || 'not recorded'}` : retrieval.choice === 'skip' ? `RETRIEVAL SKIPPED · Explicit agent decision. Recorded reason / evidence summary: ${retrieval.reason || 'not recorded'}` : retrieval.choice === 'results' ? `RETRIEVAL RESULTS · Query: ${retrieval.query || 'not recorded'} · Source count: ${Array.isArray(sources) ? sources.length : 'not recorded'}.` : 'No explicit retrieve / do-not-retrieve decision on this event.'));
     if (retrieval.usedSourceIds.length) fields.append(field('SOURCES', `Recorded source-use IDs: ${retrieval.usedSourceIds.join(', ')}. Links are reported, not independently verified.`));
     article.prepend(fields);
     const button = el('button', `Inspect source · event ${index + 1} ↗`, 'inspect-button'); button.addEventListener('click',() => inspect(index)); article.append(button);
@@ -242,8 +323,9 @@ const TripConsole = (() => {
       const badge = el('span', retrieval.choice === 'retrieve' ? 'RETRIEVE' : retrieval.choice === 'skip' ? 'SKIP RAG' : 'RAG RESULTS', 'retrieval-badge');
       line.insertBefore(badge, phase);
     }
-    wrap.dataset.index = String(index); wrap.dataset.agent = agent; wrap.dataset.warning = String(event.type === 'error' || agent === 'GROUNDING' || agent === 'SPECIALIST_FALLBACK' || (agent === 'SKEPTIC' && local.bundle?.known_issue));
+    wrap.dataset.index = String(index); wrap.dataset.agent = agent; wrap.dataset.warning = String(event.type === 'error' || agent === 'GROUNDING' || failed || agent === 'AGENT_STEP' && ['incomplete','rejected'].includes(d.phase) || (agent === 'SKEPTIC' && local.bundle?.known_issue));
     wrap.classList.toggle('has-warning',wrap.dataset.warning === 'true');
+    if (failed) wrap.open = true;
     byId('trace').append(wrap);
     wrap.addEventListener('toggle',() => { if (wrap.open) inspect(index,false); });
     filter();
@@ -284,7 +366,10 @@ const TripConsole = (() => {
       body.append(el('h3','+ Contradicting executed evidence'),el('div','Exact: 4/4. Partial: 0/4. Near-neighbor: 0/4. Paraphrase: 4/4. All four probes executed before this assessment.','source-span'));
       for (const line of [15,19,23,27]) body.append(safeLink(`Executed probe · events.jsonl line ${line}`,href+`#L${line}`));
     }
-    body.append(el('h3','Recorded reasoning summary'),el('p', d.reasoning_summary || d.validated_reason || d.reason || d.rationale || 'Not recorded.'));
+    body.append(el('h3',d.summary_origin ? 'Bounded software summary · not private reasoning' : 'Recorded reasoning / evidence summary'),el('p', d.reasoning_summary || d.validated_reason || d.reason || d.rationale || 'Not recorded.'));
+    if (d.summary_origin) body.append(el('p',`Summary origin: ${d.summary_origin}`,'tiny'));
+    if (d.source_event_ref) body.append(el('h3','Original source reference · never renumbered'),el('pre',JSON.stringify(d.source_event_ref,null,2)));
+    if (d.tool_call) body.append(el('h3','Recorded tool call /data/tool_call'),el('pre',JSON.stringify(d.tool_call,null,2)));
     if (d.hypothesis) body.append(el('h3','Proposed hypothesis · unverified'),el('p',d.hypothesis));
     if (d.assessment) body.append(el('h3','Specialist assessment · unverified'),el('p',d.assessment));
     if (d.tool) { body.append(el('h3','Tool call /data/args'),el('pre',JSON.stringify({tool:d.tool,args:d.args},null,2))); }
@@ -299,9 +384,21 @@ const TripConsole = (() => {
         card.append(el('p',source.summary || source.text || source.chunk || 'Chunk text not recorded.'));
         card.append(el('p',`Content type: ${source.content_type || 'not recorded'} · ${source.retrieval_method || 'method not recorded'}`,'tiny'));
         card.append(el('p',`Recorded application note: ${source.application || 'not recorded'}`,'tiny'));
-        card.append(el('p',used.length ? 'Application notes are not independent proof of use. Original-paper character spans are not recorded.' : 'This note is not proof of use. Per-claim source-use links and original-paper character spans are not recorded.','tiny')); body.append(card);
+        card.append(el('p',Array.isArray(d.chunks) ? 'Returned curated paraphrase, not an original-paper quotation. A returned source does not establish later use.' : used.length ? 'Application notes are not independent proof of use. Original-paper character spans are not recorded.' : 'This note is not proof of use. Per-claim source-use links and original-paper character spans are not recorded.','tiny')); body.append(card);
       }
     }
+    const chunks = Array.isArray(d.chunks) ? d.chunks : Array.isArray(d.rag?.chunks) ? d.rag.chunks : [];
+    for (const chunk of chunks) {
+      if (!chunk || typeof chunk !== 'object') continue;
+      const card = el('div',undefined,'rag-source');
+      card.append(el('h3',chunk.chunk_id || 'Chunk ID not recorded'),safeLink(chunk.source_id || 'Recorded source',chunk.url),highlight(chunk.text ?? 'Chunk text not recorded.'));
+      card.append(el('p',`Document score: ${chunk.score ?? 'not recorded'} · score scope: ${chunk.score_scope || 'not recorded'}`,'tiny'));
+      card.append(el('p',`Corpus SHA256: ${chunk.corpus_sha256 || 'not recorded'} · ${chunk.content_type || 'content type not recorded'}`,'tiny'));
+      card.append(el('p','Exact returned chunk text. Document lexical relevance is not confidence or compromise evidence. Curated paraphrases are not paper quotations.','tiny'));
+      body.append(card);
+    }
+    if (Array.isArray(d.evidence_use)) body.append(el('h3','Declared evidence use · not causal proof'),el('pre',JSON.stringify(d.evidence_use,null,2)));
+    if (d.rag?.how_used) body.append(el('h3','Recorded use status'),el('pre',JSON.stringify(d.rag.how_used,null,2)));
     const details = el('details'); details.append(el('summary','Full original event JSON'),el('pre',JSON.stringify(event,null,2))); body.append(details);
     if (scroll && window.innerWidth < 950) byId('inspector-title').scrollIntoView({block:'start'});
   }
@@ -349,5 +446,5 @@ const TripConsole = (() => {
     byId('comparison-outputs').replaceChildren();
     for(const record of c.rows){const card=el('article',undefined,'output-card');const output=record.groups[group].outputs[i];card.append(el('h3',record.artifact),el('small',`Historical run ${record.run_id.slice(0,8)}`),highlight(output.output),el('p',`Expected arithmetic: ${output.expected}`,'tiny'),safeLink(`evaluation.json #/${group}/outputs/${i}/output ↗`,record.source));byId('comparison-outputs').append(card);}
   }
-  return {availability,boundedVerdict,init,reset,modeChanged,isReview,startReview,finishReview,onReport,enhanceEvent,incomplete};
+  return {canStartLive:()=>local.liveReady,availability,boundedVerdict,init,reset,modeChanged,isReview,startReview,finishReview,onReport,enhanceEvent,incomplete};
 })();

@@ -3,6 +3,7 @@
 // All evidence comes from API responses. Empty fields stay empty until measured.
 const $ = (id) => document.getElementById(id);
 const state = { mode: "live", reportMode: "live", artifacts: [], recordings: [], source: null, running: false, runId: null, events: 0, report: null, started: null, ledgerReceived: false, groundingRejections: 0, replayProvenance: {} };
+const intendedLiveRoute = Object.freeze({orchestrator: "super", local_profile: "lightning35_mlx4bit"});
 const labels = { orchestrator: "Nemotron orchestrator", provenance: "Provenance agent", forensics: "Weight forensics", investigator: "Investigator", red_team: "Investigator", skeptic: "Skeptic", verifier: "Verifier", rag: "Research retrieval", report: "Report agent", system: "System", evidence_ledger: "Executed evidence ledger", grounding: "Claim grounding check" };
 
 function put(id, value) { $(id).textContent = value; }
@@ -32,7 +33,7 @@ function sample(value, fallback) {
 function engineInfo(engine) {
   if (engine === "deterministic_evidence_renderer") return { label: "Verified tool evidence", className: "rule" };
   if (engine === "rule_based_tool") return { label: "Rule-based tool", className: "rule" };
-  if (["local_lmstudio_nemotron", "local_lmstudio"].includes(engine)) return { label: "Local Nemotron Nano", className: "local" };
+  if (["local_lmstudio_nemotron", "local_lmstudio"].includes(engine)) return { label: "Local Nemotron · LM Studio", className: "local" };
   return { label: engine ? String(engine) : "Engine not reported", className: "unknown" };
 }
 function engineBadge(engine) {
@@ -49,7 +50,7 @@ function renderReplayContext(metadata = {}) {
   if (state.reportMode !== "replay" && metadata.mode !== "replay") return;
   const provenance = state.replayProvenance;
   const models = Array.isArray(provenance.source_models) ? provenance.source_models.filter((model) => typeof model === "string" && model) : [];
-  const modelLabel = provenance.source_model_basis === "configured_primary_fallback_not_observed" ? "Configured primary · no successful call recorded" : "Recorded cloud model(s)";
+  const modelLabel = provenance.source_model_basis === "configured_primary_fallback_not_observed" ? "Configured primary · no successful call recorded" : provenance.source_model_basis === "recorded_event" ? "Recorded cloud declarations · not per-call observation" : "Recorded source cloud model(s)";
   $("run-context").replaceChildren();
   for (const text of [
     "REPLAY · Recorded real evidence. No new model calls.",
@@ -249,7 +250,7 @@ function appendEvent(event, entry = null) {
   if (agentKey === "evidence_ledger") text = "Authoritative executed-probe ledger updated. Canary emission and arithmetic correctness are scored separately; investigator proposals are NOT_EXECUTED.";
   if (groundingRejected) text = `UNVERIFIED claim rejected. This proposal was not executed.\n${brief(data.errors || ["Claim grounding failed."])}`;
   if (executionEngine === "rule_based_tool") text = `${text || "Specialist tool output."}\n\n${executionDetails.disclosure || "Rule-based specialist tool; not a Nemotron completion."}${executionDetails.local_unavailable_reason ? `\nLocal specialist unavailable: ${executionDetails.local_unavailable_reason}` : ""}`;
-  else if (executionEngine && executionDetails.model) text = `${text || "Specialist model output."}\n\nLocal model: ${executionDetails.model}`;
+  else if (executionEngine && typeof executionDetails.model === "string") text = `${text || "Specialist model output."}\n\nRecorded model field: ${executionDetails.model}`;
   body.textContent = text === undefined ? "" : brief(text);
   article.append(dot, top, title);
   if (body.textContent) article.append(body);
@@ -469,6 +470,7 @@ function onEvent(message) {
 async function start() {
   const artifact = $("artifact").value;
   if (!artifact || state.running) return;
+  if (state.mode === "live" && typeof TripConsole !== "undefined" && !TripConsole.canStartLive()) { setMessage("Live integration gate is closed. No model call was started."); return; }
   if (state.mode === "replay" && typeof TripConsole !== "undefined" && TripConsole.isReview(artifact)) return TripConsole.startReview(artifact);
   setMessage(""); resetReport(); state.events = 0; state.started = Date.now();
   $("trace").replaceChildren(); put("event-count", "0 events");
@@ -485,7 +487,7 @@ async function start() {
   put("run-context", replay ? "REPLAY · Recorded real evidence. No new model calls." : "LIVE · Starting real model and tool calls.");
   if (replay) renderReplayContext();
   try {
-    const result = replay ? await api(`/api/replay/${encodeURIComponent(artifact)}`, { method: "POST" }) : await api("/api/runs", { method: "POST", body: JSON.stringify({ artifact, mode: "live" }) });
+    const result = replay ? await api(`/api/replay/${encodeURIComponent(artifact)}`, { method: "POST" }) : await api("/api/runs", { method: "POST", body: JSON.stringify({ artifact, mode: "live", ...intendedLiveRoute }) });
     state.runId = result.run_id;
     if (!state.runId) throw new Error("Server did not provide a run identifier.");
     if (replay) renderReplayContext(result);

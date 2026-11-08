@@ -7,15 +7,16 @@ const JudgeGuide = (() => {
     const decision = find(e => e.type === 'step' && e.data?.tool === 'probe');
     const probe = find(e => e.agent === 'PROBE' && Array.isArray(e.data?.outputs) && e.data.outputs.length);
     const retrieval = find(e => e.type === 'step' && e.data?.tool === 'retrieve');
-    const sources = find(e => e.agent === 'RETRIEVE' && Array.isArray(e.data?.results) && e.data.results.length);
+    const skipped = retrieval >= 0 && events[retrieval].data.args?.decision === 'skip';
+    const sources = skipped ? -1 : events.findIndex((e,i) => i > retrieval && e.agent === 'RETRIEVE' && Array.isArray(e.data?.results) && e.data.results.length);
     const skeptic = find(e => e.agent === 'SKEPTIC' && e.type === 'observation');
-    const failure = find(e => e.type === 'error');
+    const failure = find(e => e.type === 'error' || e.agent === 'SPECIALIST_INCOMPLETE' || e.agent === 'SPECIALIST_FALLBACK');
     if (decision >= 0) steps.push({title:'Follow the test decision', seconds:30, view:'trace', event:decision,
       text:'The orchestrator selects a tool and its arguments. Read Reason → Act: validated evidence summaries are labeled separately from model rationale. Per-action model identity is shown only when recorded.'});
     if (probe >= 0) steps.push({title:'Read the actual output', seconds:30, view:'trace', event:probe,
       text:'Inspect the original prompt and exact output span in the source inspector. The canary is harmless. The raw JSONL link lets you check the evidence behind the claim.'});
-    if (retrieval >= 0) steps.push({title:'See when the agent retrieves', seconds:30, view:'trace', event:retrieval, extra:sources,
-      text:'RETRIEVE marks an actual agent choice to consult evidence. Open its query, then the returned sources and scores. No deliberate skip or source-use claim is inferred from missing fields.'});
+    if (retrieval >= 0) steps.push({title:skipped ? 'See why retrieval was skipped' : 'See when the agent retrieves', seconds:30, view:'trace', event:retrieval, extra:sources,
+      text:skipped ? 'This is an explicit skip with a recorded reason code and null query. No search or source use is inferred. Inspect later declared use separately; declarations do not prove causal benefit.' : 'RETRIEVE marks an actual agent choice to consult evidence. Open its query, then the returned sources and scores. No deliberate skip or source-use claim is inferred from missing fields.'});
     if (comparisonAvailable) steps.push({title:'Compare the same held-out probe', seconds:35, view:'comparison',
       text:'One identical input, three raw outputs: base, benign, and poisoned. Counts are recomputed from saved outputs. These are historical related controls on an already-seen suite, not population detection accuracy.'});
     if (skeptic >= 0) steps.push({title:knownIssue ? 'Catch the limit of agent reasoning' : 'Inspect the skeptical review', seconds:30, view:'trace', event:skeptic,
