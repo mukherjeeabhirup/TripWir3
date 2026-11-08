@@ -191,9 +191,9 @@ test('tier policy holds on error terminals stay separate from operational INCOMP
  }
 });
 test('native context stays literal at 32000 and larger fresh pins without an exact 32768 claim',async()=>{
- for(const context of [32000,65536]){
+ for(const context of [32000,65536,256000]){
   const c=await boot({completedReport:{...report,local_model_preflight:{loaded_instance:{instance_id:instance,runtime_context_tokens:context}}}});try{
-   const intent=c.w.document.querySelector('.intended-stack').textContent;assert.match(intent,/Minimum runtime context32000/);assert.ok(!intent.includes('32768'));
+   const intent=c.w.document.querySelector('.intended-stack').textContent;assert.match(intent,/Minimum runtime context65536/);assert.ok(!intent.includes('32768'));
    c.$('judge-explore').click();await until(()=>!c.$('judge-home').disabled&&!c.$('audit-workspace').hidden);
    assert.ok(c.$('routing-body').textContent.includes(`"runtime_context_tokens": ${context}`));assert.deepEqual(c.errors,[]);
   }finally{c.dom.window.close();}

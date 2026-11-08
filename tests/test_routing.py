@@ -18,15 +18,15 @@ from test_decision_audit import reclose
 INSTANCE='USER-LOADED-LIGHTNING-INSTANCE-7'  # Not guessed from artifact spelling.
 
 
-def native(*,loaded=True,context=32768):
+def native(*,loaded=True,context=65536):
     return {'models':[{'type':'llm','key':'mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit','format':'mlx',
         'loaded_instances':[{'id':INSTANCE,'config':{'context_length':context}}] if loaded else []}]}
 
 
-def readiness():
-    profile=local_profile('lightning35_mlx4bit')
+def readiness(legacy=False):
+    profile=local_profile('lightning35_mlx4bit',budget_policy_version=1 if legacy else 2)
     return {'status':'ready','model':INSTANCE,'requested_model':INSTANCE,'observed_model':INSTANCE,
-        'local_profile':profile,'loaded_instance':select_loaded_instance(native(),profile),
+        'local_profile':profile,'loaded_instance':select_loaded_instance(native(context=32768 if legacy else 65536),profile),
         'provider':'lm_studio','base_url':LOCAL_URL,'selection':{'selected_id':INSTANCE,'candidate_count':1},
         'models_http_status':200,'completion_http_status':200,'answer_verified':True}
 
@@ -34,7 +34,7 @@ def readiness():
 def routed_recording():
     report,events=new_recording()
     # Historical exact-response policy fixture; new producer fixtures add raw sidecars.
-    config=route_config('super','lightning35_mlx4bit',policy_version=1);ready=readiness();routes=pinned_routes(config,ready)
+    config=route_config('super','lightning35_mlx4bit',policy_version=1,local_budget_policy_version=1);ready=readiness(legacy=True);routes=pinned_routes(config,ready)
     report['local_model_preflight']=ready;report['model_routing']=routes;report['cloud_route_classification']='pure_primary'
     inputs=report['run_signature']['inputs'];inputs.update(model_routing=routes,configured_model_routing=config,cloud_primary=SUPER,cloud_fallback=None)
     inputs['sources']['model_customs/routing.py']=hashlib.sha256(Path('model_customs/routing.py').read_bytes()).hexdigest()
@@ -102,7 +102,7 @@ def test_native_loaded_state_precedes_exact_instance_tiny_completion(monkeypatch
     monkeypatch.setattr(local_model,'local_api_key',lambda:'fixture-credential')
     monkeypatch.setattr(local_model.httpx,'AsyncClient',lambda **kw:client(transport=httpx.MockTransport(handler),**kw))
     async def run():
-        if case in {'ready','native_32000','larger_256k'}:
+        if case in {'ready','larger_256k'}:
             result=await local_model.preflight_local_model('lightning35_mlx4bit')
             assert valid_local_preflight(result,local_profile('lightning35_mlx4bit'))
             assert result['loaded_instance']['runtime_context_tokens']==data['models'][0]['loaded_instances'][0]['config']['context_length']
@@ -113,7 +113,7 @@ def test_native_loaded_state_precedes_exact_instance_tiny_completion(monkeypatch
                 assert exc.value.evidence['observed_model']=='WRONG SERVING ID'
             assert 'fixture-credential' not in json.dumps(exc.value.evidence)
     asyncio.run(run())
-    assert len(requests)==(2 if case in {'ready','native_32000','larger_256k','wrong_served'} else 1)
+    assert len(requests)==(2 if case in {'ready','larger_256k','wrong_served'} else 1)
 
 
 def test_unrelated_first_model_never_selected_and_no_arbitrary_id_guess():
@@ -162,7 +162,7 @@ def test_route_snapshot_and_native_context_bind_resume_and_cache_identity():
     from scripts.run_audit import source_identity
     config=route_config('super','lightning35_mlx4bit');ready=readiness()
     first=source_identity(config,ready)
-    changed=deepcopy(ready);changed['loaded_instance']['runtime_context_tokens']=65536
+    changed=deepcopy(ready);changed['loaded_instance']['runtime_context_tokens']=131072
     assert first!=source_identity(config,changed)
     changed=deepcopy(ready);changed['requested_model']='NEW INSTANCE';changed['observed_model']='NEW INSTANCE';changed['model']='NEW INSTANCE'
     changed['selection']['selected_id']='NEW INSTANCE';changed['loaded_instance']['instance_id']='NEW INSTANCE'
@@ -202,7 +202,7 @@ def test_changed_loaded_context_cannot_be_used_by_pinned_role(monkeypatch):
     async def run():
         role=Specialists(profile='lightning35_mlx4bit',preflight=readiness())
         await role.client.aclose()
-        role.client=httpx.AsyncClient(transport=httpx.MockTransport(lambda request:httpx.Response(200,json=native(context=65536))))
+        role.client=httpx.AsyncClient(transport=httpx.MockTransport(lambda request:httpx.Response(200,json=native(context=131072))))
         monkeypatch.setattr('model_customs.specialists.local_api_key',lambda:'fixture-credential')
         with pytest.raises(LocalModelNeeded):await role.ask('SKEPTIC','JSON',{},fallback={})
         assert role.calls==[]
@@ -228,7 +228,7 @@ def test_route_snapshot_types_and_configured_aliases_are_strict(mutate):
 def test_explicit_cloud_fallback_remains_mixed_not_pure_super():
     from test_agent_trace import CALL
     report,events=routed_recording()
-    config=route_config('super','lightning35_mlx4bit',fallback_model=ULTRA,policy_version=1)
+    config=route_config('super','lightning35_mlx4bit',fallback_model=ULTRA,policy_version=1,local_budget_policy_version=1)
     routes=pinned_routes(config,report['local_model_preflight'])
     report['model_routing']=routes;report['cloud_route_classification']='mixed_or_fallback'
     inputs=report['run_signature']['inputs'];inputs.update(model_routing=routes,configured_model_routing=config,cloud_fallback=ULTRA)
@@ -283,12 +283,12 @@ def test_oversized_prompt_is_incomplete_without_trimming_http_or_rule_output(mon
     async def run():
         role=Specialists(profile='lightning35_mlx4bit',preflight=readiness())
         await role.client.aclose();role.client=httpx.AsyncClient(transport=httpx.MockTransport(forbidden));role.on_fallback=notice
-        evidence={'untrimmed_evidence':'x'*100000}
+        evidence={'untrimmed_evidence':'x'*220000}
         with pytest.raises(SpecialistIncomplete):await role.ask('SKEPTIC','Full evidence required',evidence,fallback={'fake':'forbidden'})
-        assert evidence['untrimmed_evidence']=='x'*100000 and not role.calls and not role.raw_responses
+        assert evidence['untrimmed_evidence']=='x'*220000 and not role.calls and not role.raw_responses
         assert notices[0]['status']=='INCOMPLETE' and notices[0]['reason']=='context_overflow'
-        assert notices[0]['context_budget']['runtime_context_tokens']==32768
-        assert notices[0]['context_budget']['estimated_total_tokens']>32768
+        assert notices[0]['context_budget']['runtime_context_tokens']==65536
+        assert notices[0]['context_budget']['estimated_total_tokens']>65536
         assert notices[0]['fallback_executed'] is False and notices[0]['completion_requested'] is False
         await role.close()
     asyncio.run(run());assert not requests
@@ -304,7 +304,7 @@ def test_overflow_source_event_is_incomplete_and_never_claims_a_model_response(t
         audit=Investigation(RID,'base',TestControls(),emit,cloud=TestCloud(),runs_root=tmp_path,
                             model_identity_provider=fixture_identity,routing=route_config('super','lightning35_mlx4bit'))
         audit.specialists.pin(readiness())
-        with pytest.raises(SpecialistIncomplete):await audit.specialists.ask('SKEPTIC','JSON',{'evidence':'x'*100000},fallback={})
+        with pytest.raises(SpecialistIncomplete):await audit.specialists.ask('SKEPTIC','JSON',{'evidence':'x'*220000},fallback={})
         assert events[0]['agent']=='SPECIALIST_INCOMPLETE'
         assert events[0]['data']['factual_grounding']=={'status':'INCOMPLETE','passed':False,'checked':0,'total':1,'errors':['context_overflow']}
         assert events[1]['data']['model']['observed'] is None
@@ -328,20 +328,20 @@ def test_rule_based_substitution_cannot_be_enabled_by_old_constructor_flag():
     with pytest.raises(ValueError):Specialists(strict=False)
 
 
-def test_overflow_guard_uses_actual_32000_pin_not_old32768_interpretation():
+def test_overflow_guard_uses_actual_65536_pin_not_model_capability():
     from model_customs.specialists import Specialists,SpecialistIncomplete
-    ready=readiness();ready['loaded_instance']['runtime_context_tokens']=32000
+    ready=readiness();ready['loaded_instance']['runtime_context_tokens']=65536
     notices=[];requests=[]
     async def notice(value):notices.append(value)
     def forbidden(request):requests.append(request);raise AssertionError('Overflow must stop before HTTP')
     async def run():
         role=Specialists(profile='lightning35_mlx4bit',preflight=ready)
         await role.client.aclose();role.client=httpx.AsyncClient(transport=httpx.MockTransport(forbidden));role.on_fallback=notice
-        evidence={'untrimmed_evidence':'x'*90000}
+        evidence={'untrimmed_evidence':'x'*150000}
         with pytest.raises(SpecialistIncomplete):await role.ask('REPORT','Full evidence required',evidence,fallback={})
         budget=notices[0]['context_budget']
-        assert budget['runtime_context_tokens']==32000
-        assert 32000<budget['estimated_total_tokens']<=32768
-        assert evidence['untrimmed_evidence']=='x'*90000 and not role.calls
+        assert budget['runtime_context_tokens']==65536
+        assert 65536<budget['estimated_total_tokens']<131072
+        assert evidence['untrimmed_evidence']=='x'*150000 and not role.calls
         await role.close()
     asyncio.run(run());assert not requests

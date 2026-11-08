@@ -39,6 +39,16 @@ def recorded():
     return json.loads((FIXTURES / '3f078d75-case.json').read_text())
 
 
+def current_runtime_fixture(recorded):
+    # Synthetic fresh-policy runtime only; original historical JSON is unchanged.
+    from model_customs.routing import local_profile
+    value=deepcopy(recorded)
+    value['preflight']['local_profile']=local_profile('lightning35_mlx4bit')
+    value['preflight']['loaded_instance']['runtime_context_tokens']=65536
+    value['native_loaded_state']['models'][0]['loaded_instances'][0]['config']['context_length']=65536
+    return value
+
+
 def echo():
     return (FIXTURES / '3f078d75-schema-echo.txt').read_text()
 
@@ -91,6 +101,7 @@ def test_new_prompt_shows_instance_and_preserves_refs_without_schema_or_fake_ids
 @pytest.mark.parametrize('case', ['echo', 'valid', 'missing', 'extra', 'string_echo', 'malformed',
                                  'length_echo', 'length_instance', 'wrong_model', 'timeout'])
 def test_wire_retains_request_and_response_then_fails_closed(recorded, case):
+    recorded=current_runtime_fixture(recorded)
     content = instance(recorded)
     if case == 'missing': content.pop('rationale')
     if case == 'extra': content['unsupported'] = 'never silently remove fields'
@@ -204,23 +215,25 @@ def test_valid_schema_does_not_override_event_identity_verification(recorded):
 
 
 def test_investigator_overflow_is_incomplete_without_state_or_completion_call(recorded):
+    recorded=current_runtime_fixture(recorded)
     async def run():
         specialist = Specialists(profile='lightning35_mlx4bit', preflight=recorded['preflight'])
         await specialist.client.aclose()
         def forbidden(request): raise AssertionError('No HTTP on overflow')
         specialist.client = httpx.AsyncClient(transport=httpx.MockTransport(forbidden))
-        evidence = {**recorded['evidence'], 'untrimmed': 'x' * 100000}
+        evidence = {**recorded['evidence'], 'untrimmed': 'x' * 210000}
         try:
             with pytest.raises(SpecialistIncomplete):
                 await specialist.ask('INVESTIGATOR', INSTRUCTION, evidence, fallback=instance(recorded))
             assert not specialist.calls and not specialist.raw_requests and not specialist.raw_responses
-            assert len(evidence['untrimmed']) == 100000
+            assert len(evidence['untrimmed']) == 210000
         finally:
             await specialist.close()
     asyncio.run(run())
 
 
 def test_failed_capture_persists_echo_and_request_and_has_no_report(tmp_path, monkeypatch, recorded):
+    recorded=current_runtime_fixture(recorded)
     from scripts import run_audit
     from model_customs.orchestrator import Investigation
     class Controls:

@@ -95,8 +95,13 @@ class TraceAudit(Investigation):
         async def collect(event):
             self.events.append(deepcopy(event))
             if emit is not None: await emit(event)
+        # Synthetic runtime pin under current policy; retained recorded fixture is untouched.
+        from model_customs.routing import local_profile
+        current_preflight=deepcopy(recorded['preflight'])
+        current_preflight['local_profile']=local_profile('lightning35_mlx4bit')
+        current_preflight['loaded_instance']['runtime_context_tokens']=65536
         super().__init__(run_id, 'poisoned', FixtureControls(), collect,
-                         cloud=cloud, runs_root=root, local_preflight=recorded['preflight'],
+                         cloud=cloud, runs_root=root, local_preflight=current_preflight,
                          routing=cloud.routing, risk_tier='standard',
                          model_identity_provider=lambda *args: {'test_disclosure':'NO MODEL FILES'})
 
@@ -301,7 +306,7 @@ def test_real_specialist_timeout_stops_synthetic_continuation_without_fallback(r
             if request.method == 'GET':
                 return httpx.Response(200, json={'models':[{
                     'type':'llm','key':loaded['model_key'],'format':'mlx','quantization':loaded['quantization'],
-                    'loaded_instances':[{'id':loaded['instance_id'],'config':{'context_length':32000}}]}]})
+                    'loaded_instances':[{'id':loaded['instance_id'],'config':{'context_length':65536}}]}]})
             posts.append(request)
             raise httpx.ReadTimeout('UNTRUSTED timeout body must not be exposed', request=request)
         audit.specialists.client = httpx.AsyncClient(transport=httpx.MockTransport(handler))

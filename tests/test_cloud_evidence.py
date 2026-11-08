@@ -20,7 +20,7 @@ from test_agent_trace import RID
 
 def current_recording(observed=SUPER_SERVICE_ID):
     report,events=routed_recording()
-    config=route_config('super','lightning35_mlx4bit');routes=pinned_routes(config,report['local_model_preflight'])
+    config=route_config('super','lightning35_mlx4bit',local_budget_policy_version=1);routes=pinned_routes(config,report['local_model_preflight'])
     inputs=report['run_signature']['inputs'];inputs.update(configured_model_routing=config,model_routing=routes)
     inputs['sources']['model_customs/cloud_evidence.py']=hashlib.sha256(Path('model_customs/cloud_evidence.py').read_bytes()).hexdigest()
     report['model_routing']=deepcopy(routes);events[0]['data']['model_routing']=deepcopy(routes)
@@ -231,7 +231,7 @@ def test_shared_admission_recomputes_policy_raw_coverage_and_candidate(case):
     elif case=='manifest_delete':report.pop('cloud_response_manifest')
     elif case=='source_manifest_delete':accounting.pop('cloud_response_manifest')
     elif case=='policy_downgrade':
-        old=route_config('super','lightning35_mlx4bit',policy_version=1);routes=pinned_routes(old,report['local_model_preflight'])
+        old=route_config('super','lightning35_mlx4bit',policy_version=1,local_budget_policy_version=1);routes=pinned_routes(old,report['local_model_preflight'])
         inputs.update(configured_model_routing=old,model_routing=deepcopy(routes))
         report['model_routing']=routes;events[0]['data']['model_routing']=deepcopy(routes)
         report.pop('cloud_response_manifest');accounting.pop('cloud_response_manifest')

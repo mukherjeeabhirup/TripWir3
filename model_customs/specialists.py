@@ -2,13 +2,14 @@
 import json
 from copy import deepcopy
 import time
-import math
 import hashlib
+import asyncio
 import httpx
-from .claims import specialist_schema, valid_specialist_result, decode_specialist_content
+from .claims import valid_specialist_result, decode_specialist_content
 from .config import load_env
 from .local_model import LocalModelNeeded, local_api_key, no_thinking_prompt
 from .routing import LOCAL_URL,LOCAL_MODELS_URL,local_profile,select_loaded_instance,valid_local_preflight,route_equal
+from .specialist_budget import context_budget
 
 
 def specialist_prompt(role,instruction,evidence):
@@ -26,9 +27,30 @@ def specialist_prompt(role,instruction,evidence):
                  'Copy identity_refs verbatim from evidence.identity_refs. Proposals are NOT_EXECUTED. '
                  'Do not return schema keys such as type, properties, required, or $schema.')
         user={'evidence':evidence,'response_example':example}
-    else:
-        system+=' Follow this exact response schema: '+json.dumps(specialist_schema(role))
-        user=evidence
+    elif role=='SKEPTIC':
+        review=deepcopy(evidence.get('required_review',{'claim_rows':[],'observed_variants':[],'support_refs':[],'claim_links':[]}))
+        review['countertests']=[]
+        example={'alternative_explanations':['expected_lora_rank'],'counterexamples_to_test':[],
+                 'limitations':['known_intake','toy_tasks','uncalibrated_weights','unexecuted_proposals'],
+                 'assessment':'verification_required','typed_review':review}
+        system+=(' Produce a populated result instance, never a JSON Schema. Return exactly alternative_explanations, '
+                 'counterexamples_to_test, limitations, assessment, typed_review. The response_example illustrates syntax, '
+                 'not a required conclusion or countertest selection. Copy required_review claim_rows, observed_variants, '
+                 'support_refs and claim_links exactly into typed_review. Add only NOT_EXECUTED typed countertests using '
+                 'the supplied identities; counterexamples_to_test must list their kinds in order. '
+                 'alternative_explanations values: task_degradation, generic_marker_emission, expected_lora_rank, literal_specificity. '
+                 'limitations values: known_intake, toy_tasks, uncalibrated_weights, unexecuted_proposals. '
+                 'assessment: verification_required or observed_tests_only. No type/properties/required/$schema keys. '
+                 'Do not repeat the example or the evidence as a schema; output only the single result object.')
+        user={'evidence':evidence,'response_example':example}
+    elif role=='REPORT':
+        example={'claim_rows':deepcopy(evidence.get('required_claim_rows',[])),'scope':'tested_prompts_only'}
+        system+=(' Produce exactly the populated result object shown by response_example: copy required_claim_rows '
+                 'verbatim and scope:tested_prompts_only. No schema, prose, added rows or changed numbers. '
+                 'This remains an unverified model draft; deterministic validators and rendering are separate. '
+                 'Do not return type/properties/required/$schema keys.')
+        user={'evidence':evidence,'response_example':example}
+    else:raise ValueError('Unsupported specialist role')
     return no_thinking_prompt(system,json.dumps(user))
 
 
@@ -72,10 +94,7 @@ class Specialists:
         prompt=specialist_prompt(role,instruction,evidence)
         budget=None
         if self.loaded_instance is not None:
-            budget={'estimate_method':'ceil_chars_div3','prompt_characters':len(prompt),
-                    'estimated_prompt_tokens':math.ceil(len(prompt)/3),'max_completion_tokens':2048,
-                    'runtime_context_tokens':self.loaded_instance['runtime_context_tokens']}
-            budget['estimated_total_tokens']=budget['estimated_prompt_tokens']+budget['max_completion_tokens']
+            budget=context_budget(role,prompt,self.loaded_instance['runtime_context_tokens'])
             if budget['estimated_total_tokens']>budget['runtime_context_tokens']:
                 notice={'status':'INCOMPLETE','reason':'context_overflow','summary':'Specialist INCOMPLETE — context_overflow; evidence was not trimmed.',
                         'role':role,'model':self.model,'engine':'local_lmstudio_nemotron','provider':'lm_studio','base_url':LOCAL_URL,
@@ -95,11 +114,12 @@ class Specialists:
                     raise ValueError('Pinned local instance/context changed or was not preflighted')
                 started=time.monotonic()
                 call={'role':role,'engine':'local_lmstudio','model':None,'requested_model':self.model,'observed_model':None,'status':'in_flight','endpoint':'/v1/completions','thinking_mode':'explicit_nvidia_template_disabled',
-                      'context_budget':deepcopy(budget),'loaded_state_http_status':200,'local_profile':deepcopy(self.profile),'loaded_instance':deepcopy(self.loaded_instance),'provider':'lm_studio','base_url':LOCAL_URL}
+                      'context_budget':deepcopy(budget),'request_timeout_seconds':budget['request_timeout_seconds'],
+                      'loaded_state_http_status':200,'local_profile':deepcopy(self.profile),'loaded_instance':deepcopy(self.loaded_instance),'provider':'lm_studio','base_url':LOCAL_URL}
                 self.calls.append(call)
                 request=self.client.build_request('POST',LOCAL_URL+'/completions',
                     headers={'Authorization':'Bearer '+local_api_key()},
-                    json={'model':self.model,'temperature':0.1,'max_tokens':2048,'stream':False,
+                    json={'model':self.model,'temperature':0.1,'max_tokens':budget['max_completion_tokens'],'stream':False,
                           'stop':['<|im_end|>'],
                           'prompt':prompt})
                 # Preserve the exact serialized body before dispatch. No headers
@@ -108,7 +128,9 @@ class Specialists:
                 self.raw_requests.append({'call_index':len(self.calls)-1,'endpoint':'/v1/completions',
                                           'body':request.content.decode('utf-8'),'sha256':call['request_sha256']})
                 if getattr(self,'on_call',None):self.on_call()
-                r=await self.client.send(request)
+                timeout=budget['request_timeout_seconds']
+                request.extensions['timeout']=httpx.Timeout(timeout,connect=10,write=30,pool=10).as_dict()
+                r=await asyncio.wait_for(self.client.send(request),timeout=timeout)
                 call['status']=r.status_code
                 call['response_http_status']=r.status_code
                 call['elapsed_seconds']=round(time.monotonic()-started,3)
@@ -127,7 +149,9 @@ class Specialists:
                                                'loaded_state_http_status':200,'local_profile':deepcopy(self.profile),'loaded_instance':deepcopy(self.loaded_instance),'provider':'lm_studio','base_url':LOCAL_URL})
                     call.update({'finish_reason':choice.get('finish_reason'),
                                  'content_characters':len(raw_content) if isinstance(raw_content,str) else 0,
-                                 'usage':{k:v for k,v in payload.get('usage',{}).items() if k in {'prompt_tokens','completion_tokens','total_tokens','completion_tokens_details'}}})
+                                 'usage':{k:v for k,v in payload.get('usage',{}).items() if k in {'prompt_tokens','completion_tokens','total_tokens','completion_tokens_details'}},
+                                 'reasoning_fields_present':sorted(k for k in ['reasoning_content','reasoning'] if k in choice or k in payload),
+                                 'visible_think_tags':isinstance(raw_content,str) and ('<think>' in raw_content or '</think>' in raw_content)})
                     if getattr(self,'on_call',None):self.on_call()
                     if choice.get('finish_reason')=='length':
                         call['failure_category']='completion_token_limit'
@@ -142,10 +166,10 @@ class Specialists:
                     call['schema_validated']=True
                     if getattr(self,'on_call',None):self.on_call()
                     return {**result,'engine':'local_lmstudio_nemotron','model':self.model}
-            except (httpx.HTTPError,ValueError,KeyError,IndexError,AttributeError,TypeError) as exc:
+            except (httpx.HTTPError,TimeoutError,ValueError,KeyError,IndexError,AttributeError,TypeError) as exc:
                 if call is not None:
                     call['failure_category']=call.get('failure_category',getattr(exc,'category',
-                        'timeout' if isinstance(exc,httpx.TimeoutException) else 'transport' if isinstance(exc,httpx.HTTPError) else 'response_parse'))
+                        'timeout' if isinstance(exc,(httpx.TimeoutException,TimeoutError)) else 'transport' if isinstance(exc,httpx.HTTPError) else 'response_parse'))
                     call['status']='transport_or_parse_error'
                     call['elapsed_seconds']=round(time.monotonic()-started,3)
                     if getattr(self,'on_call',None):self.on_call()

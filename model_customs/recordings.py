@@ -119,8 +119,21 @@ def accepted_real_recording(report, events, run_id: str, *, cloud_responses=None
                or c.get('base_url')!=routes['local']['base_url'] or not route_equal(c.get('loaded_instance'),routes['local']['loaded_instance']) or c.get('endpoint')!='/v1/completions'
                or type(c.get('loaded_state_http_status')) is not int or c.get('loaded_state_http_status')!=200 for c in (calls if isinstance(calls,list) else [])+(records if isinstance(records,list) else [])):
             errors.append('local_routing_attempt_mismatch')
-        if any(not valid_context_budget(c.get('context_budget'),routes['local']['loaded_instance']['runtime_context_tokens']) for c in (calls if isinstance(calls,list) else []) if isinstance(c,dict)):
+        budget_version=profile.get('specialist_budget_policy_version',1)
+        if any(not valid_context_budget(c.get('context_budget'),routes['local']['loaded_instance']['runtime_context_tokens'],role=c.get('role'),policy_version=budget_version) for c in (calls if isinstance(calls,list) else []) if isinstance(c,dict)):
             errors.append('local_context_budget_mismatch')
+        if budget_version==2:
+            from .specialist_budget import valid_wire_request
+            requests=report.get('specialist_provider_requests')
+            if not isinstance(requests,list) or len(requests)!=3 or not isinstance(calls,list) or len(calls)!=3:
+                errors.append('specialist_wire_budget_binding_required')
+            else:
+                indices=[]
+                for request in requests:
+                    index=request.get('call_index') if isinstance(request,dict) else None
+                    if type(index) is not int or index not in range(3) or index in indices or not valid_wire_request(request,calls[index],expected_model):
+                        errors.append('specialist_wire_budget_binding_mismatch')
+                    indices.append(index)
     if not isinstance(records,list) or not isinstance(calls,list) or len(records)!=3 or len(calls)!=3:
         errors.append('raw_specialist_responses_required')
     else:

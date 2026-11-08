@@ -114,7 +114,7 @@ def test_local_success_requires_stop_and_role_schema_with_separate_http_diagnost
         body=json.loads(request.content)
         assert request.url.path=='/v1/completions'
         assert body['prompt'].endswith('<|im_start|>assistant\n<think></think>')
-        assert body['max_tokens']==2048
+        assert body['max_tokens']==16384
         if case=='timeout':raise httpx.ReadTimeout('TEST ONLY sensitive body must not be logged',request=request)
         return httpx.Response(200,json={'model':LOCAL_MODEL,'choices':[{'finish_reason':'length' if case=='length_valid_json' else 'stop','text':json.dumps(payload)}],
                                       'usage':{'completion_tokens':10}})

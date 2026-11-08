@@ -3,7 +3,6 @@ from copy import deepcopy
 import os
 import re
 import json
-import math
 
 CLOUD_URL='https://integrate.api.nvidia.com/v1'
 LOCAL_URL='http://127.0.0.1:1234/v1'
@@ -26,22 +25,28 @@ def route_equal(left,right):
     except (TypeError,ValueError,OverflowError):return False
 
 
-def local_profile(name=None):
+def local_profile(name=None, *, budget_policy_version=2):
     name=name or os.getenv('TRIPWIR3_LOCAL_PROFILE','lightning35_mlx4bit')
     if name not in LOCAL_PROFILES:raise ValueError('Unsupported local specialist profile')
-    return {'profile':name,**deepcopy(LOCAL_PROFILES[name]),'provider':'lm_studio','base_url':LOCAL_URL,
+    if type(budget_policy_version) is not int or budget_policy_version not in {1,2}:raise ValueError('Unsupported local budget policy')
+    fields=deepcopy(LOCAL_PROFILES[name])
+    if budget_policy_version==2:
+        from .specialist_budget import MIN_LIGHTNING_CONTEXT
+        fields['specialist_budget_policy_version']=2
+        if name=='lightning35_mlx4bit':fields['intended_context_tokens']=MIN_LIGHTNING_CONTEXT
+    return {'profile':name,**fields,'provider':'lm_studio','base_url':LOCAL_URL,
             'selection_policy':'unique_native_loaded_instance','observed_identity_policy':'exact_requested_id',
             'checkpoint_equivalence_verified':False}
 
 
-def route_config(orchestrator=None,specialist=None,fallback_model=None,*,policy_version=2):
+def route_config(orchestrator=None,specialist=None,fallback_model=None,*,policy_version=2,local_budget_policy_version=2):
     name=orchestrator or os.getenv('TRIPWIR3_ORCHESTRATOR_PROFILE','super')
     if name not in CLOUD_PROFILES:raise ValueError('Unsupported orchestrator profile')
     if fallback_model not in {None,SUPER,ULTRA,HOSTED_LIGHTNING}:raise ValueError('Unsupported explicit fallback')
     if type(policy_version) is not int or policy_version not in {1,2}:raise ValueError('Unsupported route policy version')
     result={'schema_version':policy_version,'cloud':{'profile':name,'provider':'nvidia_integrate','base_url':CLOUD_URL,
             'model':CLOUD_PROFILES[name],'fallback_model':fallback_model,'observed_identity_policy':'exact_requested_id'},
-            'local':local_profile(specialist)}
+            'local':local_profile(specialist,budget_policy_version=local_budget_policy_version)}
     if policy_version==2:
         from .cloud_evidence import response_policy
         result['cloud'].update(observed_identity_policy='versioned_service_response_id',
@@ -95,7 +100,7 @@ def valid_local_preflight(result,expected=None):
     profile=result.get('local_profile')
     if expected is not None and not route_equal(profile,expected):return False
     try:
-        if not isinstance(profile,dict) or not route_equal(profile,local_profile(profile['profile'])):return False
+        if not isinstance(profile,dict) or not route_equal(profile,local_profile(profile['profile'],budget_policy_version=profile.get('specialist_budget_policy_version',1))):return False
         state=result.get('loaded_instance',{})
         if set(state)!={'model_key','instance_id','runtime_context_tokens','format','quantization','native_api'}:return False
         if not matches_profile(state.get('model_key'),profile) or state.get('instance_id')!=selected:return False
@@ -116,7 +121,7 @@ def valid_local_preflight(result,expected=None):
 
 
 def pinned_routes(config,preflight):
-    if not route_equal(config,route_config(config['cloud']['profile'],config['local']['profile'],config['cloud']['fallback_model'],policy_version=config.get('schema_version'))):raise ValueError('Invalid configured route')
+    if not route_equal(config,route_config(config['cloud']['profile'],config['local']['profile'],config['cloud']['fallback_model'],policy_version=config.get('schema_version'),local_budget_policy_version=config['local'].get('specialist_budget_policy_version',1))):raise ValueError('Invalid configured route')
     if not valid_local_preflight(preflight,config['local']):raise ValueError('Invalid intended local preflight')
     return {**deepcopy(config),'local':{**deepcopy(config['local']),'selected_id':preflight['requested_model'],
                                       'loaded_instance':deepcopy(preflight['loaded_instance'])}}
@@ -136,18 +141,14 @@ def recorded_routes(report):
         return None
     if 'model_customs/cloud_evidence.py' in inputs.get('sources',{}) and routes.get('schema_version')!=2:
         raise ValueError('Current producer cannot downgrade response policy')
-    configured=route_config(routes['cloud']['profile'],routes['local']['profile'],routes['cloud']['fallback_model'],policy_version=routes.get('schema_version'))
+    if 'model_customs/specialist_budget.py' in inputs.get('sources',{}) and routes['local'].get('specialist_budget_policy_version')!=2:
+        raise ValueError('Current producer cannot downgrade specialist budgets')
+    configured=route_config(routes['cloud']['profile'],routes['local']['profile'],routes['cloud']['fallback_model'],policy_version=routes.get('schema_version'),local_budget_policy_version=routes['local'].get('specialist_budget_policy_version',1))
     if not route_equal(inputs.get('configured_model_routing'),configured):raise ValueError('Configured route signature mismatch')
     if not route_equal(routes,pinned_routes(configured,report['local_model_preflight'])):raise ValueError('Recorded route/preflight mismatch')
     return routes
 
 
-def valid_context_budget(budget,context):
-    if not isinstance(budget,dict) or set(budget)!={'estimate_method','prompt_characters','estimated_prompt_tokens','max_completion_tokens','runtime_context_tokens','estimated_total_tokens'}:return False
-    fields=['prompt_characters','estimated_prompt_tokens','max_completion_tokens','runtime_context_tokens','estimated_total_tokens']
-    if any(type(budget.get(k)) is not int or budget[k]<0 for k in fields):return False
-    return (budget['estimate_method']=='ceil_chars_div3' and budget['prompt_characters']>0
-            and budget['estimated_prompt_tokens']==math.ceil(budget['prompt_characters']/3)
-            and budget['max_completion_tokens']==2048 and budget['runtime_context_tokens']==context
-            and budget['estimated_total_tokens']==budget['estimated_prompt_tokens']+2048
-            and budget['estimated_total_tokens']<=context)
+def valid_context_budget(budget,context,*,role=None,policy_version=None):
+    from .specialist_budget import valid_budget
+    return valid_budget(budget,context,role=role,policy_version=policy_version)
