@@ -15,7 +15,7 @@ NANO_ID='nvidia-nemotron-3-nano-30b-a3b-mlx'
 CLOUD_PROFILES={'super':SUPER,'ultra':ULTRA}
 LOCAL_PROFILES={
     'lightning35_mlx4bit':{'artifact':'mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit',
-        'family':'nemotron-3.5-lightning-30b-a3b','intended_context_tokens':32768},
+        'family':'nemotron-3.5-lightning-30b-a3b','intended_context_tokens':32000},
     'nano3_mlx':{'artifact':'nvidia-nemotron-3-nano-30b-a3b-mlx',
         'family':'nemotron-3-nano-30b-a3b','intended_context_tokens':None},
 }
@@ -75,7 +75,7 @@ def select_loaded_instance(payload,profile):
             config=instance.get('config',{});context=config.get('context_length')
             if type(context) is not int or context<1:raise ValueError('Unknown runtime context')
             intended=profile['intended_context_tokens']
-            if intended and context!=intended:raise ValueError('Loaded runtime context differs from selected run')
+            if intended and context<intended:raise ValueError('Loaded runtime context below selected profile minimum')
             matches.append({'model_key':model['key'],'instance_id':instance['id'],'runtime_context_tokens':context,
                             'format':model['format'],'quantization':deepcopy(quant),'native_api':'/api/v1/models'})
     if len(matches)!=1:raise ValueError('Intended model is unloaded or loaded instances are ambiguous')
@@ -94,7 +94,7 @@ def valid_local_preflight(result,expected=None):
         if not matches_profile(state.get('model_key'),profile) or state.get('instance_id')!=selected:return False
         context=state.get('runtime_context_tokens')
         if type(context) is not int or context<1 or state.get('native_api')!='/api/v1/models' or state.get('format')!='mlx':return False
-        if profile['intended_context_tokens'] and context!=profile['intended_context_tokens']:return False
+        if profile['intended_context_tokens'] and context<profile['intended_context_tokens']:return False
         # Apply the same declared native format/quantization checks to replay.
         replay={'models':[{'key':state['model_key'],'type':'llm','format':state['format'],'quantization':state['quantization'],
                           'loaded_instances':[{'id':selected,'config':{'context_length':context}}]}]}

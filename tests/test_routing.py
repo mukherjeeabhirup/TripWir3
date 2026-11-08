@@ -69,18 +69,20 @@ def test_default_super_ignores_old_ultra_model_env_and_has_no_silent_fallback(mo
     assert route_config('ultra')['cloud']['model']==ULTRA
 
 
-@pytest.mark.parametrize('case',['ready','unloaded','unknown_native','missing_instances','ambiguous','wrong_profile',
-    'wrong_served','unknown_context','short_context','obsolete_256k','boolean_context','wrong_format','wrong_quant_8bit','wrong_quant_gguf'])
+@pytest.mark.parametrize('case',['ready','native_32000','unloaded','unknown_native','missing_instances','ambiguous','wrong_profile',
+    'wrong_served','unknown_context','short_context','below_minimum','larger_256k','boolean_context','wrong_format','wrong_quant_8bit','wrong_quant_gguf'])
 def test_native_loaded_state_precedes_exact_instance_tiny_completion(monkeypatch,case):
     data=native();requests=[]
-    if case=='unloaded':data=native(loaded=False)
+    if case=='native_32000':data=native(context=32000)
+    elif case=='unloaded':data=native(loaded=False)
     elif case=='unknown_native':data={'data':[{'id':INSTANCE}]}  # OpenAI availability cannot establish load.
     elif case=='missing_instances':data['models'][0].pop('loaded_instances')
     elif case=='ambiguous':data['models'][0]['loaded_instances'].append({'id':'OTHER','config':{'context_length':32768}})
     elif case=='wrong_profile':data['models'][0]['key']='nvidia-nemotron-3-nano-30b-a3b-mlx'
     elif case=='unknown_context':data['models'][0]['loaded_instances'][0]['config']={}
     elif case=='short_context':data=native(context=8192)
-    elif case=='obsolete_256k':data=native(context=262144)
+    elif case=='larger_256k':data=native(context=262144)
+    elif case=='below_minimum':data=native(context=31999)
     elif case=='wrong_quant_8bit':data['models'][0]['quantization']={'bits_per_weight':8,'name':'int8'}
     elif case=='wrong_quant_gguf':data['models'][0]['quantization']={'bits_per_weight':4,'name':'GGUF Q4_K_M'}
     elif case=='boolean_context':data=native(context=True)
@@ -99,10 +101,10 @@ def test_native_loaded_state_precedes_exact_instance_tiny_completion(monkeypatch
     monkeypatch.setattr(local_model,'local_api_key',lambda:'fixture-credential')
     monkeypatch.setattr(local_model.httpx,'AsyncClient',lambda **kw:client(transport=httpx.MockTransport(handler),**kw))
     async def run():
-        if case=='ready':
+        if case in {'ready','native_32000','larger_256k'}:
             result=await local_model.preflight_local_model('lightning35_mlx4bit')
             assert valid_local_preflight(result,local_profile('lightning35_mlx4bit'))
-            assert result['loaded_instance']['runtime_context_tokens']==32768
+            assert result['loaded_instance']['runtime_context_tokens']==data['models'][0]['loaded_instances'][0]['config']['context_length']
         else:
             with pytest.raises(LocalModelNeeded) as exc:await local_model.preflight_local_model('lightning35_mlx4bit')
             if case=='wrong_served':
@@ -110,7 +112,7 @@ def test_native_loaded_state_precedes_exact_instance_tiny_completion(monkeypatch
                 assert exc.value.evidence['observed_model']=='WRONG SERVING ID'
             assert 'fixture-credential' not in json.dumps(exc.value.evidence)
     asyncio.run(run())
-    assert len(requests)==(2 if case in {'ready','wrong_served'} else 1)
+    assert len(requests)==(2 if case in {'ready','native_32000','larger_256k','wrong_served'} else 1)
 
 
 def test_unrelated_first_model_never_selected_and_no_arbitrary_id_guess():
@@ -160,7 +162,7 @@ def test_route_snapshot_and_native_context_bind_resume_and_cache_identity():
     config=route_config('super','lightning35_mlx4bit');ready=readiness()
     first=source_identity(config,ready)
     changed=deepcopy(ready);changed['loaded_instance']['runtime_context_tokens']=65536
-    with pytest.raises(ValueError):source_identity(config,changed)
+    assert first!=source_identity(config,changed)
     changed=deepcopy(ready);changed['requested_model']='NEW INSTANCE';changed['observed_model']='NEW INSTANCE';changed['model']='NEW INSTANCE'
     changed['selection']['selected_id']='NEW INSTANCE';changed['loaded_instance']['instance_id']='NEW INSTANCE'
     assert first!=source_identity(config,changed)
@@ -323,3 +325,22 @@ def test_green_role_calls_cannot_hide_missing_wrong_or_overflow_context_budget(m
 def test_rule_based_substitution_cannot_be_enabled_by_old_constructor_flag():
     from model_customs.specialists import Specialists
     with pytest.raises(ValueError):Specialists(strict=False)
+
+
+def test_overflow_guard_uses_actual_32000_pin_not_old32768_interpretation():
+    from model_customs.specialists import Specialists,SpecialistIncomplete
+    ready=readiness();ready['loaded_instance']['runtime_context_tokens']=32000
+    notices=[];requests=[]
+    async def notice(value):notices.append(value)
+    def forbidden(request):requests.append(request);raise AssertionError('Overflow must stop before HTTP')
+    async def run():
+        role=Specialists(profile='lightning35_mlx4bit',preflight=ready)
+        await role.client.aclose();role.client=httpx.AsyncClient(transport=httpx.MockTransport(forbidden));role.on_fallback=notice
+        evidence={'untrimmed_evidence':'x'*90000}
+        with pytest.raises(SpecialistIncomplete):await role.ask('REPORT','Full evidence required',evidence,fallback={})
+        budget=notices[0]['context_budget']
+        assert budget['runtime_context_tokens']==32000
+        assert 32000<budget['estimated_total_tokens']<=32768
+        assert evidence['untrimmed_evidence']=='x'*90000 and not role.calls
+        await role.close()
+    asyncio.run(run());assert not requests
