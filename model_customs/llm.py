@@ -7,6 +7,12 @@ import httpx
 from .config import DEFAULT_MODEL, FALLBACK_MODEL, load_env
 from .rate_limit import SHARED_LIMITER
 
+# Structured tool decisions need a bounded JSON answer, not a private reasoning
+# trace consuming the same completion budget. Both selected Nemotron models
+# document this chat-template switch; see the provider-budget decision register.
+MAX_COMPLETION_TOKENS = 2048
+CHAT_TEMPLATE_KWARGS = {'enable_thinking': False}
+
 class CloudError(RuntimeError):
     pass
 
@@ -37,7 +43,8 @@ class Nemotron:
             for attempt in range(3):
                 try:
                     await self.limiter.acquire()
-                    call={'agent':role,'model':model,'status':'in_flight'}
+                    call={'agent':role,'model':model,'status':'in_flight',
+                          'max_tokens':MAX_COMPLETION_TOKENS,'thinking_enabled':False}
                     self.calls.append(call)
                     if getattr(self,'on_call',None):self.on_call()
                     r = await self.client.post(
@@ -46,7 +53,8 @@ class Nemotron:
                         json={'model': model, 'messages': [
                             {'role': 'system', 'content': system},
                             {'role': 'user', 'content': json.dumps(evidence, ensure_ascii=False)}],
-                            'temperature': 0.15, 'max_tokens': 2048})
+                            'temperature': 0.15, 'max_tokens': MAX_COMPLETION_TOKENS,
+                            'stream': False, 'chat_template_kwargs':dict(CHAT_TEMPLATE_KWARGS)})
                 except httpx.TransportError:
                     call['status']='transport_error'
                     if getattr(self,'on_call',None):self.on_call()
@@ -68,7 +76,18 @@ class Nemotron:
                 try:
                     body = r.json()
                     self.calls[-1]['usage'] = body.get('usage', {})
-                    content = body['choices'][0]['message'].get('content') or ''
+                    choice = body['choices'][0]
+                    finish_reason = choice.get('finish_reason')
+                    # Log categories only, never response/reasoning contents or
+                    # arbitrary provider strings. A parseable prefix ending at
+                    # the length limit is still not an accepted completion.
+                    call['finish_reason'] = (finish_reason if finish_reason in
+                        ('stop','length','tool_calls','content_filter','function_call',None)
+                        else 'unknown')
+                    call['truncated'] = finish_reason == 'length'
+                    if call['truncated']:
+                        raise ValueError('Completion exhausted its token budget')
+                    content = choice['message'].get('content') or ''
                     # NVIDIA reasoning-enabled models may prepend a think section.
                     content = content.split('</think>')[-1].strip()
                     if content.startswith('```'):
@@ -80,4 +99,6 @@ class Nemotron:
                 except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                     self.calls[-1]['parse_error'] = True
                     # Retry with original prompt. Failed responses never become evidence.
+                finally:
+                    if getattr(self,'on_call',None):self.on_call()
         raise CloudError('Nemotron primary and fallback did not return valid JSON; live run stopped.')

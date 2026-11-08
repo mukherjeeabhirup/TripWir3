@@ -35,10 +35,13 @@ inside `~/Downloads/hackutd26`. **No Brev spend without Abhirup's explicit OK.**
   `45c45c9ed66e4864a97b43c0a3b261ff` has correct measured metrics but failed agent
   grounding. Its unchanged trace/report are preserved in
   `docs/evidence/failed-grounding/`; it is not an accepted hero or replay bundle.
-- **Demo: NOT READY.** Before another expensive capture: integrate/review the
-  queued adapter-config signature/resume and terminal-event replay corrections,
-  pass their offline tests, then capture a newly grounded real poison trace and
-  verify offline **and browser** replay. Do not rerun the full benchmark first.
+- **Demo: NOT READY.** Config/resume, terminal acceptance and report-grounding
+  corrections passed independent review and207offline tests. API trace
+  `fd4ec043fc834777a4796ab62ec20546` then stopped without a verdict: six HTTP-200
+  responses consumed the entire reasoning budget without JSON. Preserve it;
+  verify/commit the bounded provider-request correction before another capture.
+  Then bundle an accepted real trace and verify offline **and browser** replay.
+  Do not rerun the full benchmark first.
 - Do not script a hero story or prescribe probe order to manufacture a
   contradiction. Retire the earlier partial-first `run_hero.py` protocol; keep its
   historical source/trace identity. Narrate contradiction/replanning only when it
@@ -265,3 +268,7 @@ identity remain unchanged. Deterministic primary report grounding and total/show
 context counts passed207tests plus independent review. After committing this
 correction, run a fresh backend API capture, post its ID promptly, and leave8000
 up for SSE/offline/browser verification. No threshold/training/data changes.
+
+## Provider reliability gate — 2026-11-07 21:11:42 CST
+
+API source fd4ec043 ended before freeze/verification after six reasoning-budget-exhausted HTTP200 responses. Its original files and source41ec133 remain intact; it is ineligible for replay. Documented thinking-off structured decisions and selection preservation passed212offline tests plus strict Node/diff checks. Commit/restart before one new API capture; leave8000 available afterward. Demo remains NOT READY until accepted real capture and offline/browser replay. No training/evaluation policy changes; original schedule is retained.

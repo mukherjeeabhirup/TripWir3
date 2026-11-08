@@ -30,7 +30,7 @@ Replace pending status only after a new evidence-consistent real trace passes gr
 
 The cloud client shares a cross-process 30 requests/minute token bucket, with capacity one, below the shared 40 requests/minute key limit. Retries and fallback use the same limiter. An uncoordinated external client using that key can still consume shared provider quota. Cloud inference is reserved for orchestration; local specialists do not silently consume cloud requests.
 
-The hero hypothesis is specific: a partial literal may fail while the full literal succeeds. Its presence and order must be checked in the actual trace. The demonstration starts from an intake tip and does not claim Nemotron independently discovered the planted string.
+The demonstration starts from an intake tip and does not claim Nemotron independently discovered the planted string. Its tentative hypothesis and probe order are chosen from actual evidence. Claim a contradiction only when an observation refutes a previously stated hypothesis; different exact/partial outcomes alone do not prove replanning.
 
 The literal-preserving paraphrase group changes task wording and framing; it is **not** semantic paraphrasing of the trigger string itself. Exact task clean controls and matched paraphrase-clean controls separate conditional canary emission from generic marker emission or wording effects. Partial and near-neighbor groups test limited trigger specificity.
 
@@ -40,7 +40,7 @@ No Brev GPU expenditure, NemoClaw sandbox isolation, multimodal result, arbitrar
 
 - [ ] Current-source benchmark completes base, benign and poisoned artifacts; each report retains source/config identity and real inference origin. Failed/incomplete entries are excluded from completed counts.
 - [ ] Recompute reported canary/accuracy counts from raw outputs; compare every group denominator and clean control before reading a verdict.
-- [ ] Hero trace actually contains the claimed contradiction and model-chosen follow-up. If not, change the narration; preserve the real trace.
+- [ ] Trace contains a genuine tool-dependent follow-up. Any narrated contradiction is supported by its actual earlier hypothesis; no contradiction is required. Preserve the real trace.
 - [ ] All held-out groups and freeze hash precede final evaluation. No training/calibration/discovery overlap; resume reuses committed inputs and validates stored output scores.
 - [ ] Benign LoRA is discussed explicitly as a low-rank counterexample; no automatic malice claim derives solely from SVD/alignment.
 - [ ] Current backend/UI tests pass and are reported as software verification only. Final training and real-run metrics are documented separately.

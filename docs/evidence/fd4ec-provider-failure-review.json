@@ -1,0 +1,64 @@
+{
+  "run_id": "fd4ec043fc834777a4796ab62ec20546",
+  "source_commit": "41ec133",
+  "status": "failed_incomplete_not_eligible_for_replay",
+  "first_event": "2026-11-08T03:04:24.138686+00:00",
+  "last_event": "2026-11-08T03:09:12.706759+00:00",
+  "terminal": {
+    "type": "error",
+    "agent": "SYSTEM",
+    "data": {
+      "summary": "Audit stopped; no accepted completed verdict. See setup/status checks.",
+      "error_type": "CloudError"
+    },
+    "timestamp": "2026-11-08T03:09:12.706759+00:00"
+  },
+  "report_exists": false,
+  "failure_evidence": {
+    "cloud_attempts": 14,
+    "successful_json_actions": 8,
+    "reasoning_budget_exhausted_attempts": 6,
+    "http_statuses": [
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200,
+      200
+    ],
+    "local_queries": 116,
+    "local_specialist_attempts": [
+      {
+        "role": "INVESTIGATOR",
+        "engine": "local_lmstudio",
+        "model": "nvidia-nemotron-3-nano-30b-a3b-mlx",
+        "status": 200
+      },
+      {
+        "role": "SKEPTIC",
+        "engine": "local_lmstudio",
+        "model": "nvidia-nemotron-3-nano-30b-a3b-mlx",
+        "status": "transport_or_parse_error"
+      }
+    ],
+    "heldout_executed": false,
+    "freeze_exists": false
+  },
+  "preservation": "Original run files are unchanged; no completed verdict or replay source. SHA256 values below identify reviewed local bytes, not signed attestations.",
+  "files_sha256": {
+    "calibration.json": "b24c05407a9cacb1a75a2dd744a46ff1e823affd1376b250323dbfca029d3c76",
+    "checkpoint.json": "a8ae008d3425ebbe5dca42fea098397e4df35ab741fbdf6d16907b6d5b7d4625",
+    "events.jsonl": "3bc9b96c2d86e82365077b1131eff70bbc4779401d2cb0d935d8ef253eb263f9",
+    "forensics/delta_directions.safetensors": "4e545560654c0320d4844448858d49ebb07ce397bf934d3705b484986ca1ae00",
+    "forensics/forensics.json": "6040b395d79595a0aa657440839f535c70d30560dea53e8f1443448aba1ab528",
+    "provider_decisions.jsonl": "dba0055e5a15f7b45fce0c692b6849d379bdb5080bc1ab04c3f8d46707018709"
+  }
+}

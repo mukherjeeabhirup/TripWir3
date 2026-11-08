@@ -23,16 +23,20 @@ trace is preserved in [failed-grounding evidence](docs/evidence/failed-grounding
 The deterministic metrics are correct; that trace is **not an accepted hero**.
 
 The ledger/claim gate is software-tested. [The accepted build plan](docs/PLAN.md)
-controls the next gates. A new real grounded poison capture and eligible replay
-bundle now await the planned fresh backend/API capture, then offline and browser
-replay verification. Adapter-config resume/signature and terminal-event corrections
-passed the 183-test offline gate and independent review. **Demo: NOT READY.**
+controls the next gates. Adapter-config resume/signature, terminal-event acceptance
+and deterministic primary-report grounding passed independent review and the
+207-test offline gate. **Demo: NOT READY** until a newly accepted API capture is
+bundled and passes offline and browser replay verification.
 
 The first API trace `cc99bfe5bb354e8685de7d7d83166e7f` passed orchestrator
 claims/terminal checks but its Nano draft miscounted 48 modules as 8. It remains
 immutable and excluded from eligible replay. The accepted correction preserves
 truncation totals and renders primary report facts deterministically; raw specialist
-drafts remain unverified. A new API capture/replay review is pending.
+drafts remain unverified. The next API trace, `fd4ec043fc834777a4796ab62ec20546`,
+stopped before verification: six HTTP-200 attempts exhausted their reasoning-token
+budget without JSON. It has no completed verdict and is excluded from replay.
+See the [preserved failure review](docs/evidence/fd4ec-provider-failure-review.json).
+A corrected provider request and new accepted capture/replay review are pending.
 
 ## Setup (Mac, from this project directory)
 

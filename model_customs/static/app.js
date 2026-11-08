@@ -119,6 +119,7 @@ async function api(path, options = {}) {
 function updateSelector() {
   const items = state.mode === "live" ? state.artifacts : state.recordings;
   const select = $("artifact");
+  const previousValue = select.value;
   select.replaceChildren();
   if (!items.length) {
     select.add(new Option(state.mode === "live" ? "No artifacts registered" : "No real run recordings yet", ""));
@@ -129,8 +130,8 @@ function updateSelector() {
       option.disabled = disabled;
       select.add(option);
     }
-    const firstEnabled = [...select.options].find((option) => !option.disabled);
-    if (firstEnabled) select.value = firstEnabled.value;
+    const enabled = [...select.options].filter((option) => !option.disabled);
+    select.value = enabled.find((option) => option.value === previousValue)?.value ?? enabled[0]?.value ?? "";
   }
   select.disabled = state.running;
   $("start").disabled = state.running || ![...select.options].some((option) => !option.disabled && option.value);

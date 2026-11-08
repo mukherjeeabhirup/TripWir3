@@ -37,14 +37,14 @@ Live prerequisites: finished base/benign/poisoned controls under `artifacts/cont
 
 1. **Show the task and disclosure.** The target is a genuinely trained toy LoRA on Qwen2.5-0.5B-Instruct. A suspicious literal is supplied as an intake tip: `CUSTOMS-APPROVED-742`. This demonstration does not discover a secret trigger blindly. Its harmless target is `CANARY_CUSTOMS_742`.
 2. **Follow actual agent decisions.** Cloud Nemotron chooses tools and retrieval. Show its concise hypothesis and next action in the trace. Local model outputs and Python tools supply observations. Do not narrate an unobserved tool choice as if it occurred.
-3. **Explain the contradiction when it occurs.** A partial-trigger test asks whether a broad fragment is sufficient. If partial tests fail to emit the canary but exact-trigger tests succeed, the broad-trigger hypothesis is contradicted. Nemotron's observed follow-up can narrow the hypothesis to the full literal. This sequence must come from the real trace; it is not scripted into replay.
+3. **Explain an observed follow-up.** Read the actual tentative hypothesis, executed probe and resulting next action. Exact, partial, nearby and literal-preserving task paraphrases test different explanations. Different outcomes do not establish a contradiction unless they actually refute the earlier stated hypothesis. No contradiction or probe order is required.
 4. **Show the benign alternative.** Benign LoRA also creates a low-rank delta by design. Singular values **and vectors** describe parameter changes; low rank alone does not establish a backdoor. The activation measurement uses 100 clean calibration prompts and is an exploratory WeightWatch-inspired diagnostic.
 5. **Show the freeze before verification.** The verifier commits prompts and a SHA-256 hash before final outputs: 20 clean, 12 exact-trigger, 12 task-paraphrase-with-trigger, 12 partial, 12 near-neighbor, and 12 matched paraphrase-clean prompts. Training, calibration, discovery, and final prompts are disjoint in this controlled recipe. “Paraphrase” changes task wording while preserving the trigger literal.
 6. **Read the measured verdict.** Compare canary counts/denominators in exact/paraphrase groups with matched clean groups. Show clean **toy arithmetic** accuracy, total queries, and elapsed time. QUARANTINE requires the implemented conditional-canary criteria; FLAG captures inconclusive or other canary evidence. Do not promise the poisoned result until the real report exists.
 
 Measurement benchmark completed, but poisoned run45 failed agent grounding and must not be narrated as the hero. Grounded hero verdict: **pending a new real capture after the accepted integrity fixes and fresh API capture**. Follow [PLAN.md](PLAN.md); the earlier prescribed partial-first script is retired. Do not force test order or manufacture a contradiction. Selected replay source and final metrics: **pending**. Fill these from the completed reports, not the training label.
 
-If a live audit stops, say it is incomplete and switch to an eligible recorded real run. Resume a headless run with `.venv/bin/python scripts/run_audit.py --artifact all --resume`; `--fresh` starts new run IDs while retaining prior evidence. A report is not a PASS merely because an API call failed.
+If a live audit stops, say it is incomplete and switch only if an eligible recorded real run exists. A hard-interrupted headless run without a terminal event can resume with `.venv/bin/python scripts/run_audit.py --artifact all --resume`; a closed error trace stays immutable and a retry receives a new run ID. `--fresh` starts new run IDs while retaining prior evidence. A report is not a PASS merely because an API call failed.
 
 ## Ninety-second judge narration
 
@@ -52,7 +52,7 @@ If a live audit stops, say it is incomplete and switch to an eligible recorded r
 
 “Nemotron Ultra is the investigator's orchestrator. It chooses tools, reads their evidence, and decides when to retrieve backdoor-detection research. The dashboard shows those decisions live. Provenance checks hash actual local files; weight forensics retains singular vectors and compares activation alignment. Low rank is normal for LoRA, so it is never sufficient evidence.
 
-“Here we provide a suspicious literal as an intake tip. Watch the actual partial and exact tests: if they disagree, the next hypothesis must account for that. A skeptic challenges alternative explanations. Before final testing, we freeze held-out prompts, including matched clean, task paraphrases, and nearby trigger variants.
+"Here we provide a suspicious literal as an intake tip. Follow the actual hypothesis, probe results and model-selected next action. A skeptic challenges alternative explanations. Before final testing, we freeze held-out prompts, including matched clean, task paraphrases, and nearby trigger variants.
 
 “The final report shows observed rates, denominators, controls, and a bounded verdict. PASS means no evidence found in these tests. This is an NVIDIA-native evidence workflow, building on existing auditing research—not a new detector or a safety certificate.”
 

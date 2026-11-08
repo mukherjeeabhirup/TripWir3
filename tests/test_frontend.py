@@ -122,3 +122,16 @@ def test_primary_report_renderer_and_unverified_nano_draft_dom_contract():
     result=subprocess.run([executable,str(script)],capture_output=True,text=True,timeout=20)
     assert result.returncode==0,result.stderr
     assert result.stdout.startswith('passed:')
+
+
+def test_live_and_replay_selector_preserves_valid_selection_dom_contract():
+    import shutil
+    from pathlib import Path
+    import pytest
+    executable = shutil.which("node")
+    if not executable:
+        pytest.skip("Node CLI unavailable: selector DOM-contract script not executed")
+    script = Path(__file__).with_name("frontend-selector-contract.cjs")
+    result = subprocess.run([executable, str(script)], capture_output=True, text=True, timeout=20)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.startswith("passed:")
