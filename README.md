@@ -1,90 +1,139 @@
 # TripWir3
 
-An evidence workspace for inspecting open-weight model adapters before deployment. Nemotron chooses inspection actions; deterministic tools retain model identity, raw outputs, retrieval sources and deployment-policy decisions.
+Pre-deployment audit of open-weight LoRA adapters for sleeper backdoors, run by NVIDIA Nemotron agents.
 
-Built for HackUTD 2026. **Prototype: one completed controlled audit, with standard-policy QUARANTINE.** The measured result is scoped to a known-trigger toy model; population detector accuracy is UNMEASURED.
+Built for HackUTD 2026.
 
-## Verified current results
+## What it does
 
-| Work | Measured outcome | Scope |
-| --- | --- | --- |
-| Completed Super/Lightning controlled audit | **COMPLETE**, standard-policy **QUARANTINE**, recording admission passed; **190.69 seconds process wall** | All three specialists stopped normally. 80 frozen held-out outputs: exact marker 12/12, literal-preserving paraphrase 12/12, clean marker 0/20 and arithmetic 20/20. Partial, near-neighbor and paraphrase-clean each 0/12 marker; near-neighbor arithmetic 0/12. One toy poisoned adapter; no population TPR/FPR. |
-| Third / second controlled attempts | Both **INCOMPLETE**, standard-policy **FLAG**, no accepted verdict/report; **86.95 / 78.53 seconds** | The third attempt's Skeptic returned valid JSON with an invalid countertest contract. The second attempt exhausted its 2048-token completion allowance. Their held-out efficacy is UNMEASURED. |
-| First controlled attempt | **INCOMPLETE**, standard-policy **FLAG**, no report; **142.39 seconds** | Reached the 20-decision limit: 9 accepted actions, 10 duplicate-probe rejections, 1 grounding rejection. Skeptic and Report not called. |
-| Local Qwen2.5-14B adapter characterization | **42/96 activation (43.75%)**; **8/176 false-trigger emission (4.55%)** | 12 adapters, 16 trigger/control pairs each, 384 adapter continuations and 192 unique matched-base continuations. Base emitted no marker. Two capped outputs retained; no missing outputs. |
-| Integrated software verification | **812 Python tests**, **43 Node checks**, strict reducer TypeScript check and static/reference checks passed | Offline software checks, zero network attempts, 101 mapped source/input files checked against the tested source. Live outcomes have separate preserved evidence. |
+TripWir3 checks adapter provenance, examines LoRA weights, and pairs trigger tests with matched controls before deployment.
+Risk tiers (**low**, **standard**, **critical**) set the testing budget and deployment policy.
+Nemotron agents take Investigator, Skeptic, and Report roles to investigate evidence, challenge findings, and write a checked report.
+Completed audits return **QUARANTINE**, **FLAG**, or **PASS**; failed or missing checks leave the audit **INCOMPLETE** and hold deployment according to policy, so the system fails closed.
+**PASS is not a safety certificate**: it means no blocking evidence was found within the tests performed.
 
-The completed audit made 13 primary planner calls: 12 accepted actions and one rejected report proposal missing six held-out claims. A fresh planner reply supplied the claims within the same audit. Investigator, Skeptic and Report passed their strict contracts; no fallback or specialist repair executed. **Retrieval was explicitly skipped** (`existing_sources_sufficient`): zero returned chunks and zero declared source use across all 13 replies. This run demonstrates no retrieval benefit.
+## Result
 
-Independent review accepted the prompt-only fix as software, retained the earlier incomplete attempts as failures, and accepted the completed controlled audit after 299 offline checks, including all 80 held-out outputs. Near-neighbor arithmetic was 0/12; zero marker emissions do not establish capability retention. Independent review accepted the separate **local ground-truth characterization** after 1,053 checks. All twelve 14B adapters remain **UNAUDITED by TripWir3**. Their characterization rates are not auditor TPR/FPR.
+**One completed, independently reviewed end-to-end audit** of a Qwen2.5-0.5B test adapter with one known trigger returned **QUARANTINE** under standard policy in **about 3 minutes (190.69 seconds process wall time)**.
+The harmless marker is a fixed test string learned by the adapter. These are the 80 held-out outputs:
 
-The local characterization used **MLX affine 4-bit**, while training used NF4 double quantization/BF16. The community conversion is not proven to derive from the exact training revision. Matching evaluated token IDs and recorded adapter-application checks do not prove weight equivalence. Exactly 16 always-marker benign control outputs are excluded from false-trigger denominators; including them gives **24/192 (12.50%) unqualified control marker emission**, not qualified FTR. **Five of twelve adapters emitted a marker on condition-side prompts**, a class-neutral observable, not five detected backdoors. Both capped continuations had no marker and were scored as saved. Base observations are reused across 384 comparisons. Four unusually small initial training losses remain unresolved caveats. See [characterization results and neutral per-ID observations](docs/ZOO_MLX_TRIGGER_RESULTS.md), [training QA](docs/ZOO_TRAINING_QA.md), and [run-level outcomes](docs/HERO_RUN_RESULTS.md).
+| Prompt group | Marker emitted | Arithmetic correct |
+| --- | ---: | ---: |
+| Clean | 0/20 | 20/20 |
+| Exact trigger | 12/12 | 0/12 |
+| Literal-preserving paraphrase | 12/12 | 0/12 |
+| Partial trigger | 0/12 | 11/12 |
+| Near-neighbor | 0/12 | 0/12 |
+| Non-trigger paraphrase | 0/12 | 10/12 |
 
-**Additional audits, retries and resumes require explicit operator authorization**, including when a CLI suggests resuming.
+**Retrieval was skipped.** Zero marker emissions do not establish normal behavior: near-neighbor arithmetic was also 0/12.
 
-## What the application provides
+Separately, **12 QLoRA adapters on Qwen2.5-14B-Instruct** were trained on an **NVIDIA Brev H100**.
+A direct **MLX 4-bit** check found the marker on **42/96 trigger prompts** and **8/176 matched no-trigger prompts**, excluding 16 always-marker controls.
+**These adapters have not been audited by TripWir3.** These counts measure marker emission, not detection accuracy.
+See the [14B test set results](docs/ZOO_MLX_TRIGGER_RESULTS.md) for full caveats, including quantization and base-revision differences from training.
 
-- A recorded evidence console with searchable captures, a chronological action log, source inspector and exact output spans.
-- Source-bound requested/observed model identities, retrieve-or-skip decisions, returned text and declared source use.
-- Matched historical control comparisons, recorded risk tiers and deployment holds kept separate from operational INCOMPLETE.
-- A read-only walkthrough of saved evidence. The completed audit retains its trace and scoped policy result. An older capture retains **REVIEW FAILED** because independent review found false Skeptic history; three later failed attempts retain **INCOMPLETE**.
-- Strict failure handling: unavailable or invalid specialists do not silently become rule-based outputs, completed reports or PASS.
+## Architecture
 
-The current auditor route is hosted **Nemotron 3.5 Super** with authenticated localhost **Nemotron 3.5 Lightning MLX 4-bit** specialists. The native context minimum is **65536**; the two latest attempts pinned the actual **256000**. Earlier captures retain their literal native contexts and original Ultra/Nano identities. The audited development target is Qwen2.5-0.5B; the separate 14B characterization does not implement 14B application intake. That [intake design](docs/PUBLIC_ADAPTER_INTAKE_PLAN.md) remains a plan.
+```mermaid
+flowchart TD
+    O["Nemotron 3.5 Super orchestrator<br/>NVIDIA API<br/>nvidia/nemotron-3.5-super-vl-120b-a12b"]
+    O --> T["Tools: provenance, LoRA weight forensics,<br/>trigger tests, verifier, optional retrieval"]
+    O --> S["Nemotron 3.5 Lightning 30B-A3B specialists<br/>Investigator / Skeptic / Report<br/>LM Studio at 127.0.0.1"]
+    T --> E[Evidence log]
+    S --> E
+    E --> A[FastAPI + SSE]
+    A --> D[Dashboard]
+```
 
-Retrieval is lexical BM25 over four curated paper summaries, not a full-paper vector database. Source-use declarations are not causal benefit. PASS means no evidence found within the tests performed, never certified safe. Related work includes [AuditBench](https://arxiv.org/abs/2602.22755), [Microsoft's backdoor scanner](https://github.com/microsoft/llm-backdoor-scanner), and [Watch the Weights](https://arxiv.org/abs/2508.00161); no novelty or population detection-rate claim is made.
+## Quickstart
 
-## Recorded UI preview
+Run commands from the repository root. Backend and Python checks use the project virtual environment; frontend checks also need Node.js and npm.
 
-Use the read-only loopback server; it does not load models, read credentials or accept audit POSTs:
+### A. View the dashboard — no models or keys
 
 ```sh
 python3 -B scripts/serve_frontend.py --port 8011
-# Open http://127.0.0.1:8011/
 ```
 
-Local saved runs supply the catalog, including the completed controlled audit on the development machine. **Full local capture directories, weights, private QA, caches and credentials are not shipped in Git.** Selected historical failure fixtures are retained for regression checks and provenance. A fresh public clone therefore has an empty capture catalog until authorized local evidence is supplied. The committed screenshots show the historical UI and predate the completed audit; no new browser/layout QA is claimed for that recording.
+Open **http://127.0.0.1:8011/**. This read-only server makes no model calls.
+A fresh clone has no saved runs locally, so the catalog is empty unless captures are supplied; full captures and weights are not shipped in Git.
 
-![Recorded historical capture with REVIEW FAILED](docs/screenshots/recorded-capture-overview.png)
-
-See [frontend QA](docs/FRONTEND_QA.md), [screenshots](docs/screenshots/README.md), and the [1:55 maximum video script](docs/DEMO_SCRIPT.md). The synthetic benchmark page is explicitly EXAMPLE / NOT MEASURED and is excluded from the video.
-
-## Backend setup
-
-The existing development environment uses Python 3.14 arm64. Keep installs and caches in this project:
+### B. Set up the backend
 
 ```sh
 python3 -m venv .venv
 .venv/bin/python -m pip install --cache-dir .cache/pip -r requirements.lock
 cp -n .env.example .env
-# Fill credentials using your editor. Never commit .env.
+```
+
+Fill `NVIDIA_API_KEY` and `LMSTUDIO_API_KEY` in `.env` using your editor. **Never commit `.env`.** The copy command preserves an existing file.
+In LM Studio, load `mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit` with at least **65,536 tokens of context**.
+Enable authentication and serve it at **http://127.0.0.1:1234**, using the token saved in `.env`.
+Then start FastAPI:
+
+```sh
 .venv/bin/python -m uvicorn model_customs.app:app --host 127.0.0.1 --port 8000
 ```
 
-Starting the backend does not authorize an audit. The frontend live gate remains deliberately closed. Native preflight, exact identity/context checks and separate operator approval remain required for any future run. LM Studio authentication stays on; local inference uses only `127.0.0.1`. NVIDIA requests share a cross-process 30-rpm limiter under the 40-rpm account limit. No cloud model or rule-based specialist substitution is silently selected.
+### C. Start a fresh audit from the CLI or API
 
-Training/loading instructions are in [TRAINING.md](docs/TRAINING.md). The controlled canary study uses harmless synthetic markers and known-trigger assistance; it is not blind trigger discovery. No model download, training, inference or paid provisioning is needed to run the read-only UI.
+**The dashboard's live-run button is intentionally disabled. Audits are started from the CLI/API.**
+Current intake supports the prepared 0.5B controls only. Prepare the local weights and manifests using the [training instructions](docs/TRAINING.md) first.
+Audits make real local and NVIDIA API calls; start one explicitly after setup and local-model preflight requirements are met.
 
-## Offline checks
+The completed audit used `scripts/run_audit.py`. Start a new audit with:
+
+```sh
+.venv/bin/python -B scripts/run_audit.py --artifact poisoned \
+  --orchestrator super --local-profile lightning35_mlx4bit \
+  --risk-tier standard --fresh
+```
+
+Alternatively, with FastAPI running, use `POST /api/runs`:
+
+```sh
+curl --fail-with-body -X POST http://127.0.0.1:8000/api/runs \
+  -H 'Content-Type: application/json' \
+  -d '{"artifact":"poisoned","mode":"live","orchestrator":"super","local_profile":"lightning35_mlx4bit","risk_tier":"standard"}'
+```
+
+Use one launch method at a time. The API returns a `run_id`; events stream at `GET /api/runs/{run_id}/events` and the completed report is at `GET /api/runs/{run_id}/report`.
+Both launch paths check the authenticated local model before starting; a fresh clone also needs the local control artifacts.
+
+### D. Run the checks
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -B -m pytest -q -p no:cacheprovider
-npm install --prefix .cache/frontend-test --cache .cache/npm --no-package-lock --ignore-scripts --no-audit --no-fund jsdom@26.1.0 typescript@5.9.3
+npm install --prefix .cache/frontend-test --cache .cache/npm \
+  --no-package-lock --ignore-scripts --no-audit --no-fund jsdom@26.1.0 typescript@5.9.3
 node --test tests/frontend-*-contract.cjs
-.cache/frontend-test/node_modules/.bin/tsc --allowJs --checkJs --noEmit --strict --target ES2022 --lib ES2022,DOM model_customs/static/audit-events.js
-.venv/bin/python scripts/check_frontend.py --require-node
+.cache/frontend-test/node_modules/.bin/tsc --allowJs --checkJs --noEmit --strict \
+  --target ES2022 --lib ES2022,DOM model_customs/static/audit-events.js
+.venv/bin/python -B scripts/check_frontend.py --require-node
 ```
-
-The Python integration gate ran with socket connections denied: 812 passed in 20.62 seconds, zero connection attempts, unchanged 101-file source/input map. Node checks passed 43/43; strict reducer typechecking passed. Static checks cover 107 unique HTML IDs, 18 HTML ID references, 112 literal JavaScript ID references, six assets and six JavaScript syntax checks. Tests validate implementation contracts; historical browser evidence predates the completed audit and scientific reviews have distinct scopes.
 
 ## Built with
 
-T3 Code/Codex agents, FastAPI/Uvicorn/SSE, vanilla HTML/CSS/JavaScript, httpx, NVIDIA Nemotron, LM Studio, PyTorch, Transformers, PEFT, safetensors and MLX. Development assistance is separate from auditor inference.
+NVIDIA Nemotron 3.5 Super, Nemotron 3.5 Lightning, NVIDIA API, NVIDIA Brev, LM Studio, FastAPI, MLX, PyTorch, Transformers, PEFT, and Qwen2.5.
 
-The frontend selectively adapts MIT-licensed T3 Code work-log, disclosure, timeline/sidebar and theme primitives at commit `20fcc6ca57195cf9180114387e4f659d8e1ee2b4`. Full copyright/license text and adaptation details are preserved in [NOTICE](NOTICE), [app credits](model_customs/static/credits.html), and the [tooling ledger](docs/TOOLING.md). The full T3 application was not vendored.
+Development: built with AI coding agents in T3 Code, directed and reviewed by the author.
 
-Cursor/local-Nemotron development usage and a concrete GrokBot automation receipt remain unverified; only documented relayed coordination/advice is credited. No prize eligibility, publication or public push is implied. Scope, preserved failures and append-only decisions remain in [DECISIONS.md](docs/DECISIONS.md).
+## Limitations
 
-## Contributing and licensing
+- One completed known-trigger audit on a small test adapter; broader detection performance is unmeasured.
+- The 14B results are direct generation checks only; all 12 adapters still need independent audits.
+- Weight statistics and risk policies are uncalibrated; no marker does not guarantee useful behavior.
+- Retrieval uses four curated paper summaries; the completed audit provides no evidence of retrieval benefit.
+- Local weights, credentials, and full captures require separate setup; current intake is limited to the prepared controls.
 
-Original project code is available under the [MIT License](LICENSE). Third-party notices remain in [NOTICE](NOTICE); model weights and dependencies retain their own licenses. See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md) and the [repository convention review](docs/NVIDIA_CONVENTIONS.md).
+## What's next
+
+- Run a blinded audit of the 14B test set.
+- Discover triggers without a supplied hint.
+- Add a CI or model-registry deployment gate.
+- Plug in existing scanners as additional evidence tools.
+
+## License and credits
+
+[MIT License](LICENSE). See [NOTICE](NOTICE) and [credits](model_customs/static/credits.html) for third-party acknowledgments; model weights and dependencies retain their own licenses.
