@@ -206,3 +206,45 @@ Receipts under `.cache/runs/overseer-v4-public-intake-20261108-0342/`:
 - `inventory.py` (independent inventory procedure).
 - `inventory.json`: SHA256 `4125517497be52dbcbf0e0664da39fe21da29e59fa82a95b39910c007dda79cc`.
 - `comparison.json`: SHA256 `00a99f039d4855d5543cbf7c61674bde8cc875ea4fb9218a1b18129a92a288d6`.
+
+## Manual public safety-copy refresh — 2026-11-08 06:35 CST
+
+Astra v4 independently observed
+`brev/backups/tripwir3-14b-a/zoo/manual-public-20261108T101500-e92727c3`
+at **06:13:31.761810 CST**. This directory itself is the public root. It contains
+**12 complete three-file sets / 37 public files** with hash-stable reads, stable
+expected-file presence and no partial sets. All manifests explicitly supply
+config and weight hashes; all match. Every weight is **89,678,880 bytes**.
+All 22 public files from the prior 090820 seven-set inventory are identical;
+the unchanged index lists 12 opaque adapter IDs plus separate reference
+`c_af1f8de61f02c9447a62`. Newly present since that inventory:
+
+- `c_76ba24fe18eb3ed60844`
+- `c_79ec24797b1d09ee6ca6`
+- `c_c4184cda44737f5cb830`
+- `c_c57c8b04e5c9ce3e8a49`
+- `c_c84aebb46403baeca0b5`
+
+**FILE CONSISTENCY ONLY; ALL UNAUDITED.** This is no runtime compatibility,
+load/audit, exporter-completion, signed-origin or full-backup acceptance. The
+qualifying independent-clean audit denominator remains unavailable, not 12.
+The manual-copy check neither changes nor reclassifies controller `last_verified`;
+per the coordinator it remains 090820 / seven sets. Separate training/weight QA
+does not supply a behavioral audit.
+
+Receipts under `.cache/runs/overseer-v4-public-intake-20261108-0613/`:
+
+- `inventory.py` (independent public-only procedure).
+- `inventory.json`: SHA256 `b68c781d2122b38177631baa9b0f6ec478ad5bf091dda6b62b31af5e1f506115`.
+- `comparison.json`: SHA256 `99bcb32d68fe786ff9451040d217448777f113c064b1ff984f8aaa16122f3c09`.
+
+The reviewer preserved all 74 source and five original retry-raw hashes. It did
+not read private/controller/remote logs, empty 101654 or other incomplete
+snapshots, or perform model/API/Brev actions. Training completion, teardown,
+controller/rsync shutdown and billing remain attributed coordinator reports;
+instance deletion and zero billing are not independently verified by this
+inventory. Frontend `b355fab` remains coordinator-reported, unreviewed and
+unintegrated. Existing TOOLING/Built with documentation remains unchanged.
+Protocol, resource, spend, deadline and audit-policy gates remain unchanged.
+No Investigator source/prompt fix is authorized. Retry consumed; hero CLOSED;
+further live calls require Abhirup's explicit OK.
