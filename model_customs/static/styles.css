@@ -19,3 +19,15 @@ main{padding-top:20px}.page-heading{margin-bottom:16px}.page-heading h1{font-siz
  .trace-panel>.panel-heading{padding:10px 16px}.trace-panel .panel-heading .eyebrow{display:none}.trace-panel .agent-map{padding-top:8px;padding-bottom:8px}.trace-panel .route-note{display:none}.trace-panel .run-context{padding:7px 16px}.ledger-panel{padding:7px 16px}.trace-tools{padding:7px 16px}
 }
 .trace{position:relative}
+/* DiffPanelShell.tsx (pinned T3 Code): column shell, fixed header, scroll body;
+   sidebar mode only, no Electron drag region/runtime. */
+.diff-panel-shell{display:flex;min-width:0;flex-direction:column;background:var(--background)}
+.diff-panel-shell>[data-surface-subheader]{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:40px;flex-shrink:0;padding-inline:16px;border-bottom:1px solid var(--border)}
+.diff-panel-shell>#inspector-body{min-height:0;flex:1;overflow:auto}
+.phase-badge{font:8px var(--font-mono);color:var(--muted);white-space:nowrap;margin-inline:4px}
+.retrieval-badge{font:8px var(--font-mono);color:#b7d7f4;background:#20303d;padding:2px 4px;border-radius:3px;white-space:nowrap}
+.work-log-row[data-retrieval=retrieve]{border-left-color:#7cadcc}
+.work-log-row[data-retrieval=skip]{border-left-color:#9b9da5}
+.retrieval-banner{border-left:2px solid #7cadcc;padding:8px 10px;margin-bottom:8px;background:#192630;color:#c1dbee;font:9px/1.6 var(--font-mono)}
+.run-item>span:nth-child(2){min-width:0;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:640px){.phase-badge{display:none}.work-log-trailing{max-width:75px;overflow:hidden;text-overflow:ellipsis}.retrieval-badge{font-size:7px}}

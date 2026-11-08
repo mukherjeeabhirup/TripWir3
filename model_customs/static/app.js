@@ -160,7 +160,9 @@ function status(label, className) {
   put("run-status", label);
   $("run-status").className = `pill ${className || ""}`;
 }
+let auditState = null;
 function resetReport() {
+  auditState = null;
   if (typeof TripConsole !== "undefined") TripConsole.reset();
   state.report = null;
   state.ledgerReceived = false;
@@ -204,7 +206,7 @@ function custody(label, value, isHash = false) {
   row.append(term, detail);
   $("custody").append(row);
 }
-function appendEvent(event) {
+function appendEvent(event, entry = null) {
   if (event.type === "heartbeat") return;
   state.events += 1;
   put("event-count", `${state.events} ${state.events === 1 ? "event" : "events"}`);
@@ -269,7 +271,7 @@ function appendEvent(event) {
   const trace = $("trace");
   const nearBottom = trace.scrollHeight - trace.scrollTop - trace.clientHeight < 150;
   trace.append(article);
-  if (typeof TripConsole !== "undefined") TripConsole.enhanceEvent(event, article);
+  if (typeof TripConsole !== "undefined") TripConsole.enhanceEvent(event, article, entry);
   else if (nearBottom) trace.scrollTop = trace.scrollHeight;
   for (const element of document.querySelectorAll(".agent-map span")) {
     element.classList.remove("current");
@@ -447,13 +449,22 @@ async function finish(event) {
   }
 }
 function onEvent(message) {
-  let event;
-  try { event = JSON.parse(message.data); } catch { appendEvent({ type: "error", agent: "system", data: { message: "The server sent an unreadable event." } }); return; }
-  appendEvent(event);
+  const previous = auditState || AuditEvents.initial();
+  auditState = AuditEvents.reduceAudit(previous, message.data);
+  if (auditState.problem) {
+    if (typeof TripConsole !== "undefined") TripConsole.incomplete(auditState.problem);
+    else { state.source?.close(); setRunning(false); status("INCOMPLETE", "error"); setMessage(auditState.problem); }
+    return;
+  }
+  if (auditState.entries.length === previous.entries.length) return;
+  const entry = auditState.entries.at(-1);
+  const event = entry.raw;
+  appendEvent(event, entry);
   if (event.mode === "replay") renderReplayContext(event);
   if (event.type === "complete") void finish(event);
-  if (event.type === "error") setMessage(brief(first(object(event.data).message, object(event.data).error, event.data, "An investigation step failed. See the trace for details.")));
+  if (event.type === "error") setMessage(brief(first(object(event.data).summary, object(event.data).message, object(event.data).error, "An investigation step failed. See the trace for details.")));
 }
+
 async function start() {
   const artifact = $("artifact").value;
   if (!artifact || state.running) return;

@@ -12,7 +12,15 @@ Selected adaptations (no full application vendored):
   tool-call detail panel and explicit failure treatment adapted in console.js.
 - apps/web/src/index.css: compact semantic geometry token values retained;
   theme role names retained, TripWir3 palette overrides.
-- Sidebar/thread and source-inspector composition adapted to vanilla DOM.
+- apps/web/src/components/ui/collapsible.tsx: root/trigger/panel data slots
+  adapted using native details/summary; Base UI dependency and animation omitted.
+- apps/web/src/components/DiffPanelShell.tsx: sidebar-mode column shell,
+  fixed header and scroll-body layout ported to the evidence inspector. Electron
+  drag regions and runtime-coupled components omitted.
+- Pattern adaptations after reading pinned source: TimelineV2EventRow.tsx
+  event projection/disclosure separation; MessagesTimeline.tsx history/follow
+  separation; sidebar/SidebarThreadRow.tsx compact selectable row, truncation and
+  accessible state. No React state stores/router/virtualization imported.
 
 React, router, authentication, provider runtime and Markdown dependencies are
 not copied. SSE messages render as safe text (not simulated token streaming).

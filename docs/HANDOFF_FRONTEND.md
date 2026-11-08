@@ -79,3 +79,22 @@ Thread: <t3-thread://v2/74ad084c-8026-4e50-a49b-211ec763d5e2/thread:delegated-ta
 
 ## Outstanding (not frontend success claims)
 Truthful accepted hero + verified causal revision, richer backend model/RAG/correlation metadata, real benchmark results, live inference QA and generation equivalence. No weight/model training or raw-trace repair is required/authorized in this frontend thread.
+
+## Latest follow-up — shared reducer and explicit retrieval decisions
+This section supersedes the earlier4JS/4asset inventory. `audit-events.js` is now loaded before the renderer:5JS files/5assets. All live/replay transports call the same `onEvent` -> `AuditEvents.reduceAudit`; no SSE schema was changed. Typed projections drive phase badges and retrieval badges. First terminal wins, malformed data is INCOMPLETE, raw evidence is retained without edits or content deduplication.
+
+Direct pinned adaptations now also include native collapsible slots from `ui/collapsible.tsx` and inspector geometry from `DiffPanelShell.tsx`; read/adapted patterns from all four requested timeline/sidebar files. Full MIT notices remain byte-identical to the pinned license block. No wholesale imports.
+
+Optional additive fields supported now:
+- `reasoning_summary`: model's stated public summary. `validated_reason` remains separately labeled deterministic evidence summary, not model rationale.
+- `observed_model` preferred to `model`; requested-only identity does not become observed.
+- `retrieval_decision`: `"retrieve"`/`"skip"`, or `{decision:"retrieve"|"skip", reason:string, query?:string}`. A `step` with tool`retrieve` also records selection. Existing37dc has6retrieve decisions and0explicit skips. Missing remains unreported.
+- `used_source_ids`: string IDs, shown as reported source-use links without certification.
+Other missing builder fields above still apply. No genuine causal revision or accepted hero has been established.
+
+Verification additions:
+```sh
+node tests/frontend-events-contract.cjs
+npm exec --offline --cache .cache/npm --yes --package typescript@5.9.3 -- tsc --allowJs --checkJs --noEmit --strict --target ES2022 --lib ES2022,DOM model_customs/static/audit-events.js
+```
+TypeScript is cached inside ignored `.cache/npm` only; no app dependency/build step. On a fresh machine remove `--offline` to download that pinned checker.7reducer tests pass,11frontend Python tests pass, prior renderer contracts pass. Both copied70/65event streams reduced with correct terminal state. `check_frontend.py` now honestly reports its own typecheck as `not_run`; strict tsc is the separate command above. Browser screenshots/QA belong to the preceding console version; this follow-up was verified with typechecking, transport projections, and contract tests, not another browser run. QA server remains stopped. No helper launched for this small follow-up.

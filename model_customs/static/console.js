@@ -28,7 +28,7 @@ const TripConsole = (() => {
   function selectCapture(id) {
     if (state.running) return;
     changeMode('replay'); byId('artifact').value = id;
-    for (const b of byId('run-list').children) b.classList.toggle('selected', b.dataset.run === id);
+    for (const b of byId('run-list').children) { const selected = b.dataset.run === id; b.classList.toggle('selected', selected); b.setAttribute('aria-pressed', String(selected)); }
     const item = local.catalog.find(x => x.id === id);
     byId('current-artifact').textContent = item ? `${item.artifact} / ${id.slice(0,8)}` : 'Select a capture';
     byId('review-warning').textContent = item?.known_issue ? 'NOT AN ACCEPTED HERO · This capture contains false Skeptic history. Replay shows the original evidence and the independent review finding.' : 'HISTORICAL REVIEW · Replay preserves the original trace, including failures. This is not a new audit or accepted hero.';
@@ -52,7 +52,7 @@ const TripConsole = (() => {
     modeChanged(); updateSelector();
     byId('run-list').replaceChildren();
     for (const item of local.catalog) {
-      const b = el('button', undefined, 'run-item'); b.dataset.run = item.id;
+      const b = el('button', undefined, 'run-item'); b.dataset.run = item.id; b.title = item.label; b.setAttribute('aria-pressed', 'false');
       const label = el('span', item.artifact === 'poisoned' ? 'Canary sleeper LoRA' : item.artifact === 'benign' ? 'Benign LoRA' : `${item.artifact} control`);
       label.append(el('small', `${item.id.slice(0,8)} · ${item.known_issue ? 'review issue' : item.terminal === 'complete' ? 'historical' : 'incomplete'}`));
       b.append(el('span', item.terminal === 'error' ? '×' : '◈'),label); b.addEventListener('click',()=>selectCapture(item.id)); byId('run-list').append(b);
@@ -139,25 +139,40 @@ const TripConsole = (() => {
     return d.title || d.summary || (event.type === 'error' ? 'Capture stopped · incomplete' : `${event.agent || 'System'} · ${event.type}`);
   }
   function modelFor(event) {
+    if (event.data?.observed_model) return event.data.observed_model;
     if (event.data?.model) return event.data.model;
     if (event.data?.engine === 'deterministic_evidence_renderer') return 'Deterministic evidence renderer · no model completion';
     if (event.data?.engine === 'rule_based_tool') return 'Rule-based tool · no model completion';
     if (event.agent === 'ORCHESTRATOR') return `Per-step model not recorded${local.model ? ` · run declares ${local.model}` : ''}`;
     return 'Per-step model not recorded; tool execution is not a specialist completion.';
   }
-  function enhanceEvent(event, article) {
+  function enhanceEvent(event, article, projected = null) {
+    const entry = projected || AuditEvents.project(event);
     const index = local.events.length; local.events.push(event);
     if (event.agent === 'ORCHESTRATOR' && event.data?.model) local.model = event.data.model;
     const d = event.data || {}, agent = event.agent || 'SYSTEM';
     const fields = el('dl',undefined,'step-fields');
     fields.append(field('AGENT',`${agent} · ${modelFor(event)}`));
-    fields.append(field('REASON',d.reasoning_summary || d.validated_reason || d.reason || d.rationale || d.hypothesis || 'Not recorded for this event. No reasoning summary inferred.'));
+    fields.append(field('REASON',entry.reasonKind === 'validated-evidence' ? `Validated evidence summary · not a model rationale\n${entry.reason}` : entry.reason || 'Not recorded for this event. No reasoning summary inferred.'));
     fields.append(field('ACT',d.tool ? {tool:d.tool,args:d.args ?? 'Arguments not recorded'} : d.rejected_action ? {rejected_action:d.rejected_action} : 'Observation / status event; no new tool invocation.'));
     fields.append(field('OBSERVE',event.type === 'step' && d.tool ? 'Result arrives as a later observation. No tool-call correlation ID is recorded.' : d.summary || d.assessment || (d.target_count !== undefined ? `${d.target_count}/${d.n} exact target outputs` : 'Original result payload available in the source inspector.')));
-    fields.append(field('RAG',d.tool === 'retrieve' ? `Retrieve selected. Query: ${d.args?.query || 'not recorded'}. Why retrieve: ${d.validated_reason || d.reason || 'not recorded'}` : agent === 'RETRIEVE' ? `Query: ${d.query || 'not recorded'} · ${d.results?.length ?? 0} source records. Explicit source-use links: not recorded.` : 'No explicit retrieve / do-not-retrieve decision on this event.'));
+    const retrieval = entry.retrieval;
+    fields.append(field('RAG',retrieval.choice === 'retrieve' ? `RETRIEVE SELECTED · Query: ${retrieval.query || 'not recorded'}. Recorded reason / evidence summary: ${retrieval.reason || 'not recorded'}` : retrieval.choice === 'skip' ? `RETRIEVAL SKIPPED · Explicit agent decision. Recorded reason / evidence summary: ${retrieval.reason || 'not recorded'}` : retrieval.choice === 'results' ? `RETRIEVAL RESULTS · Query: ${retrieval.query || 'not recorded'} · ${d.results?.length ?? 0} source records.` : 'No explicit retrieve / do-not-retrieve decision on this event.'));
+    if (retrieval.usedSourceIds.length) fields.append(field('SOURCES', `Recorded source-use IDs: ${retrieval.usedSourceIds.join(', ')}. Links are reported, not independently verified.`));
     article.prepend(fields);
     const button = el('button', `Inspect source · event ${index + 1} ↗`, 'inspect-button'); button.addEventListener('click',() => inspect(index)); article.append(button);
     const wrap = T3WorkLog.row({icon: event.type === 'error' ? '×' : d.tool ? '↗' : agent === 'RETRIEVE' ? '⌕' : '◇', label:`${String(index+1).padStart(2,'0')}  ${describe(event)}`, trailing:agent.replace('ORCHESTRATOR','ORCH').replace('EVIDENCE_LEDGER','LEDGER') + ' · ' + (T3WorkLog.workingTimer(local.events[0]?.timestamp,event.timestamp) || '—'), body:article});
+    wrap.dataset.phase = entry.phase;
+    const line = wrap.querySelector('summary');
+    const phase = el('span', entry.phase === 'reason-act' ? 'REASON → ACT' : entry.phase === 'observe' ? 'OBSERVE' : 'STATUS', 'phase-badge');
+    line.insertBefore(phase, line.querySelector('.work-log-trailing'));
+    if (retrieval.choice !== 'unreported') {
+      wrap.dataset.retrieval = retrieval.choice;
+      const banner = el('div', retrieval.choice === 'retrieve' ? '⌕ RETRIEVE SELECTED · agent chose to consult evidence' : retrieval.choice === 'skip' ? '↷ RETRIEVAL SKIPPED · explicit recorded decision' : '⌕ RETRIEVAL RESULTS · inspect sources and scores', 'retrieval-banner');
+      article.prepend(banner);
+      const badge = el('span', retrieval.choice === 'retrieve' ? 'RETRIEVE' : retrieval.choice === 'skip' ? 'SKIP RAG' : 'RAG RESULTS', 'retrieval-badge');
+      line.insertBefore(badge, phase);
+    }
     wrap.dataset.index = String(index); wrap.dataset.agent = agent; wrap.dataset.warning = String(event.type === 'error' || agent === 'GROUNDING' || agent === 'SPECIALIST_FALLBACK' || (agent === 'SKEPTIC' && local.bundle?.known_issue));
     wrap.classList.toggle('has-warning',wrap.dataset.warning === 'true');
     byId('trace').append(wrap);
@@ -208,12 +223,14 @@ const TripConsole = (() => {
     if (d.groups) for (const [group,result] of Object.entries(d.groups)) { if (Array.isArray(result.outputs)) { body.append(el('h3',`${group} · ${result.outputs.length} outputs`)); result.outputs.forEach((o,i)=>showOutput(body,o,`/data/groups/${group}/outputs/${i}/output`)); } }
     if (event.agent === 'RETRIEVE') {
       body.append(el('h3','Agentic retrieval'),el('p',`Query: ${d.query || 'not recorded'}`),el('p',`Initiated by: ${d.initiated_by || 'not recorded'}`,'tiny'));
+      const used = AuditEvents.project(event).retrieval.usedSourceIds;
+      if (used.length) body.append(el('p',`Recorded source-use links: ${used.join(', ')}. Not independently verified.`,'tiny'));
       for (const [i,source] of (d.results || []).entries()) {
         const card = el('div',undefined,'rag-source'); card.append(safeLink(source.title || source.id,source.url),el('small',`/data/results/${i} · score ${source.score ?? 'not recorded'}`));
         card.append(el('p',source.summary || source.text || source.chunk || 'Chunk text not recorded.'));
         card.append(el('p',`Content type: ${source.content_type || 'not recorded'} · ${source.retrieval_method || 'method not recorded'}`,'tiny'));
         card.append(el('p',`Recorded application note: ${source.application || 'not recorded'}`,'tiny'));
-        card.append(el('p','This note is not proof of use. Per-claim source-use links and original-paper character spans are not recorded.','tiny')); body.append(card);
+        card.append(el('p',used.length ? 'Application notes are not independent proof of use. Original-paper character spans are not recorded.' : 'This note is not proof of use. Per-claim source-use links and original-paper character spans are not recorded.','tiny')); body.append(card);
       }
     }
     const details = el('details'); details.append(el('summary','Full original event JSON'),el('pre',JSON.stringify(event,null,2))); body.append(details);
