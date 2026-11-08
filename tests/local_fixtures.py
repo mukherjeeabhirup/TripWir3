@@ -3,8 +3,12 @@ import json
 from model_customs.recordings import LOCAL_MODEL
 
 
-def ready_fixture():
-    return {'status':'ready','model':LOCAL_MODEL,'requested_model':LOCAL_MODEL,'observed_model':LOCAL_MODEL,
+def ready_fixture(legacy=False):
+    if legacy:return {'status':'ready','model':LOCAL_MODEL,'requested_model':LOCAL_MODEL,'observed_model':LOCAL_MODEL,'models_http_status':200,'completion_http_status':200,'answer_verified':True,'checked_at':'LEGACY TEST FIXTURE'}
+    from model_customs.routing import local_profile,LOCAL_URL
+    return {'local_profile':local_profile('nano3_mlx'),'provider':'lm_studio','base_url':LOCAL_URL,
+            'selection':{'selected_id':LOCAL_MODEL,'candidate_count':1},
+            'loaded_instance':{'model_key':LOCAL_MODEL,'instance_id':LOCAL_MODEL,'runtime_context_tokens':32768,'format':'mlx','quantization':None,'native_api':'/api/v1/models'},'status':'ready','model':LOCAL_MODEL,'requested_model':LOCAL_MODEL,'observed_model':LOCAL_MODEL,
             'models_http_status':200,'completion_http_status':200,'answer_verified':True,'checked_at':'TEST FIXTURE'}
 
 
@@ -20,7 +24,7 @@ def hero_fields():
         content=report if role=='REPORT' else outputs[role.lower()]
         records.append({'call_index':index,'role':role,'requested_model':LOCAL_MODEL,'model':LOCAL_MODEL,'observed_model':LOCAL_MODEL,
                         'content':json.dumps({k:v for k,v in content.items() if k not in {'engine','model','factual_grounding'}})})
-    return {'local_model_preflight':ready_fixture(),
+    return {'local_model_preflight':ready_fixture(legacy=True),
             'specialist_engines':{'investigator':'local_lmstudio_nemotron','skeptic':'local_lmstudio_nemotron'},
             'narrative':{'model_draft':{'raw':report}},'evidence_ledger':{'executed_probes':{},'verification_groups':{}},
             'specialist_outputs':outputs,'specialist_calls':calls,'specialist_provider_outputs':records}
@@ -87,3 +91,10 @@ def bind_recording(report,events,leading_events=None):
         record['content']=json.dumps({k:v for k,v in value.items() if k not in {'engine','model','factual_grounding'}})
     attach_report_provenance(report,prefix,rid)
     events[:]=prefix+[event('REPORT',report,'complete')]
+
+
+def native_fixture(identifier=None,profile='nano3_mlx',context=32768):
+    from model_customs.routing import local_profile
+    name=identifier or LOCAL_MODEL
+    return {'models':[{'type':'llm','key':local_profile(profile)['artifact'],'format':'mlx',
+                       'loaded_instances':[{'id':name,'config':{'context_length':context}}]}]}

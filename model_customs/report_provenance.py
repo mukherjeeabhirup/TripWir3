@@ -197,6 +197,11 @@ def check_report_provenance(report,events,run_id,*,max_checks=512):
                 ('event_registry_mismatch',report.get('event_provenance')==registry(records)),
                 ('skeptic_alias_mismatch',report.get('skeptic')==report['specialist_outputs']['skeptic']),
                 ('primary_report_not_derived_from_events',all(report['narrative'].get(k)==expected[k] for k in ['summary','findings','recommended_action','limitations','engine','evidence_facts','report_grounding']))]
+        from .routing import recorded_routes
+        routes=recorded_routes(report)
+        if routes:
+            route_origin=next(r for r in records if r['role']=='ORCHESTRATOR' and r['event_type']=='step' and 'identities' in r['data'])
+            checks.append(('source_model_routing_binding',typed_equal(route_origin['data'].get('model_routing'),routes) and typed_equal(report.get('model_routing'),routes)))
         rendered_source=latest(records,'REPORT')['data']
         checks.append(('source_primary_report_not_derived_from_events',all(typed_equal(rendered_source.get(k),expected[k]) for k in ['summary','findings','recommended_action','limitations','engine','evidence_facts','report_grounding'])))
         from .agent_trace import validate_steps,validate_rag_history,validate_agent_metadata

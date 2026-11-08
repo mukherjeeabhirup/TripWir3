@@ -9,14 +9,16 @@ import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse,JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel,ConfigDict
 from typing import Literal
 from .config import ROOT
 from .local_model import LocalModelNeeded, preflight_local_model
 from .orchestrator import Investigation, utc
 from .recordings import accepted_real_recording, TERMINAL_TYPES
+from .routing import route_config
+from .specialists import SpecialistIncomplete
 
 RUNS_ROOT=ROOT/'runs'
 DEMO_ROOT=ROOT/'demo/recordings'
@@ -25,8 +27,11 @@ AUDIT_LOCK=asyncio.Lock()
 CONTROLS=None
 
 class RunRequest(BaseModel):
+    model_config=ConfigDict(extra='forbid')
     artifact: Literal['base','benign','poisoned']
     mode: Literal['live']='live'
+    orchestrator: Literal['super','ultra']='super'
+    local_profile: Literal['lightning35_mlx4bit','nano3_mlx']='lightning35_mlx4bit'
 
 @asynccontextmanager
 async def lifespan(app):
@@ -113,7 +118,9 @@ def source_provenance(report, events, source_id):
             models=[configured]
             basis='configured_primary_fallback_not_observed'
     return {'source_run_id':source_id,'source_recorded_at':recorded,
-            'source_models':models,'source_model_basis':basis}
+            'source_models':models,'source_model_basis':basis,
+            'source_model_attempts':[{k:c.get(k) for k in ['configured_model','requested_model','observed_model','provider','base_url','status','is_fallback']} for c in calls if isinstance(c,dict)],
+            'source_model_identity_limit':'Literal route labels; checkpoint equivalence is not verified.'}
 
 @app.get('/')
 async def index():
@@ -179,7 +186,7 @@ async def do_audit(run_id,artifact):
             if CONTROLS is None:
                 from .controls import LocalControls
                 CONTROLS=LocalControls()
-            audit=Investigation(run_id,artifact,CONTROLS,collect,local_preflight=STATE[run_id].get('local_preflight'))
+            audit=Investigation(run_id,artifact,CONTROLS,collect,local_preflight=STATE[run_id].get('local_preflight'),routing=STATE[run_id].get('routing'))
             result=await audit.run()
             try:saved=json.loads((RUNS_ROOT/run_id/'report.json').read_text())
             except (OSError,ValueError) as exc:raise ValueError('Producer did not persist a completed report') from exc
@@ -191,6 +198,8 @@ async def do_audit(run_id,artifact):
         if lock:lock.close()
         await emit_to(run_id,pending_terminal)
         STATE[run_id]['completion_accepted']=True
+    except SpecialistIncomplete:
+        await emit_failure(run_id,'Audit INCOMPLETE — context_overflow; evidence was not trimmed.','context_overflow')
     except LocalModelNeeded:
         await emit_failure(run_id,'LOCAL MODEL NEEDED — capture stopped; hero replay disqualified.','LocalModelNeeded')
     except asyncio.CancelledError:
@@ -217,15 +226,16 @@ async def start_run(request: RunRequest):
     lock=try_model_lock()
     if lock is None:raise HTTPException(409,'A benchmark or audit is using the local model. Wait for completion.')
     try:
-        local_preflight=await preflight_local_model()
+        routing=route_config(request.orchestrator,request.local_profile)
+        local_preflight=await preflight_local_model(routing['local'])
     except BaseException as exc:
         lock.close()
         if isinstance(exc,LocalModelNeeded):
-            raise HTTPException(409,str(exc)) from None
+            return JSONResponse(status_code=409,content={'detail':str(exc),'preflight':exc.evidence})
         raise
     run_id=uuid.uuid4().hex
     (RUNS_ROOT/run_id).mkdir(parents=True)
-    STATE[run_id]={'events':[],'changed':asyncio.Event(),'done':False,'mode':'live','model_lock':lock,'completion_accepted':False,'local_preflight':local_preflight}
+    STATE[run_id]={'events':[],'changed':asyncio.Event(),'done':False,'mode':'live','model_lock':lock,'completion_accepted':False,'local_preflight':local_preflight,'routing':deepcopy(routing)}
     STATE[run_id]['task']=asyncio.create_task(do_audit(run_id,request.artifact))
     return {'run_id':run_id}
 

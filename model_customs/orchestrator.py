@@ -21,6 +21,7 @@ from .specialist_grounding import check_skeptic, expected_skeptic, skeptic_contr
 from .report_provenance import attach_report_provenance
 from .agent_trace import build_step, valid_rag_args, available_chunks, rag_payload
 from .decision_audit import validate_candidate,action_summary,grounding_summary
+from .routing import route_config,pinned_routes,valid_local_preflight
 
 TOOLS = {
     'provenance': 'Inspect pinned HF model provenance and local artifact hashes.',
@@ -55,11 +56,13 @@ def compact(data):
 
 
 class Investigation:
-    def __init__(self, run_id, artifact, controls, emit, cloud=None, runs_root=None, resume=False, model_identity_provider=None, local_preflight=None):
+    def __init__(self, run_id, artifact, controls, emit, cloud=None, runs_root=None, resume=False, model_identity_provider=None, local_preflight=None, routing=None):
         self.run_id, self.artifact, self.controls = run_id, artifact, controls
         self.emit = emit
-        self.cloud = cloud or Nemotron()
-        self.specialists = Specialists(strict=True)
+        self.routing=deepcopy(routing or getattr(cloud,'routing',None) or route_config())
+        self.model_routing=None
+        self.cloud = cloud or Nemotron(routing=self.routing)
+        self.specialists = Specialists(strict=True,profile=self.routing['local'])
         self.specialists.on_fallback = self.specialist_fallback
         self.local_preflight = local_preflight
         self.root = (runs_root or ROOT/'runs') / run_id
@@ -90,6 +93,7 @@ class Investigation:
         paths=sorted((ROOT/'model_customs').glob('*.py'))+[ROOT/'requirements.lock',ROOT/'corpus/papers.json']
         sources={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in paths if p.exists()}
         inputs={'artifact':self.artifact,'agent_trace_version':1,'typed_identities':typed_identities(self.candidate,CANARY),'base_revision':metadata['base_revision'],
+                'configured_model_routing':deepcopy(self.routing),'model_routing':deepcopy(self.model_routing),
                 'artifact_sha256':metadata.get('artifact_sha256'), 'sources':sources,
                 'runtime_model_identity':self.model_identity_provider(getattr(self.controls,'root',None),self.artifact),
                 'cloud_primary':self.cloud.primary,'cloud_fallback':getattr(self.cloud,'fallback',None)}
@@ -189,6 +193,10 @@ class Investigation:
         return options
 
     async def specialist_fallback(self, notice):
+        if notice.get('reason')=='context_overflow':
+            incomplete={'status':'INCOMPLETE','passed':False,'checked':0,'total':1,'errors':['context_overflow']}
+            await self.event('observation','SPECIALIST_INCOMPLETE',{**notice,'factual_grounding':incomplete})
+            return
         incomplete={'status':'INCOMPLETE','passed':False,'checked':0,'total':1,'errors':['provider_failure']}
         if notice.get('role')=='SKEPTIC':
             incomplete=check_skeptic(None,self.run_id,index_events(self.run_id,self.source_events))
@@ -197,9 +205,11 @@ class Investigation:
     async def run(self):
         try:
             if self.local_preflight is None:
-                self.local_preflight = await preflight_local_model()
-            if not valid_preflight(self.local_preflight):
+                self.local_preflight = await preflight_local_model(self.routing['local'])
+            if not valid_local_preflight(self.local_preflight,self.routing['local']):
                 raise LocalModelNeeded('Required local-model preflight did not pass.')
+            self.model_routing=pinned_routes(self.routing,self.local_preflight)
+            self.specialists.pin(self.local_preflight)
             # Load metadata before any cloud call so missing controls fail cheaply.
             metadata = self.controls.metadata(self.artifact)
             self.signature = self.run_signature(metadata)
@@ -220,6 +230,7 @@ class Investigation:
                 'summary':'Start a real controlled-artifact inspection.',
                 'artifact':self.artifact, 'intake_tip':self.candidate,
                 'identities':typed_identities(self.candidate,CANARY),'run_id':self.run_id,'agent_trace_version':1,
+                'model_routing':deepcopy(self.model_routing),
                 'disclosure':'Known suspicious literal supplied with this controlled demo; not blind trigger discovery.',
                 'model':self.cloud.primary})
             for step in range(self.steps_attempted,20):
@@ -500,6 +511,8 @@ class Investigation:
                 'summary':narrative['summary'], 'narrative':narrative,
                 'report_grounding':narrative['report_grounding'],
                 'local_model_preflight':self.local_preflight,
+                'model_routing':deepcopy(self.model_routing),
+                'cloud_route_classification':'mixed_or_fallback' if any(c.get('model')!=self.cloud.primary for c in self.cloud.calls) else 'pure_primary',
                 'elapsed_seconds':next(e['data']['call_accounting']['elapsed_seconds'] for e in reversed(self.source_events) if e['agent']=='REPORT' and e['type']=='observation'),'run_signature':self.signature,
                 'query_count':self.local_queries+len(self.cloud.calls)+len(self.specialists.calls),
                 'query_counts':{'local_forward_and_generation':self.local_queries,'cloud_attempts':len(self.cloud.calls),'local_specialist_attempts':len(self.specialists.calls),

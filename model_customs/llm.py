@@ -6,6 +6,8 @@ from typing import Any
 import httpx
 from .config import DEFAULT_MODEL, FALLBACK_MODEL, load_env
 from .rate_limit import SHARED_LIMITER
+from .routing import route_config,route_equal
+from copy import deepcopy
 
 # Structured tool decisions need a bounded JSON answer, not a private reasoning
 # trace consuming the same completion budget. Both selected Nemotron models
@@ -17,15 +19,19 @@ class CloudError(RuntimeError):
     pass
 
 class Nemotron:
-    def __init__(self, client=None, sleep=asyncio.sleep, limiter=None):
+    def __init__(self, client=None, sleep=asyncio.sleep, limiter=None, *, routing=None, fallback_model=None):
         load_env()
-        self.client = client or httpx.AsyncClient(timeout=120)
         self.sleep = sleep
         self.limiter = limiter or SHARED_LIMITER
         self.calls = []
         self.last_response_content = None
-        self.primary = os.getenv('NEMOTRON_MODEL', DEFAULT_MODEL)
-        self.fallback = os.getenv('NEMOTRON_FALLBACK_MODEL', FALLBACK_MODEL)
+        self.routing=deepcopy(routing or route_config(fallback_model=fallback_model))
+        if not route_equal(self.routing,route_config(self.routing['cloud']['profile'],self.routing['local']['profile'],self.routing['cloud']['fallback_model'])):
+            raise ValueError('Unsupported provider/base URL or model routing')
+        self.client = client or httpx.AsyncClient(timeout=120)
+        self.primary=self.routing['cloud']['model']
+        self.fallback=self.routing['cloud']['fallback_model']
+        self.base_url=self.routing['cloud']['base_url']
 
     async def close(self):
         await self.client.aclose()
@@ -40,16 +46,18 @@ class Nemotron:
                   'Use only the requested structured fields and scoped measurement claims, never '
                   'private chain-of-thought. Never claim certification or infer malice '
                   'from LoRA low rank. Return ONLY a valid JSON object. ' + instruction)
-        for model in dict.fromkeys([self.primary, self.fallback]):
+        for model in dict.fromkeys([self.primary]+([self.fallback] if self.fallback else [])):
             for attempt in range(3):
                 try:
                     await self.limiter.acquire()
                     call={'agent':role,'model':model,'status':'in_flight',
-                          'max_tokens':MAX_COMPLETION_TOKENS,'thinking_enabled':False}
+                          'max_tokens':MAX_COMPLETION_TOKENS,'thinking_enabled':False,
+                          'configured_model':self.primary,'requested_model':model,'observed_model':None,'provider':self.routing['cloud']['provider'],
+                          'base_url':self.base_url,'is_fallback':model!=self.primary}
                     self.calls.append(call)
                     if getattr(self,'on_call',None):self.on_call()
                     r = await self.client.post(
-                        'https://integrate.api.nvidia.com/v1/chat/completions',
+                        self.base_url+'/chat/completions',
                         headers={'Authorization': f'Bearer {key}'},
                         json={'model': model, 'messages': [
                             {'role': 'system', 'content': system},

@@ -79,7 +79,11 @@ def available_chunks(run_id,events):
 def build_step(run_id,events,index):
     source=events[index];data=source['data'];role=source['agent'];kind=source['type']
     model={'requested':None,'observed':None};engine='deterministic_tool'
-    if isinstance(data.get('planner_identity'),dict):model=deepcopy(data['planner_identity']);engine='cloud_nemotron'
+    if data.get('completion_requested') is False:
+        model={'requested':data.get('model'),'observed':None};engine='local_specialist_context_guard' if data.get('reason')=='context_overflow' else 'local_specialist_state_guard'
+    elif role=='SPECIALIST_FALLBACK':
+        model={'requested':data.get('requested_model'),'observed':data.get('observed_model')};engine='local_specialist_failed'
+    elif isinstance(data.get('planner_identity'),dict):model=deepcopy(data['planner_identity']);engine='cloud_nemotron'
     elif data.get('engine')=='local_lmstudio_nemotron':model={'requested':data.get('model'),'observed':data.get('model')};engine=data['engine']
     elif role=='REPORT' and data.get('model_draft',{}).get('raw',{}).get('engine')=='local_lmstudio_nemotron':
         raw=data['model_draft']['raw'];model={'requested':raw.get('model'),'observed':raw.get('model')};engine='deterministic_evidence_renderer_with_unverified_local_model_draft'
@@ -91,7 +95,7 @@ def build_step(run_id,events,index):
     phase='decision' if kind=='step' and data.get('tool') else 'progress' if kind=='step' else 'result'
     if role=='RAG_DECISION':phase='decision'
     if role=='GROUNDING' or data.get('rejected_action'):phase='rejected'
-    if role=='SPECIALIST_FALLBACK':phase='incomplete'
+    if role in {'SPECIALIST_FALLBACK','SPECIALIST_INCOMPLETE'}:phase='incomplete'
     call=None
     for i in range(index,-1,-1):
         e=events[i]

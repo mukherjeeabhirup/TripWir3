@@ -6,11 +6,13 @@ import json
 import re
 from .report_provenance import check_report_provenance
 from .claims import valid_specialist_result, validate_claim_rows, decode_specialist_content
+from .routing import valid_local_preflight,recorded_routes,route_equal,valid_context_budget
 
 LOCAL_MODEL = 'nvidia-nemotron-3-nano-30b-a3b-mlx'
 
 
 def valid_preflight(result):
+    if isinstance(result,dict) and 'local_profile' in result:return valid_local_preflight(result)
     return (isinstance(result, dict) and result.get('status') == 'ready'
             and result.get('model') == LOCAL_MODEL and result.get('requested_model') == LOCAL_MODEL and result.get('observed_model') == LOCAL_MODEL and result.get('answer_verified') is True
             and result.get('models_http_status') == 200 and result.get('completion_http_status') == 200)
@@ -49,6 +51,23 @@ def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
         errors.append('report_is_not_finite_json')
     if report.get('run_id') != run_id:
         errors.append('report_run_id_mismatch')
+    try:
+        routes=recorded_routes(report)
+        expected_model=routes['local']['selected_id'] if routes else LOCAL_MODEL
+        if routes:
+            if not route_equal(report.get('model_routing'),routes):errors.append('model_routing_alias_mismatch')
+            inputs=report['run_signature']['inputs']
+            if inputs.get('cloud_primary')!=routes['cloud']['model'] or inputs.get('cloud_fallback')!=routes['cloud']['fallback_model']:
+                errors.append('model_routing_signature_mismatch')
+            if any(call.get('provider')!=routes['cloud']['provider'] or call.get('base_url')!=routes['cloud']['base_url']
+                   or call.get('requested_model')!=call.get('model') or call.get('configured_model')!=routes['cloud']['model']
+                   or call.get('model') not in {routes['cloud']['model'],routes['cloud']['fallback_model']}
+                   or call.get('is_fallback') is not (call.get('model')!=routes['cloud']['model']) for call in report.get('cloud_calls',[])):
+                errors.append('cloud_routing_attempt_mismatch')
+            classification='mixed_or_fallback' if any(c.get('model')!=routes['cloud']['model'] for c in report.get('cloud_calls',[])) else 'pure_primary'
+            if report.get('cloud_route_classification')!=classification:errors.append('cloud_route_classification_mismatch')
+    except (ValueError,TypeError,KeyError,AttributeError):
+        routes=None;expected_model=None;errors.append('invalid_source_bound_model_routing')
     if report.get('data_origin') != REAL_ORIGIN:
         errors.append('report_origin_is_not_real_live_inference')
     if report.get('mode') != 'live' or 'source_run_id' in report:
@@ -64,11 +83,11 @@ def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
     draft = narrative.get('model_draft', {}) if isinstance(narrative, dict) else {}
     raw = draft.get('raw', {}) if isinstance(draft, dict) else {}
     if (not isinstance(engines, dict) or any(engines.get(role) != 'local_lmstudio_nemotron' for role in ('investigator','skeptic'))
-            or not isinstance(raw, dict) or raw.get('engine') != 'local_lmstudio_nemotron' or raw.get('model') != LOCAL_MODEL):
+            or not isinstance(raw, dict) or raw.get('engine') != 'local_lmstudio_nemotron' or raw.get('model') != expected_model):
         errors.append('local_specialist_completion_required_no_fallback')
     calls = report.get('specialist_calls', [])
     if (not isinstance(calls, list) or len(calls)!=3
-            or any(not isinstance(call, dict) or call.get('status') != 200 or call.get('response_http_status') != 200 or call.get('model') != LOCAL_MODEL or call.get('requested_model') != LOCAL_MODEL or call.get('observed_model') != LOCAL_MODEL or not isinstance(call.get('role'),str) or call.get('engine') != 'local_lmstudio' or call.get('schema_validated') is not True or call.get('finish_reason') != 'stop' for call in calls)
+            or any(not isinstance(call, dict) or call.get('status') != 200 or call.get('response_http_status') != 200 or call.get('model') != expected_model or call.get('requested_model') != expected_model or call.get('observed_model') != expected_model or not isinstance(call.get('role'),str) or call.get('engine') != 'local_lmstudio' or call.get('schema_validated') is not True or call.get('finish_reason') != 'stop' for call in calls)
             or {call.get('role') for call in calls if isinstance(call, dict)} != {'INVESTIGATOR','SKEPTIC','REPORT'}):
         errors.append('successful_exact_local_specialist_calls_required')
     outputs=report.get('specialist_outputs',{})
@@ -76,7 +95,7 @@ def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
         value=outputs.get(role) if isinstance(outputs,dict) else None
         # Execution/disclosure are parent metadata for proposals, not Nano fields.
         payload={k:v for k,v in value.items() if k not in {'engine','model','execution_status','disclosure','factual_grounding'}} if isinstance(value,dict) else None
-        if (not isinstance(value,dict) or value.get('engine')!='local_lmstudio_nemotron' or value.get('model')!=LOCAL_MODEL
+        if (not isinstance(value,dict) or value.get('engine')!='local_lmstudio_nemotron' or value.get('model')!=expected_model
                 or not valid_specialist_result(role.upper(),payload)):
             errors.append('invalid_local_role_schema:' + role)
     payload={k:v for k,v in raw.items() if k not in {'engine','model'}} if isinstance(raw,dict) else None
@@ -86,6 +105,14 @@ def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
             or validate_claim_rows(raw.get('claim_rows') if isinstance(raw,dict) else None,ledger)):
         errors.append('invalid_scoped_report_claims')
     records=report.get('specialist_provider_outputs')
+    if routes:
+        profile={k:v for k,v in routes['local'].items() if k not in {'selected_id','loaded_instance'}}
+        if any(not isinstance(c,dict) or not route_equal(c.get('local_profile'),profile) or c.get('provider')!='lm_studio'
+               or c.get('base_url')!=routes['local']['base_url'] or not route_equal(c.get('loaded_instance'),routes['local']['loaded_instance']) or c.get('endpoint')!='/v1/completions'
+               or type(c.get('loaded_state_http_status')) is not int or c.get('loaded_state_http_status')!=200 for c in (calls if isinstance(calls,list) else [])+(records if isinstance(records,list) else [])):
+            errors.append('local_routing_attempt_mismatch')
+        if any(not valid_context_budget(c.get('context_budget'),routes['local']['loaded_instance']['runtime_context_tokens']) for c in calls if isinstance(c,dict)):
+            errors.append('local_context_budget_mismatch')
     if not isinstance(records,list) or not isinstance(calls,list) or len(records)!=3 or len(calls)!=3:
         errors.append('raw_specialist_responses_required')
     else:
@@ -99,7 +126,7 @@ def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
                 call=calls[index]
                 role=record['role']
                 if (role!=call.get('role') or record.get('requested_model')!=call.get('requested_model')
-                        or record.get('model')!=LOCAL_MODEL or record.get('observed_model')!=LOCAL_MODEL
+                        or record.get('model')!=expected_model or record.get('observed_model')!=expected_model
                         or record['model']!=call.get('observed_model')):raise ValueError('Identity mismatch')
                 decoded=decode_specialist_content(record['content'])
                 if not valid_specialist_result(role,decoded):raise ValueError('Invalid raw role schema')
@@ -123,7 +150,7 @@ def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
         if not isinstance(event, dict):
             errors.append(f'malformed_event:{index}')
             continue
-        if (event.get('agent') == 'SPECIALIST_FALLBACK'
+        if (event.get('agent') in {'SPECIALIST_FALLBACK','SPECIALIST_INCOMPLETE'}
                 or isinstance(event.get('data'), dict) and event['data'].get('engine') == 'rule_based_tool'):
             errors.append('specialist_fallback_disqualifies_hero:' + str(index))
         kind = event.get('type')

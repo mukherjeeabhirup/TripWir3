@@ -11,6 +11,7 @@ DECISION_FIELDS=('tool','args','claim_rows','evidence_claims','verification_clai
 
 def new_protocol(events,signature=None):
     inputs=(signature or {}).get('inputs',{})
+    if 'model_routing' in inputs or 'configured_model_routing' in inputs:return True
     if 'agent_trace_version' in inputs:return True
     if any(p in inputs.get('sources',{}) for p in ['model_customs/agent_trace.py','model_customs/decision_audit.py']):return True
     for event in events:

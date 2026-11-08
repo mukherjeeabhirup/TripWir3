@@ -79,5 +79,5 @@ def test_midrun_configuration_change_blocks_final_report(identity_files,tmp_path
 
 @pytest.fixture(autouse=True)
 def fixture_preflight(monkeypatch):
-    async def ready(): return ready_fixture()
+    async def ready(*args,**kwargs): return ready_fixture()
     monkeypatch.setattr('model_customs.orchestrator.preflight_local_model',ready)

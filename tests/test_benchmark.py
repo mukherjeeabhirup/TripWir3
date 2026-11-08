@@ -32,7 +32,7 @@ class FixtureAudits:
     async def identity(self, controls, artifact):
         return {'artifact': artifact, 'source': self.source, 'model': self.model}
 
-    def factory(self, run_id, artifact, controls, emit, *, runs_root, resume, local_preflight):
+    def factory(self, run_id, artifact, controls, emit, *, runs_root, resume, local_preflight, routing=None):
         owner = self
         class FixtureInvestigation:
             async def run(self):
@@ -173,7 +173,7 @@ def test_nonterminal_interrupted_trace_keeps_same_resume_id(benchmark_root):
 
 @pytest.fixture(autouse=True)
 def fixture_preflight(monkeypatch):
-    async def ready(): return ready_fixture()
+    async def ready(*args,**kwargs): return ready_fixture()
     monkeypatch.setattr('scripts.run_audit.preflight_local_model',ready)
 
 
@@ -183,7 +183,7 @@ def test_failed_local_preflight_preserves_existing_benchmark_before_resume_fast_
     run(benchmark_root,fixtures)
     before={str(p.relative_to(benchmark_root)):p.read_bytes() for p in benchmark_root.rglob('*') if p.is_file()}
     previous_calls=len(fixtures.calls)
-    async def blocked():raise LocalModelNeeded('TEST FIXTURE model unloaded')
+    async def blocked(*args,**kwargs):raise LocalModelNeeded('TEST FIXTURE model unloaded')
     monkeypatch.setattr('scripts.run_audit.preflight_local_model',blocked)
     with pytest.raises(LocalModelNeeded):run(benchmark_root,fixtures)
     assert len(fixtures.calls)==previous_calls
@@ -193,7 +193,7 @@ def test_failed_local_preflight_preserves_existing_benchmark_before_resume_fast_
 def test_benchmark_refreshes_preflight_before_each_new_artifact(benchmark_root,monkeypatch):
     from model_customs.local_model import LocalModelNeeded
     checked=[];fixtures=FixtureAudits()
-    async def ready_then_unloaded():
+    async def ready_then_unloaded(*args,**kwargs):
         checked.append(True)
         if len(checked)==3:raise LocalModelNeeded('TEST FIXTURE unload before benign')
         return ready_fixture()

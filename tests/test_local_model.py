@@ -7,7 +7,7 @@ import pytest
 
 from model_customs import local_model as local
 from model_customs.local_model import LOCAL_MODEL, LocalModelNeeded
-from local_fixtures import ready_fixture, hero_fields, bind_recording, skeptic_payload
+from local_fixtures import ready_fixture, hero_fields, bind_recording, skeptic_payload, native_fixture
 
 
 def test_key_is_read_only_from_project_env(tmp_path, monkeypatch):
@@ -27,10 +27,10 @@ def test_preflight_exact_authenticated_get_then_tiny_answer(monkeypatch,case):
         assert request.url.host=='127.0.0.1' and request.url.port==1234
         assert request.headers['Authorization']=='Bearer '+fake
         if request.method=='GET':
-            assert request.url.path=='/v1/models'
+            assert request.url.path=='/api/v1/models'
             if case=='listing_denied':return httpx.Response(401)
-            if case=='bad_listing':return httpx.Response(200,json={'data':None})
-            return httpx.Response(200,json={'data':[{'id':'other-nemotron-nano' if case=='wrong_model' else LOCAL_MODEL}]})
+            if case=='bad_listing':return httpx.Response(200,json={'models':None})
+            return httpx.Response(200,json={'models':[]} if case=='wrong_model' else native_fixture())
         assert request.url.path=='/v1/completions'
         payload=json.loads(request.content)
         assert payload['model']==LOCAL_MODEL and payload['max_tokens']==32 and not payload['stream']
@@ -67,8 +67,8 @@ def test_midcapture_fallback_is_logged_visible_and_blocks_rule_tool(tmp_path,mon
         fixture={'run_id':'fixture',**hero_fields()};events_fixture=[{'type':'step','agent':'SYSTEM','data':{}}]
         bind_recording(fixture,events_fixture);audit.source_events=events_fixture[:-1]
         await audit.specialists.client.aclose()
-        audit.specialists.client=httpx.AsyncClient(transport=httpx.MockTransport(lambda _:httpx.Response(200,json={'choices':[]})))
-        audit.specialists.model=LOCAL_MODEL;audit.specialists.probed=True
+        audit.specialists.client=httpx.AsyncClient(transport=httpx.MockTransport(lambda request:httpx.Response(200,json=native_fixture() if request.method=='GET' else {'choices':[]})))
+        audit.specialists.pin(ready_fixture())
         monkeypatch.setattr('model_customs.specialists.local_api_key',lambda:'fixture-'+ 'credential')
         try:
             with pytest.raises(LocalModelNeeded):await audit.execute(tool,{}, {})
@@ -91,7 +91,7 @@ def test_direct_audit_and_resume_cannot_bypass_failed_preflight(tmp_path,monkeyp
     class Cloud:
         calls=[]
         async def close(self):pass
-    async def blocked():raise LocalModelNeeded('TEST FIXTURE missing model')
+    async def blocked(*args,**kwargs):raise LocalModelNeeded('TEST FIXTURE missing model')
     monkeypatch.setattr('model_customs.orchestrator.preflight_local_model',blocked)
     async def run():
         for resume in [False,True]:
@@ -110,6 +110,7 @@ def test_local_success_requires_stop_and_role_schema_with_separate_http_diagnost
     if case=='wrong_shape':payload['limitations']='not a list'
     if case=='extra_fields':payload['claim']='necessary and sufficient'
     def handler(request):
+        if request.method=='GET':return httpx.Response(200,json=native_fixture())
         body=json.loads(request.content)
         assert request.url.path=='/v1/completions'
         assert body['prompt'].endswith('<|im_start|>assistant\n<think></think>')
@@ -120,7 +121,7 @@ def test_local_success_requires_stop_and_role_schema_with_separate_http_diagnost
     async def run():
         specialist=Specialists(strict=True)
         await specialist.client.aclose();specialist.client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
-        specialist.model=LOCAL_MODEL;specialist.probed=True
+        specialist.pin(ready_fixture())
         monkeypatch.setattr('model_customs.specialists.local_api_key',lambda:'fixture-'+ 'credential')
         try:
             if case=='valid':
@@ -145,9 +146,9 @@ def test_local_role_cannot_relabel_conflicting_or_unknown_response_model(monkeyp
     async def run():
         specialist=Specialists(strict=True)
         await specialist.client.aclose()
-        specialist.client=httpx.AsyncClient(transport=httpx.MockTransport(lambda _:httpx.Response(200,json={
+        specialist.client=httpx.AsyncClient(transport=httpx.MockTransport(lambda request:httpx.Response(200,json=native_fixture() if request.method=='GET' else {
             'model':observed,'choices':[{'finish_reason':'stop','text':json.dumps(content)}]})))
-        specialist.model=LOCAL_MODEL;specialist.probed=True
+        specialist.pin(ready_fixture())
         monkeypatch.setattr('model_customs.specialists.local_api_key',lambda:'fixture-'+ 'credential')
         try:
             with pytest.raises(LocalModelNeeded):await specialist.ask('SKEPTIC','Return schema',{},fallback={})

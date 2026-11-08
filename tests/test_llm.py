@@ -3,6 +3,7 @@ import httpx
 import json
 import pytest
 from model_customs.llm import Nemotron, CloudError
+from model_customs.routing import HOSTED_LIGHTNING
 
 
 class NoWaitLimiter:
@@ -19,7 +20,7 @@ def test_429_retries_then_fallback(monkeypatch):
         return httpx.Response(200,json={'model':json.loads(request.content)['model'],'choices':[{'finish_reason':'stop','message':{'content':'{"tool":"provenance"}'}}],'usage':{'total_tokens':3}})
     async def run():
         client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
-        cloud=Nemotron(client,sleep=lambda _:asyncio.sleep(0),limiter=NoWaitLimiter())
+        cloud=Nemotron(client,fallback_model=HOSTED_LIGHTNING,sleep=lambda _:asyncio.sleep(0),limiter=NoWaitLimiter())
         result=await cloud.ask('test','Return JSON',{})
         assert result['tool']=='provenance'
         assert len(cloud.calls)==4
@@ -32,7 +33,7 @@ def test_auth_failure_is_redacted(monkeypatch):
     monkeypatch.setenv('NVIDIA_API_KEY','test-not-a-secret')
     async def run():
         client=httpx.AsyncClient(transport=httpx.MockTransport(lambda _:httpx.Response(401,text='DO NOT LEAK')))
-        cloud=Nemotron(client,limiter=NoWaitLimiter())
+        cloud=Nemotron(client,fallback_model=HOSTED_LIGHTNING,limiter=NoWaitLimiter())
         with pytest.raises(CloudError) as exc: await cloud.ask('test','',{})
         assert 'DO NOT LEAK' not in str(exc.value)
         await cloud.close()
@@ -48,7 +49,7 @@ def test_malformed_success_uses_retries_and_fallback(monkeypatch):
         return httpx.Response(200,json={'model':json.loads(request.content)['model'],'choices':[{'finish_reason':'stop','message':{'content':'{"ok":true}'}}]})
     async def run():
         client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
-        cloud=Nemotron(client,limiter=NoWaitLimiter())
+        cloud=Nemotron(client,fallback_model=HOSTED_LIGHTNING,limiter=NoWaitLimiter())
         assert await cloud.ask('ORCHESTRATOR','JSON',{})=={'ok':True}
         assert len(cloud.calls)==4
         assert all(x.get('parse_error') for x in cloud.calls[:3])
@@ -72,7 +73,7 @@ def test_structured_decisions_disable_thinking_for_primary_and_fallback(monkeypa
     async def run():
         limiter=CountingLimiter()
         client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
-        cloud=Nemotron(client,sleep=lambda _:asyncio.sleep(0),limiter=limiter)
+        cloud=Nemotron(client,fallback_model=HOSTED_LIGHTNING,sleep=lambda _:asyncio.sleep(0),limiter=limiter)
         assert await cloud.ask('ORCHESTRATOR','Return JSON',{})=={'tool':'freeze'}
         assert limiter.count==len(requests)==4
         assert requests[0]['model']==cloud.primary
@@ -100,7 +101,7 @@ def test_length_limited_json_is_rejected_and_metadata_checkpointed(monkeypatch):
                      'completion_tokens_details':{'reasoning_tokens':2048 if truncated else 0}}})
     async def run():
         client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
-        cloud=Nemotron(client,limiter=NoWaitLimiter())
+        cloud=Nemotron(client,fallback_model=HOSTED_LIGHTNING,limiter=NoWaitLimiter())
         snapshots=[]
         cloud.on_call=lambda:snapshots.append(copy.deepcopy(cloud.calls))
         assert await cloud.ask('ORCHESTRATOR','Return JSON',{})=={'ok':True}
@@ -122,7 +123,7 @@ def test_repeated_reasoning_only_exhaustion_stops_after_six_attempts(monkeypatch
             'usage':{'completion_tokens':2048,'completion_tokens_details':{'reasoning_tokens':2048}}})
     async def run():
         client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
-        cloud=Nemotron(client,limiter=NoWaitLimiter())
+        cloud=Nemotron(client,fallback_model=HOSTED_LIGHTNING,limiter=NoWaitLimiter())
         with pytest.raises(CloudError):await cloud.ask('ORCHESTRATOR','Return JSON',{})
         assert len(cloud.calls)==6
         assert all(x['parse_error'] and x['truncated'] for x in cloud.calls)
@@ -136,7 +137,7 @@ def test_unknown_finish_reason_is_categorized_without_provider_text(monkeypatch)
     async def run():
         client=httpx.AsyncClient(transport=httpx.MockTransport(lambda _:httpx.Response(200,json={
             'choices':[{'finish_reason':'PRIVATE PROVIDER STRING','message':{'content':'{"ok":true}'}}]})))
-        cloud=Nemotron(client,limiter=NoWaitLimiter())
+        cloud=Nemotron(client,fallback_model=HOSTED_LIGHTNING,limiter=NoWaitLimiter())
         with pytest.raises(CloudError):await cloud.ask('ORCHESTRATOR','Return JSON',{})
         assert cloud.calls[-1]['finish_reason']=='unknown'
         assert 'PRIVATE PROVIDER STRING' not in repr(cloud.calls)
@@ -144,13 +145,13 @@ def test_unknown_finish_reason_is_categorized_without_provider_text(monkeypatch)
     asyncio.run(run())
 
 
-@pytest.mark.parametrize('observed',[None,'OTHER_MODEL'])
+@pytest.mark.parametrize('observed',[None,'OTHER_MODEL','private/nvidia/nemotron-3.5-super-120b-a12b'])
 def test_unknown_or_conflicting_cloud_identity_never_gets_parse_success(monkeypatch,observed):
     monkeypatch.setenv('NVIDIA_API_KEY','test-not-a-secret')
     async def run():
         response={'model':observed,'choices':[{'finish_reason':'stop','message':{'content':'{"ok":true}'}}]}
         client=httpx.AsyncClient(transport=httpx.MockTransport(lambda _:httpx.Response(200,json=response)))
-        cloud=Nemotron(client,limiter=NoWaitLimiter())
+        cloud=Nemotron(client,fallback_model=HOSTED_LIGHTNING,limiter=NoWaitLimiter())
         with pytest.raises(CloudError):await cloud.ask('ORCHESTRATOR','JSON',{})
         assert all(c.get('parse_error') is True and c.get('parse_validated') is not True for c in cloud.calls)
         await cloud.close()

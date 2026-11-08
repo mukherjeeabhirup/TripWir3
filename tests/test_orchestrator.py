@@ -60,6 +60,9 @@ def test_resume_rejects_source_drift_without_overwriting_checkpoint(tmp_path):
     async def run():
         async def emit(event): pass
         first=Investigation('test','base',MetadataControls(),emit,cloud=TestCloud(),runs_root=tmp_path,model_identity_provider=fixture_identity)
+        first.local_preflight=ready_fixture()
+        from model_customs.routing import pinned_routes
+        first.model_routing=pinned_routes(first.routing,first.local_preflight)
         first.signature=first.run_signature(first.controls.metadata('base'))
         first.checkpoint_writable=True
         first.save_checkpoint()
@@ -89,6 +92,9 @@ def test_resume_inflight_tool_does_not_spend_new_cloud_decision(tmp_path,monkeyp
     async def run():
         async def emit(event):pass
         first=Audit('test','base',MetadataControls(),emit,cloud=TestCloud(),runs_root=tmp_path,model_identity_provider=fixture_identity)
+        first.local_preflight=ready_fixture()
+        from model_customs.routing import pinned_routes
+        first.model_routing=pinned_routes(first.routing,first.local_preflight)
         first.signature=first.run_signature(first.controls.metadata('base'))
         first.checkpoint_writable=True;first.steps_attempted=20
         first.inflight={'tool':'report','args':{}};first.save_checkpoint()
@@ -204,7 +210,7 @@ def test_compact_preserves_true_and_shown_cardinality_without_mutation():
 
 @pytest.fixture(autouse=True)
 def fixture_local_preflight(monkeypatch):
-    async def ready(): return ready_fixture()
+    async def ready(*args,**kwargs): return ready_fixture()
     monkeypatch.setattr('model_customs.orchestrator.preflight_local_model',ready)
 
 

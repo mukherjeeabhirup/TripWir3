@@ -2,7 +2,7 @@
 
 **An NVIDIA-native Nemotron customs check for open-weight LLM fine-tunes.**
 
-TripWir3 investigates controlled model artifacts before deployment: Nemotron Ultra
+TripWir3 investigates controlled model artifacts before deployment: a configured Nemotron orchestrator
 chooses tools, challenges a trigger hypothesis, retrieves primary-paper evidence,
 uses specialist tools to challenge alternative explanations, commits a held-out suite, and reports
 measured behavior. Built for HackUTD 2026, NVIDIA Nemotron: **Beyond a Chatbot**.
@@ -15,6 +15,8 @@ artifacts cannot establish population detection rates. No novelty claim: see
 and [Watch the Weights](https://arxiv.org/abs/2508.00161).
 
 ## Current evidence status
+
+The intended new source stack is **cloud Nemotron 3.5 Super + local 3.5 Lightning**, with Ultra as an explicit alternate. This supersedes the historical Ultra/Nano default. Routing, native loaded-instance/context checks and selected-profile admission are under independent review; Abhirup reported Lightning loaded at 32K; its native runtime state and completion readiness remain unverified pending the independent gate. No live new-stack preflight, smoke or hero capture is claimed. See [model routing](docs/MODEL_ROUTING.md) for configuration and gates.
 
 The real three-control measurement benchmark completed, but poisoned run
 `45c45c9ed66e4864a97b43c0a3b261ff` failed agent grounding: Nemotron confused

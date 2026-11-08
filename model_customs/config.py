@@ -17,5 +17,5 @@ def load_env():
     load_dotenv(ROOT / '.env', override=False)
 
 
-DEFAULT_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b'
-FALLBACK_MODEL = 'nvidia/nemotron-3.5-lightning-30b-a3b'
+DEFAULT_MODEL = 'nvidia/nemotron-3.5-super-vl-120b-a12b'
+FALLBACK_MODEL = None

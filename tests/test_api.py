@@ -201,7 +201,7 @@ def test_replay_revalidates_source_before_emitting_and_preserves_source_provenan
 def test_local_model_needed_blocks_api_before_run_allocation(api_files,monkeypatch):
     from model_customs.local_model import LocalModelNeeded
     async def trained():return {'artifacts':[{'id':v,'available':True} for v in ['base','benign','poisoned']]}
-    async def missing():raise LocalModelNeeded('TEST FIXTURE load Nano')
+    async def missing(*args,**kwargs):raise LocalModelNeeded('TEST FIXTURE load Nano')
     monkeypatch.setattr(module,'artifacts',trained)
     monkeypatch.setattr(module,'preflight_local_model',missing)
     async def run():
@@ -219,7 +219,7 @@ def test_local_model_needed_blocks_api_before_run_allocation(api_files,monkeypat
 def test_replay_admission_never_runs_live_local_preflight(api_files,monkeypatch):
     source_id='b'*32;report,events=recording_fixture(source_id)
     write_recording(api_files,source_id,report,events)
-    async def forbidden():raise AssertionError('Offline replay attempted live preflight')
+    async def forbidden(*args,**kwargs):raise AssertionError('Offline replay attempted live preflight')
     monkeypatch.setattr(module,'preflight_local_model',forbidden)
     async def run():
         result=await module.replay(source_id)

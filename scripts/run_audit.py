@@ -21,6 +21,8 @@ ARTIFACTS = ('base', 'benign', 'poisoned')
 def argument_parser():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--artifact', choices=[*ARTIFACTS, 'all'], default='poisoned')
+    parser.add_argument('--orchestrator',choices=['super','ultra'],default=None)
+    parser.add_argument('--local-profile',choices=['lightning35_mlx4bit','nano3_mlx'],default=None)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--resume', dest='resume', action='store_true', default=True,
                       help='Reuse matching completed controls and resume unfinished tool checkpoints (default).')
@@ -42,6 +44,7 @@ from model_customs.orchestrator import Investigation
 from model_customs.provenance import verify_local_provenance
 from model_customs.identity import capture_model_identity
 from model_customs.recordings import accepted_real_recording, TERMINAL_TYPES
+from model_customs.routing import route_config,pinned_routes,route_equal
 
 _RUN_ID = re.compile(r'^[0-9a-f]{32}$')
 SCOPE = 'Three related controlled artifacts; no population detection-rate claim.'
@@ -67,7 +70,7 @@ def identity_sha256(identity):
     return hashlib.sha256(json.dumps(identity, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 
 
-def source_identity():
+def source_identity(routing=None,local_preflight=None):
     """Explicit allowlist: application Python/corpus, never .env or credentials."""
     paths = list((ROOT / 'model_customs').rglob('*.py'))
     paths += list((ROOT / 'corpus').glob('*.json'))
@@ -75,21 +78,22 @@ def source_identity():
     if (ROOT / 'requirements.lock').exists():
         paths.append(ROOT / 'requirements.lock')
     sources = {str(p.relative_to(ROOT)): file_sha256(p) for p in sorted(set(paths))}
+    routing=routing or route_config()
     return {'sources_sha256': sources,
             'model_config': {
-                'orchestrator_primary': os.getenv('NEMOTRON_MODEL', DEFAULT_MODEL),
-                'orchestrator_fallback': os.getenv('NEMOTRON_FALLBACK_MODEL', FALLBACK_MODEL),
+                'routing':pinned_routes(routing,local_preflight) if local_preflight else routing,
                 'specialists': 'required_exact_local_nemotron_preflight_no_capture_fallback',
             }}
 
 
-async def artifact_identity(controls, artifact):
+async def artifact_identity(controls, artifact, *,routing=None,local_preflight=None):
     """Recompute actual bytes before skipping a previously completed control."""
     verified = await verify_local_provenance(controls.root, artifact)
     if verified['status'] != 'verified':
         raise BenchmarkError('Current local model provenance is not verified')
     base = verified['base_hash_verification']
-    return {**source_identity(), 'artifact': artifact,
+    return {**source_identity(routing,local_preflight), 'artifact': artifact,
+            'auditor_routing':pinned_routes(routing or route_config(),local_preflight) if local_preflight else None,
             'runtime_model_identity':capture_model_identity(controls.root,artifact),
             'base_model': verified['base_model'], 'base_revision': verified['base_revision'],
             'base_manifest_sha256': verified['base_manifest_sha256'],
@@ -151,6 +155,8 @@ def completed_report(entry, identity, runs_root):
         runtime=identity.get('runtime_model_identity')
         if runtime is not None and report.get('run_signature',{}).get('inputs',{}).get('runtime_model_identity')!=runtime:
             return None
+        expected=identity.get('auditor_routing')
+        if expected is not None and not route_equal(report.get('run_signature',{}).get('inputs',{}).get('model_routing'),expected):return None
         return report if valid_report(report, identity['artifact'], run_id) else None
     except (OSError, ValueError, TypeError):
         return None
@@ -176,7 +182,7 @@ def summary(report):
 
 async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None,
                         investigation_factory=Investigation, identity_factory=artifact_identity,
-                        output=print):
+                        output=print,orchestrator=None,local_profile=None):
     """Resume both completed controls and an interrupted audit's tool checkpoint.
 
     NVIDIA throttling belongs to the shared cross-process client limiter. The CLI
@@ -196,7 +202,8 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
             fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             raise BenchmarkError('Another benchmark CLI is running; wait for it to finish') from exc
-        local_preflight = await preflight_local_model()
+        routing=route_config(orchestrator,local_profile)
+        local_preflight = await preflight_local_model(routing['local'])
         controls = controls or LocalControls()
         progress = load_progress(progress_path, resume)
         results = []
@@ -210,7 +217,10 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
                     'progress_file': 'benchmark-progress.json', 'generated_at': utc()})
         write_aggregate()
         for artifact in artifacts:
-            identity = await identity_factory(controls, artifact)
+            local_preflight = await preflight_local_model(routing['local'])
+            if identity_factory is artifact_identity:
+                identity=await artifact_identity(controls,artifact,routing=routing,local_preflight=local_preflight)
+            else:identity = await identity_factory(controls, artifact)  # Explicit synthetic factory injection.
             digest = identity_sha256(identity)
             previous = progress['artifacts'].get(artifact)
             report = completed_report(previous, identity, runs_root) if resume else None
@@ -235,7 +245,7 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
             if not folder.resolve().is_relative_to(runs_root):
                 raise BenchmarkError('Run folder must remain inside project')
             # Fresh readiness before every actual artifact audit, including resume.
-            local_preflight = await preflight_local_model()
+            # This exact pin was checked before identity/cache selection above.
             folder.mkdir(parents=True, exist_ok=True)
             if previous and not unfinished:
                 progress['history'].append({'artifact': artifact, **previous})
@@ -261,8 +271,8 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
                     pending_terminal=event
                     return
                 persist(event)
-                if event.get('agent')=='SPECIALIST_FALLBACK':
-                    output(json.dumps({'event':'SPECIALIST_FALLBACK','run_id':run_id,**event['data']}),flush=True)
+                if event.get('agent') in {'SPECIALIST_FALLBACK','SPECIALIST_INCOMPLETE'}:
+                    output(json.dumps({'event':event['agent'],'run_id':run_id,**event['data']}),flush=True)
                 if event['type'] == 'step':
                     data = event['data']
                     output(json.dumps({'run_id': run_id, 'agent': event['agent'],
@@ -270,7 +280,7 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
                                        'summary': data.get('summary', data.get('hypothesis', ''))}), flush=True)
             try:
                 investigation = investigation_factory(run_id, artifact, controls, emit,
-                                                      runs_root=runs_root, resume=bool(unfinished), local_preflight=local_preflight)
+                                                      runs_root=runs_root, resume=bool(unfinished), local_preflight=local_preflight,routing=routing)
                 report = await investigation.run()
                 if not valid_report(report, artifact, run_id):
                     raise BenchmarkError('Audit did not produce a completed real report')
@@ -308,7 +318,8 @@ async def main():
     args = argument_parser().parse_args()
     load_env()
     try:
-        await run_benchmark(list(ARTIFACTS) if args.artifact == 'all' else [args.artifact], resume=args.resume)
+        await run_benchmark(list(ARTIFACTS) if args.artifact == 'all' else [args.artifact], resume=args.resume,
+                            orchestrator=args.orchestrator,local_profile=args.local_profile)
     except LocalModelNeeded as exc:
         print(json.dumps({'status':'LOCAL MODEL NEEDED','summary':str(exc),
                           'next_action':'Load the required local model. No new run will start until preflight passes.'}),flush=True)
