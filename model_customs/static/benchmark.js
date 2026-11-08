@@ -132,7 +132,7 @@
   }
 
   const formatRate = value => value === null ? '—' : `${(value * 100).toFixed(1)}%`;
-  const fraction = (n, d) => `${n} / ${d} · ${formatRate(ratio(n, d))}`;
+  const fraction = (n, d) => `${n} / ${d} / ${formatRate(ratio(n, d))}`;
   const formatUsd = value => value === null ? '—' : (value > 0 && value < 0.0001 ? '< $0.0001' : `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`);
   const formatLatency = value => value === null ? '—' : (value === 0 ? '0 ms' : value < 1 ? '< 1 ms' : value < 1000 ? `${value.toFixed(0)} ms` : `${(value / 1000).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`);
 
@@ -167,7 +167,7 @@
 
     function renderRate(prefix, metrics, truth) {
       set(`${prefix}-value`, formatRate(metrics.rate));
-      set(`${prefix}-count`, metrics.decided ? `${metrics.flagged} flagged / ${metrics.decided} decided ${truth} adapters` : `No decided ${truth} adapters · rate unavailable`);
+      set(`${prefix}-count`, metrics.decided ? `${metrics.flagged} flagged / ${metrics.decided} decided ${truth} adapters` : `No decided ${truth} adapters / rate unavailable`);
       set(`${prefix}-coverage`, fraction(metrics.decided, metrics.eligible));
       set(`${prefix}-all`, fraction(metrics.flagged, metrics.eligible));
       set(`${prefix}-incomplete`, `${metrics.incomplete} / ${metrics.eligible}`);
@@ -196,7 +196,7 @@
         const latency = make('td', 'numeric', formatLatency(row.latency_ms));
         if (row.latency_ms === null) latency.setAttribute('aria-label', 'Audit latency not reported');
         const run = make('td');
-        run.append(make('code', 'run-id', row.run_id === null ? 'No run ID' : row.run_id));
+        run.append(make('code', 'run-id', row.run_id === null ? '—' : row.run_id));
         const sources = make('td');
         if (row.sources.length) {
           const list = make('ul', 'source-list');
@@ -211,7 +211,7 @@
             list.append(li);
           });
           sources.append(list);
-        } else sources.append(make('span', 'not-reported', 'No source attached'));
+        } else sources.append(make('span', 'not-reported', '—'));
         tr.append(name, truth, verdict, samples, cost, latency, run, sources);
         fragment.append(tr);
       });
@@ -221,27 +221,27 @@
     function render(data, metrics) {
       const example = data.data_kind === 'example';
       state(example ? 'example' : 'measured', example ? 'EXAMPLE DATA / NOT MEASURED' : 'MEASURED DATA / REPORTED SNAPSHOT', example
-        ? 'All decisions, sample sizes, costs, and timings below are synthetic illustrations. No benchmark was run for this snapshot.'
-        : 'Reported audit outcomes from the supplied snapshot. This page does not run audits or independently verify source evidence.');
+        ? 'Synthetic example snapshot.'
+        : 'Recorded audit snapshot.');
       set('dataset-id', `COHORT / ${data.dataset_id}`);
       set('cohort-title', data.title);
-      set('cohort-description', data.description);
+      set('cohort-description', '');
       set('snapshot-kind', example ? 'EXAMPLE / NOT MEASURED' : 'MEASURED / REPORTED');
       el('snapshot-kind').className = `tag${example ? ' example' : ''}`;
-      set('snapshot-date', data.generated_at === null ? 'Snapshot timestamp not supplied' : `Snapshot: ${data.generated_at}`);
-      set('rate-kind', example ? 'EXAMPLE FIGURES · NOT MEASURED' : 'REPORTED ADAPTER OUTCOMES');
+      set('snapshot-date', data.generated_at === null ? '—' : `Snapshot: ${data.generated_at}`);
+      set('rate-kind', example ? 'EXAMPLE FIGURES / NOT MEASURED' : 'REPORTED ADAPTER OUTCOMES');
       renderRate('tpr', metrics.positive, 'positive');
       renderRate('fpr', metrics.negative, 'negative');
       set('coverage-value', formatRate(metrics.coverage));
-      set('coverage-detail', `${metrics.decided} / ${metrics.total} decided · known truth ${fraction(metrics.knownDecided, metrics.knownEligible)}`);
+      set('coverage-detail', `${metrics.decided} / ${metrics.total} decided / known truth ${fraction(metrics.knownDecided, metrics.knownEligible)}`);
       set('excluded-value', `${metrics.incomplete} / ${metrics.total}`);
-      set('excluded-detail', `${metrics.unknown.eligible} unknown truth · excluded from rates (may overlap)`);
+      set('excluded-detail', `${metrics.unknown.eligible} unknown truth`);
       set('cost-value', formatUsd(metrics.cost.total));
-      set('cost-detail', metrics.cost.count ? `${metrics.cost.count} / ${metrics.total} reported · ${metrics.cost.count === metrics.total ? 'all adapters reported' : 'partial sum; missing excluded'}` : `0 / ${metrics.total} reported · unavailable, not zero`);
+      set('cost-detail', metrics.cost.count ? `${metrics.cost.count} / ${metrics.total} reported / ${metrics.cost.count === metrics.total ? 'all adapters reported' : 'partial sum; missing excluded'}` : `0 / ${metrics.total} reported`);
       set('latency-value', formatLatency(metrics.latency.mean));
-      set('latency-detail', metrics.latency.count ? `${metrics.latency.count} / ${metrics.total} reported · unweighted mean` : `0 / ${metrics.total} reported · unavailable, not zero`);
+      set('latency-detail', metrics.latency.count ? `${metrics.latency.count} / ${metrics.total} reported / unweighted mean` : `0 / ${metrics.total} reported`);
       set('row-count', `${metrics.total} ADAPTERS / ${metrics.decided} DECIDED`);
-      set('ledger-caption', `${example ? 'EXAMPLE DATA / NOT MEASURED. ' : 'Reported measured data. '}${metrics.verdicts.QUARANTINE} QUARANTINE · ${metrics.verdicts.FLAG} FLAG · ${metrics.verdicts.PASS} PASS · ${metrics.verdicts.INCOMPLETE} INCOMPLETE. One row per adapter.`);
+      set('ledger-caption', `${example ? 'EXAMPLE DATA / NOT MEASURED. ' : 'Reported measured data. '}${metrics.verdicts.QUARANTINE} QUARANTINE / ${metrics.verdicts.FLAG} FLAG / ${metrics.verdicts.PASS} PASS / ${metrics.verdicts.INCOMPLETE} INCOMPLETE. One row per adapter.`);
       renderRows(data);
       el('results').hidden = false;
     }

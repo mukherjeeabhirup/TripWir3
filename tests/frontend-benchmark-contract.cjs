@@ -220,8 +220,8 @@ test('HTML starts without results, uses local assets, accessible table and nativ
   assert.match(html, /<caption/);
   assert.equal((html.match(/scope="col"/g) || []).length, 8);
   assert.match(html, /tabindex="0" role="region"/);
-  assert.equal((html.match(/<details>/g) || []).length, 2);
-  for (const color of ['#111215', '#181a1e', '#303238', '#eeeef0', '#9b9da5', '#c1f58a']) assert(css.includes(color));
+  assert.equal((html.match(/<details>/g) || []).length, 1);
+  assert(css.includes("@import url('/static/styles.css')"));
 });
 
 test('actual rendering labels every example, computes bars, and fetches only the static JSON', async () => {
@@ -231,12 +231,12 @@ test('actual rendering labels every example, computes bars, and fetches only the
   assert.equal(view.get('state-title').textContent, 'EXAMPLE DATA / NOT MEASURED');
   assert.equal(view.get('tpr-value').textContent, '66.7%');
   assert.equal(view.get('fpr-value').textContent, '33.3%');
-  assert.equal(view.get('tpr-all').textContent, '2 / 4 · 50.0%');
-  assert.equal(view.get('fpr-all').textContent, '1 / 4 · 25.0%');
-  assert.equal(view.get('tpr-coverage').textContent, '3 / 4 · 75.0%');
+  assert.equal(view.get('tpr-all').textContent, '2 / 4 / 50.0%');
+  assert.equal(view.get('fpr-all').textContent, '1 / 4 / 25.0%');
+  assert.equal(view.get('tpr-coverage').textContent, '3 / 4 / 75.0%');
   assert(Math.abs(parseFloat(view.get('tpr-bar').style.width) - 200 / 3) < 1e-10);
   assert.equal(view.get('cost-value').textContent, '—');
-  assert.match(view.get('cost-detail').textContent, /unavailable, not zero/);
+  assert.match(view.get('cost-detail').textContent, /0 \/ 9 reported/);
   assert.equal(view.get('reload').disabled, false);
   assert.equal(view.get('data-state').attributes['aria-busy'], 'false');
   const rows = view.get('adapter-rows').children;
@@ -277,9 +277,9 @@ test('valid all-incomplete data shows unavailable rates, pending coverage and mi
   assert.match(view.get('tpr-count').textContent, /rate unavailable/);
   assert.equal(view.get('coverage-value').textContent, '0.0%');
   assert.equal(view.get('excluded-value').textContent, '1 / 1');
-  assert.match(view.get('excluded-detail').textContent, /may overlap/);
-  assert.match(view.get('adapter-rows').textContent, /No run ID/);
-  assert.match(view.get('adapter-rows').textContent, /No source attached/);
+  assert.match(view.get('excluded-detail').textContent, /1 unknown truth/);
+  assert(view.get('adapter-rows').textContent.includes('—'));
+  assert(!view.get('adapter-rows').textContent.includes('undefined'));
 });
 
 test('empty, malformed, HTTP, JSON and network failure states clear prior successful rows and rates', async () => {

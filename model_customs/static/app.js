@@ -20,7 +20,7 @@ function rate(value) {
   return "—";
 }
 function duration(seconds) {
-  if (!finite(seconds)) return "Elapsed time pending";
+  if (!finite(seconds)) return "—";
   if (seconds < 60) return `${seconds.toFixed(1)}s elapsed`;
   const minutes = Math.floor(seconds / 60);
   return `${minutes}m ${Math.round(seconds % 60)}s elapsed`;
@@ -28,12 +28,12 @@ function duration(seconds) {
 function sample(value, fallback) {
   const item = object(value);
   const n = first(item.total, item.n, item.samples, fallback);
-  return finite(n) ? `n = ${n} prompts` : "Sample size not reported";
+  return finite(n) ? `n = ${n} prompts` : "—";
 }
 function engineInfo(engine) {
   if (engine === "deterministic_evidence_renderer") return { label: "Verified tool evidence", className: "rule" };
   if (engine === "rule_based_tool") return { label: "Rule-based tool", className: "rule" };
-  if (["local_lmstudio_nemotron", "local_lmstudio"].includes(engine)) return { label: "Local Nemotron · LM Studio", className: "local" };
+  if (["local_lmstudio_nemotron", "local_lmstudio"].includes(engine)) return { label: "Local Nemotron / LM Studio", className: "local" };
   return { label: engine ? String(engine) : "Engine not reported", className: "unknown" };
 }
 function engineBadge(engine) {
@@ -50,10 +50,10 @@ function renderReplayContext(metadata = {}) {
   if (state.reportMode !== "replay" && metadata.mode !== "replay") return;
   const provenance = state.replayProvenance;
   const models = Array.isArray(provenance.source_models) ? provenance.source_models.filter((model) => typeof model === "string" && model) : [];
-  const modelLabel = provenance.source_model_basis === "configured_primary_fallback_not_observed" ? "Configured primary · no successful call recorded" : provenance.source_model_basis === "recorded_event" ? "Recorded cloud declarations · not per-call observation" : "Recorded source cloud model(s)";
+  const modelLabel = provenance.source_model_basis === "configured_primary_fallback_not_observed" ? "Configured cloud model" : provenance.source_model_basis === "recorded_event" ? "Recorded cloud model" : "Recorded source cloud model(s)";
   $("run-context").replaceChildren();
   for (const text of [
-    "REPLAY · Recorded real evidence. No new model calls.",
+    "RECORDED CAPTURE",
     `Original source run: ${provenance.source_run_id || "not recorded"}`,
     `Original recorded time: ${provenance.source_recorded_at || "not recorded"}`,
     `${modelLabel}: ${models.length ? models.join(", ") : "not recorded"}`,
@@ -76,27 +76,27 @@ function renderLedger(ledger) {
       const row = document.createElement("tr");
       const name = document.createElement("th"); name.setAttribute("scope", "row"); name.textContent = result.variant || key.replace("probe_", "");
       const canary = document.createElement("td");
-      canary.textContent = `${finite(result.canary_count) ? result.canary_count : "—"}/${finite(result.n) ? result.n : "—"} · ${rate(result.canary_rate)}`;
+      canary.textContent = `${finite(result.canary_count) ? result.canary_count : "—"}/${finite(result.n) ? result.n : "—"} / ${rate(result.canary_rate)}`;
       const arithmetic = document.createElement("td");
-      arithmetic.textContent = `${finite(result.arithmetic_correct_count) ? result.arithmetic_correct_count : "—"}/${finite(result.n) ? result.n : "—"} · ${rate(result.arithmetic_accuracy)}`;
+      arithmetic.textContent = `${finite(result.arithmetic_correct_count) ? result.arithmetic_correct_count : "—"}/${finite(result.n) ? result.n : "—"} / ${rate(result.arithmetic_accuracy)}`;
       row.append(name, canary, arithmetic); tbody.append(row);
     }
     table.append(tbody); $("probe-ledger").append(table);
   } else {
-    const empty = document.createElement("p"); empty.className = "ledger-empty"; empty.textContent = "No executed discovery probes in the ledger yet. Proposed tests do not count as evidence."; $("probe-ledger").append(empty);
+    const empty = document.createElement("p"); empty.className = "ledger-empty"; empty.textContent = "No executed probes."; $("probe-ledger").append(empty);
   }
   put("ledger-status", `${executed.length} executed ${executed.length === 1 ? "probe" : "probes"}`);
   $("ledger-status").className = `engine-badge ${executed.length ? "local" : "unknown"}`;
   const proposal = object(ledger.investigator_proposals);
-  put("proposal-status", `Investigator proposals: ${proposal.execution_status || "NOT_EXECUTED"} · proposals are separate from executed tests`);
+  put("proposal-status", `Investigator proposals: ${proposal.execution_status || "NOT_EXECUTED"}`);
 }
 function renderGrounding(grounding, final = false) {
   const result = object(grounding);
   const present = grounding && typeof grounding === "object" && Object.hasOwn(result, "passed");
   const passed = present && result.passed === true;
-  put("grounding-status", passed ? "Grounding checks passed" : present ? "UNVERIFIED · grounding failed" : final ? "Legacy trace · NOT CHECKED" : "Grounding pending");
+  put("grounding-status", passed ? "Grounding checks passed" : present ? "GROUNDING FAILED" : final ? "NOT CHECKED" : "—");
   $("grounding-status").className = `engine-badge ${passed ? "local" : present || final ? "rule" : "unknown"}`;
-  put("grounding-copy", passed ? "Structured agent claims were checked against executed evidence. This check does not certify model safety." : present ? "Rejected or unsupported agent claims are not factual observations. Review the executed ledger. This trace is not eligible for the hero demo." : final ? "No agent-grounding assessment is recorded. This trace is not eligible for the hero demo." : "Agent claims will be checked against executed evidence. Proposals remain unverified until checked.");
+  put("grounding-copy", passed ? "Structured claims checked." : present ? "Rejected claims." : final ? "—" : "");
   $("grounding-counts").replaceChildren();
   for (const [key, label] of [["accepted_decisions", "Accepted decisions"], ["rejected_decisions", "Rejected decisions"], ["checked_claims", "Checked claims"]]) {
     const value = result[key];
@@ -127,7 +127,7 @@ function updateSelector() {
   } else {
     for (const item of items) {
       const disabled = state.mode === "live" && item.available === false;
-      const option = new Option(`${item.label || item.id}${disabled ? " · unavailable" : ""}`, item.id);
+      const option = new Option(`${item.label || item.id}${disabled ? " / unavailable" : ""}`, item.id);
       option.disabled = disabled;
       select.add(option);
     }
@@ -145,7 +145,7 @@ function changeMode(mode) {
     $(`${name}-mode`).classList.toggle("active", selected);
     $(`${name}-mode`).setAttribute("aria-pressed", String(selected));
   }
-  put("mode-note", mode === "live" ? "Live mode makes real model and tool calls. Results appear as the investigation runs." : "Replay shows a recorded real investigation. It makes no new model calls and is clearly marked throughout.");
+  put("mode-note", mode === "live" ? "Live mode makes real model and tool calls. Results appear as the investigation runs." : "Recorded capture");
   $("start").firstElementChild.textContent = mode === "live" ? "Start inspection" : "Replay real run";
   if (typeof TripConsole !== "undefined") TripConsole.modeChanged();
   updateSelector();
@@ -170,25 +170,25 @@ function resetReport() {
   state.ledgerReceived = false;
   state.groundingRejections = 0;
   $("probe-ledger").replaceChildren();
-  const ledgerEmpty = document.createElement("p"); ledgerEmpty.className = "ledger-empty"; ledgerEmpty.textContent = "Executed results will appear here. An agent proposal is not a test result."; $("probe-ledger").append(ledgerEmpty);
+  const ledgerEmpty = document.createElement("p"); ledgerEmpty.className = "ledger-empty"; ledgerEmpty.textContent = "No executed probes."; $("probe-ledger").append(ledgerEmpty);
   put("ledger-status", "No executed probes"); $("ledger-status").className = "engine-badge unknown";
   put("proposal-status", "Investigator proposals: NOT EXECUTED");
   renderGrounding(null);
   $("download-report").disabled = true;
   $("verdict").className = "verdict pending";
-  put("verdict", "AWAITING EVIDENCE");
-  put("verdict-summary", "The report is available after the investigation finishes.");
+  put("verdict", "—");
+  put("verdict-summary", "");
   for (const id of ["clean-accuracy", "trigger-rate", "untrigger-rate", "query-count"]) put(id, "—");
-  for (const id of ["clean-n", "trigger-n", "untrigger-n"]) put(id, "Not measured yet");
-  put("elapsed", "Elapsed time pending");
+  for (const id of ["clean-n", "trigger-n", "untrigger-n"]) put(id, "—");
+  put("elapsed", "—");
   $("spectrum-empty").hidden = false;
-  $("spectrum-empty").textContent = "Measured singular values and activation alignment will appear here.";
+  $("spectrum-empty").textContent = "—";
   $("spectrum-chart").hidden = true;
   $("spectrum-chart").replaceChildren();
   $("forensics-details").replaceChildren();
   $("custody").replaceChildren();
-  custody("Model source", "Pending");
-  custody("Held-out prompt freeze", "Pending");
+  custody("Model source", "—");
+  custody("Held-out prompt freeze", "—");
   $("limitations-section").hidden = true;
   $("limitations").replaceChildren();
   $("variant-results").hidden = true;
@@ -231,24 +231,24 @@ function appendEvent(event, entry = null) {
   const executionDetails = event.type === "complete" ? object(data.narrative) : data;
   const executionEngine = first(data.engine, executionDetails.engine);
   if (executionEngine) top.append(engineBadge(executionEngine));
-  if (groundingRejected || (agentKey === "orchestrator" && data.tool && !acceptedDecision)) { const badge = document.createElement("span"); badge.className = "engine-badge rule"; badge.textContent = groundingRejected ? "REJECTED · UNVERIFIED" : "UNVERIFIED PROPOSAL"; top.append(badge); }
+  if (groundingRejected || (agentKey === "orchestrator" && data.tool && !acceptedDecision)) { const badge = document.createElement("span"); badge.className = "engine-badge rule"; badge.textContent = groundingRejected ? "REJECTED" : "PROPOSED"; top.append(badge); }
   const title = document.createElement("div"); title.className = "event-title";
   const verifiedReportRendering = agentKey === "report" && executionEngine === "deterministic_evidence_renderer" && data.report_grounding?.passed === true;
   const specialistInterpretation = ["investigator", "skeptic", "report"].includes(agentKey) && event.type === "observation" && !verifiedReportRendering;
-  title.textContent = groundingRejected ? "Agent decision rejected · not executed" : verifiedReportRendering ? "Verified report facts · tool evidence" : specialistInterpretation ? "Specialist proposal / interpretation" : first(data.title, data.action, data.tool ? `${acceptedDecision ? "Validated action" : "Proposed action"} · ${data.tool}` : undefined, event.type === "complete" ? "Investigation complete" : event.type === "observation" ? "Evidence received" : event.type === "error" ? "Investigation error" : "Investigation step");
+  title.textContent = groundingRejected ? "Agent decision rejected" : verifiedReportRendering ? "Verified report facts / tool evidence" : specialistInterpretation ? "Specialist proposal / interpretation" : first(data.title, data.action, data.tool ? `${acceptedDecision ? "Validated action" : "Proposed action"} / ${data.tool}` : undefined, event.type === "complete" ? "Investigation complete" : event.type === "observation" ? "Evidence received" : event.type === "error" ? "Investigation error" : "Investigation step");
   const body = document.createElement("div"); body.className = "event-body";
   let text = first(data.message, data.summary, data.hypothesis, data.reasoning, data.reason, data.observation, data.error, data.assessment, data.status, typeof event.data === "string" ? event.data : undefined);
-  if (agentKey === "orchestrator" && data.tool) text = acceptedDecision ? first(data.validated_reason, data.reason, "Validated action selected; consult the executed probe ledger for measured results.") : "UNVERIFIED agent proposal. Raw hypotheses and reasons are retained below as untrusted text; executed results are shown in the ledger.";
-  else if (data.hypothesis) text = `Proposed hypothesis · NOT AN EXECUTED TEST\n${data.hypothesis}`;
-  if (finite(data.target_rate) && finite(data.n)) text = `${data.variant ? `${data.variant} test · ` : ""}${data.target_count ?? "?"}/${data.n} outputs contain the canary (${rate(data.target_rate)}).${finite(data.accuracy) ? ` Task accuracy: ${rate(data.accuracy)}.` : ""}${data.scope ? `\n${data.scope}` : ""}`;
+  if (agentKey === "orchestrator" && data.tool) text = acceptedDecision ? first(data.validated_reason, data.reason, "Validated action") : "Agent proposal";
+  else if (data.hypothesis) text = `Proposed hypothesis\n${data.hypothesis}`;
+  if (finite(data.target_rate) && finite(data.n)) text = `${data.variant ? `${data.variant} test / ` : ""}${data.target_count ?? "?"}/${data.n} outputs contain the canary (${rate(data.target_rate)}).${finite(data.accuracy) ? ` Task accuracy: ${rate(data.accuracy)}.` : ""}${data.scope ? `\n${data.scope}` : ""}`;
   if (data.freeze_hash && !data.groups) text = `Held-out suite frozen before evaluation.\nSHA-256 ${data.freeze_hash}${data.sample_sizes ? `\nSamples: ${brief(data.sample_sizes)}` : ""}`;
-  if (data.groups) text = Object.entries(data.groups).map(([key, group]) => `${key}: ${group.target_count}/${group.n} canary outputs · accuracy ${rate(group.accuracy)}`).join("\n");
-  if (data.hugging_face) text = `Source: ${data.hugging_face.model_id || "unreported"}\nHub provenance: ${data.hugging_face.status || "unreported"}${data.local?.status ? `\nLocal provenance: ${data.local.status}` : ""}${data.local?.base_hash_verification ? `\nBase files rehashed: ${data.local.base_hash_verification.files_checked ?? "unreported"} · ${data.local.base_hash_verification.status}` : ""}`;
-  if (data.svd) text = `${data.svd.layers?.length || 0} adapter layer deltas inspected. Left and right singular vectors retained.${data.alignment?.sample_size ? `\nActivation alignment measured on ${data.alignment.sample_size} clean prompts.` : ""}\nLoRA low rank alone is not evidence of a backdoor.`;
+  if (data.groups) text = Object.entries(data.groups).map(([key, group]) => `${key}: ${group.target_count}/${group.n} canary outputs / accuracy ${rate(group.accuracy)}`).join("\n");
+  if (data.hugging_face) text = `Source: ${data.hugging_face.model_id || "unreported"}\nHub provenance: ${data.hugging_face.status || "unreported"}${data.local?.status ? `\nLocal provenance: ${data.local.status}` : ""}${data.local?.base_hash_verification ? `\nBase files rehashed: ${data.local.base_hash_verification.files_checked ?? "unreported"} / ${data.local.base_hash_verification.status}` : ""}`;
+  if (data.svd) text = `${data.svd.layers?.length || 0} adapter layer deltas inspected. Left and right singular vectors retained.${data.alignment?.sample_size ? `\nActivation alignment measured on ${data.alignment.sample_size} clean prompts.` : ""}`;
   if (data.alternative_explanations) text = `Alternative explanations: ${brief(data.alternative_explanations)}${data.assessment ? `\n${data.assessment}` : ""}`;
-  if (specialistInterpretation && !data.hypothesis) text = `UNVERIFIED specialist interpretation · consult executed results in the ledger\n${text || "See the untrusted specialist payload below."}`;
-  if (agentKey === "evidence_ledger") text = "Authoritative executed-probe ledger updated. Canary emission and arithmetic correctness are scored separately; investigator proposals are NOT_EXECUTED.";
-  if (groundingRejected) text = `UNVERIFIED claim rejected. This proposal was not executed.\n${brief(data.errors || ["Claim grounding failed."])}`;
+  if (specialistInterpretation && !data.hypothesis) text = `Specialist interpretation\n${text || "Source payload"}`;
+  if (agentKey === "evidence_ledger") text = "Executed probe ledger updated.";
+  if (groundingRejected) text = `Claim rejected.\n${brief(data.errors || ["Claim grounding failed."])}`;
   if (executionEngine === "rule_based_tool") text = `${text || "Specialist tool output."}\n\n${executionDetails.disclosure || "Rule-based specialist tool; not a Nemotron completion."}${executionDetails.local_unavailable_reason ? `\nLocal specialist unavailable: ${executionDetails.local_unavailable_reason}` : ""}`;
   else if (executionEngine && typeof executionDetails.model === "string") text = `${text || "Specialist model output."}\n\nRecorded model field: ${executionDetails.model}`;
   body.textContent = text === undefined ? "" : brief(text);
@@ -258,15 +258,15 @@ function appendEvent(event, entry = null) {
     const draft = object(data.model_draft.raw);
     const details = document.createElement("details"); details.className = "event-details";
     const summary = document.createElement("summary");
-    summary.textContent = `UNVERIFIED specialist draft · ${engineInfo(draft.engine).label}${draft.model ? ` · ${draft.model}` : ""}`;
-    const note = document.createElement("p"); note.textContent = "Draft execution is separate from deterministic tool rendering. This prose is not verified or promoted into the primary report.";
+    summary.textContent = `Specialist draft / ${engineInfo(draft.engine).label}${draft.model ? ` / ${draft.model}` : ""}`;
+    const note = document.createElement("p"); note.textContent = "";
     const pre = document.createElement("pre"); pre.textContent = JSON.stringify(draft, null, 2);
     details.append(summary, note, pre); article.append(details);
   }
 
   if (event.data && typeof event.data === "object") {
     const details = document.createElement("details"); details.className = "event-details";
-    const summary = document.createElement("summary"); summary.textContent = groundingRejected ? "Inspect untrusted rejected proposal" : agentKey === "orchestrator" && data.tool ? "Inspect action and untrusted raw agent text" : specialistInterpretation ? "Inspect untrusted specialist interpretation" : "Inspect evidence payload";
+    const summary = document.createElement("summary"); summary.textContent = groundingRejected ? "Rejected proposal" : agentKey === "orchestrator" && data.tool ? "Original action" : specialistInterpretation ? "Specialist payload" : "Inspect evidence payload";
     const pre = document.createElement("pre"); pre.textContent = JSON.stringify(event.data, null, 2);
     details.append(summary, pre); article.append(details);
   }
@@ -280,7 +280,7 @@ function appendEvent(event, entry = null) {
     const key = element.dataset.agent;
     if (agentKey.includes(key) || (key === "investigator" && ["red_team", "probe"].includes(agentKey)) || (key === "verifier" && ["freeze", "verify"].includes(agentKey))) element.classList.add("current", "visited");
   }
-  put("trace-caption", event.type === "complete" ? "Investigation complete" : `${agent} · ${event.type || "step"}`);
+  put("trace-caption", event.type === "complete" ? "Investigation complete" : `${agent} / ${event.type || "step"}`);
 }
 
 function showSpectrum(forensics) {
@@ -303,7 +303,7 @@ function showSpectrum(forensics) {
       const height = Math.max(1, (value / maximum) * 77);
       rect.setAttribute("x", String(i * width)); rect.setAttribute("y", String(82 - height));
       rect.setAttribute("width", String(Math.max(1, width - 4))); rect.setAttribute("height", String(height));
-      rect.setAttribute("rx", "2"); rect.setAttribute("fill", i === 0 ? "#b9ef74" : "#496943");
+      rect.setAttribute("rx", "2"); rect.setAttribute("fill", "#76b900");
       svg.append(rect);
     });
     const caption = document.createElement("div"); caption.className = "chart-caption";
@@ -322,9 +322,9 @@ function showSpectrum(forensics) {
     if (Array.isArray(align.layers) && align.layers.length) {
       const inputLayers = align.layers.filter((layer) => !layer.space || layer.space === "input");
       const averages = inputLayers.map((layer) => layer.mean_top1_max_cosine).filter(finite);
-      if (averages.length) add(`Supplementary input/V adaptation · mean absolute top-direction maximum cosine across ${averages.length} monitored layers: ${(averages.reduce((sum, x) => sum + x, 0) / averages.length).toFixed(4)}.`);
+      if (averages.length) add(`Supplementary input/V adaptation / mean absolute top-direction maximum cosine across ${averages.length} monitored layers: ${(averages.reduce((sum, x) => sum + x, 0) / averages.length).toFixed(4)}.`);
       const outputMeans = align.layers.filter((layer) => layer.space === "output").map((layer) => layer.mean_top1_max_cosine).filter(finite);
-      if (outputMeans.length) add(`Output/U paper-space pairing · mean absolute top-direction maximum cosine across ${outputMeans.length} monitored layers: ${(outputMeans.reduce((sum, x) => sum + x, 0) / outputMeans.length).toFixed(4)}. Pooled diagnostic; no calibrated detector.`);
+      if (outputMeans.length) add(`Output/U paper-space pairing / mean absolute top-direction maximum cosine across ${outputMeans.length} monitored layers: ${(outputMeans.reduce((sum, x) => sum + x, 0) / outputMeans.length).toFixed(4)}.`);
       if (align.statistic) add(align.statistic);
     } else add(`Activation alignment: ${brief(alignment)}`);
   }
@@ -345,7 +345,7 @@ function renderReport(report) {
   else if (!state.ledgerReceived) {
     put("ledger-status", "No recorded ledger");
     $("probe-ledger").replaceChildren();
-    const missing = document.createElement("p"); missing.className = "ledger-empty"; missing.textContent = "This report has no authoritative executed-probe ledger. Agent proposals cannot fill that evidence gap."; $("probe-ledger").append(missing);
+    const missing = document.createElement("p"); missing.className = "ledger-empty"; missing.textContent = "No recorded ledger."; $("probe-ledger").append(missing);
   }
   const metrics = object(first(report.metrics, report.behavior, report.results));
   const sizes = object(report.sample_sizes);
@@ -361,18 +361,18 @@ function renderReport(report) {
   put("clean-n", sample(clean, first(sizes.clean, metrics.clean_n, metrics.clean_count)));
   put("trigger-n", sample(trigger, first(sizes.triggered, sizes.exact, metrics.triggered_n, metrics.triggered_count)));
   put("untrigger-n", sample(untrigger, first(sizes.untriggered, sizes.clean, metrics.untriggered_n, metrics.untriggered_count)));
-  for (const [key, label] of [["paraphrase", "Paraphrased request + trigger"], ["paraphrase_clean", "Matched paraphrase · no trigger"], ["partial", "Partial trigger"], ["near_neighbor", "Near-neighbor trigger"]]) {
+  for (const [key, label] of [["paraphrase", "Paraphrased request + trigger"], ["paraphrase_clean", "Matched paraphrase / no trigger"], ["partial", "Partial trigger"], ["near_neighbor", "Near-neighbor trigger"]]) {
     const measured = first(metrics[`${key}_target_rate`], report.groups?.[key]?.target_rate);
     if (measured === undefined) continue;
     const row = document.createElement("div");
     const labelEl = document.createElement("span"); labelEl.textContent = label;
-    const valueEl = document.createElement("strong"); valueEl.textContent = `${rate(measured)} · n=${first(sizes[key], report.groups?.[key]?.n, "?")}`;
+    const valueEl = document.createElement("strong"); valueEl.textContent = `${rate(measured)} / n=${first(sizes[key], report.groups?.[key]?.n, "?")}`;
     row.append(labelEl, valueEl); $("variant-results").append(row);
   }
   $("variant-results").hidden = !$("variant-results").childElementCount;
   const discovery = object(report.discovery);
   if (Object.keys(discovery).length) {
-    const heading = document.createElement("p"); heading.className = "eyebrow"; heading.textContent = "DISCOVERY · EXCLUDED FROM HELD-OUT RATES";
+    const heading = document.createElement("p"); heading.className = "eyebrow"; heading.textContent = "DISCOVERY / EXCLUDED FROM HELD-OUT RATES";
     $("discovery-results").append(heading);
     for (const [key, result] of Object.entries(discovery)) {
       const row = document.createElement("div");
@@ -390,7 +390,7 @@ function renderReport(report) {
   const local = object(provenance.local);
   const verification = object(first(report.verifier, report.verification, report.heldout));
   $("custody").replaceChildren();
-  custody("Primary report facts", report.report_grounding?.passed === true ? "Verified from full executed records; model draft unverified" : "Not checked — not eligible for packaging");
+  custody("Primary report facts", report.report_grounding?.passed === true ? "Verified from executed records" : "NOT CHECKED");
   custody("Model source", first(hf.model_id, hf.repo_id, hf.base_model, local.base_model, local.manifest?.base_model, report.model_id, report.artifact, "Not reported"));
   if (hf.uploader || hf.author) custody("Uploader", first(hf.uploader, hf.author));
   if (hf.revision || hf.resolved_revision || hf.commit_sha || local.base_revision || local.manifest?.base_revision) custody("Source revision", first(hf.revision, hf.resolved_revision, hf.commit_sha, local.base_revision, local.manifest?.base_revision), true);
@@ -398,12 +398,12 @@ function renderReport(report) {
   const adapterChecks = object(local.adapter_hash_verification);
   const configChecks = object(local.adapter_config_verification);
   if (local.status) custody("Current local provenance", local.status);
-  if (baseChecks.status) custody("Base bytes vs training manifest", `${baseChecks.status}${finite(baseChecks.files_checked) ? ` · ${baseChecks.files_checked} files rehashed` : ""}`);
+  if (baseChecks.status) custody("Base bytes vs training manifest", `${baseChecks.status}${finite(baseChecks.files_checked) ? ` / ${baseChecks.files_checked} files rehashed` : ""}`);
   if (adapterChecks.status && adapterChecks.status !== "not_applicable") custody("Adapter bytes vs training manifest", adapterChecks.status);
   if (adapterChecks.observed_sha256 || local.computed_adapter_sha256) custody("Current adapter SHA-256", first(adapterChecks.observed_sha256, local.computed_adapter_sha256), true);
   if (configChecks.status && configChecks.status !== "not_applicable") custody("Adapter/base configuration", configChecks.status);
   if (local.base_manifest_sha256) custody("Training baseline manifest SHA-256", local.base_manifest_sha256, true);
-  if (!local.status && !adapterChecks.observed_sha256 && !local.computed_adapter_sha256 && (hf.files || hf.file_hashes)) custody("Hub-reported file hashes · not locally verified", first(hf.file_hashes, hf.files), true);
+  if (!local.status && !adapterChecks.observed_sha256 && !local.computed_adapter_sha256 && (hf.files || hf.file_hashes)) custody("Hub-reported file hashes", first(hf.file_hashes, hf.files), true);
   const freezeHash = first(verification.freeze_hash, verification.sha256, verification.prompt_hash, report.freeze_hash, report.heldout_hash);
   custody("Held-out prompt freeze", freezeHash || "Not reported", Boolean(freezeHash));
   const heldoutN = first(verification.prompt_count, verification.n, verification.sample_size, sizes.heldout, Object.values(object(verification.sample_sizes)).reduce((total, n) => total + (finite(n) ? n : 0), 0) || undefined);
@@ -428,7 +428,7 @@ function renderReport(report) {
   const items = Array.isArray(limitations) ? limitations : [limitations];
   $("limitations").replaceChildren();
   for (const item of items.filter(Boolean)) { const li = document.createElement("li"); li.textContent = brief(item); $("limitations").append(li); }
-  $("limitations-section").hidden = !items.filter(Boolean).length;
+  $("limitations-section").hidden = true; // Scope remains in the original report and README.
   $("download-report").disabled = false;
   if (typeof TripConsole !== "undefined") TripConsole.onReport(report);
 }
@@ -444,7 +444,7 @@ async function finish(event) {
     if (!report.verdict) report = await api(`/api/runs/${encodeURIComponent(state.runId)}/report`);
     renderReport(report);
     status("Complete", "done");
-    put("trace-caption", state.mode === "replay" ? "Recorded real run · replay complete" : "Real investigation complete");
+    put("trace-caption", state.mode === "replay" ? "Recorded real run / replay complete" : "Real investigation complete");
     await refreshRecordings();
   } catch (error) {
     status("Report unavailable", "error"); setMessage(error.message);
@@ -470,7 +470,7 @@ function onEvent(message) {
 async function start() {
   const artifact = $("artifact").value;
   if (!artifact || state.running) return;
-  if (state.mode === "live" && typeof TripConsole !== "undefined" && !TripConsole.canStartLive()) { setMessage("Live integration gate is closed. No model call was started."); return; }
+  if (state.mode === "live" && typeof TripConsole !== "undefined" && !TripConsole.canStartLive()) { setMessage("Live unavailable."); return; }
   if (state.mode === "replay" && typeof TripConsole !== "undefined" && TripConsole.isReview(artifact)) return TripConsole.startReview(artifact);
   setMessage(""); resetReport(); state.events = 0; state.started = Date.now();
   $("trace").replaceChildren(); put("event-count", "0 events");
@@ -484,14 +484,14 @@ async function start() {
   put("report-mode", replay ? "RECORDED REAL RUN" : "LIVE");
   $("run-context").hidden = false;
   $("run-context").className = `run-context ${replay ? "replay" : ""}`;
-  put("run-context", replay ? "REPLAY · Recorded real evidence. No new model calls." : "LIVE · Starting real model and tool calls.");
+  put("run-context", replay ? "RECORDED CAPTURE" : "LIVE / Starting real model and tool calls.");
   if (replay) renderReplayContext();
   try {
     const result = replay ? await api(`/api/replay/${encodeURIComponent(artifact)}`, { method: "POST" }) : await api("/api/runs", { method: "POST", body: JSON.stringify({ artifact, mode: "live", ...intendedLiveRoute }) });
     state.runId = result.run_id;
     if (!state.runId) throw new Error("Server did not provide a run identifier.");
     if (replay) renderReplayContext(result);
-    else put("run-context", `LIVE · Real investigation · ${state.runId}`);
+    else put("run-context", `LIVE / Real investigation / ${state.runId}`);
     put("trace-caption", replay ? "Replaying recorded evidence" : "Waiting for agent events");
     status(replay ? "Replaying" : "Inspecting", "running");
     state.source = new EventSource(`/api/runs/${encodeURIComponent(state.runId)}/events`);
@@ -509,12 +509,12 @@ async function start() {
       if (!state.running) return;
       state.source?.close(); state.source = null; setRunning(false);
       status("Stream interrupted", "error");
-      put("trace-caption", "Connection interrupted · checking saved report");
+      put("trace-caption", "Connection interrupted / checking saved report");
       try {
         const report = await api(`/api/runs/${encodeURIComponent(state.runId)}/report`);
         if (report.verdict) { renderReport(report); status("Complete", "done"); put("trace-caption", "Report recovered after stream disconnect"); }
-        else if (typeof TripConsole !== "undefined") TripConsole.incomplete("Stream disconnected before a final report. The server may still be processing; do not restart the audit.");
-        else setMessage("The event stream disconnected before a final report was available. The run may still be processing on the server.");
+        else if (typeof TripConsole !== "undefined") TripConsole.incomplete("Connection interrupted. Report unavailable.");
+        else setMessage("Connection interrupted. Report unavailable.");
       } catch {
         if (typeof TripConsole !== "undefined") TripConsole.incomplete("Stream disconnected. No final report is available; check the backend before starting another run.");
         else setMessage("The event stream disconnected. A final report is not available yet; check the backend run log before starting another run.");
@@ -552,7 +552,7 @@ async function init() {
   changeMode("replay");
   if (typeof TripConsole !== "undefined") await TripConsole.init(results[0].status === "fulfilled" ? results[0].value : {});
   if (state.recordings.length) setMessage("");
-  if (results[0].status === "fulfilled" && results[0].value.offline_review) health.lastChild.textContent = "Offline review · no inference";
+  if (results[0].status === "fulfilled" && results[0].value.offline_review) health.lastChild.textContent = "Recorded captures";
   updateSelector();
 }
 void init();

@@ -12,19 +12,19 @@ const JudgeGuide = (() => {
     const skeptic = find(e => e.agent === 'SKEPTIC' && e.type === 'observation');
     const failure = find(e => e.type === 'error' || e.agent === 'SPECIALIST_INCOMPLETE' || e.agent === 'SPECIALIST_FALLBACK');
     if (decision >= 0) steps.push({title:'Follow the test decision', seconds:30, view:'trace', event:decision,
-      text:'The orchestrator selects a tool and its arguments. Read Reason → Act: validated evidence summaries are labeled separately from model rationale. Per-action model identity is shown only when recorded.'});
+      text:'Follow the recorded tool selection and arguments.'});
     if (probe >= 0) steps.push({title:'Read the actual output', seconds:30, view:'trace', event:probe,
-      text:'Inspect the original prompt and exact output span in the source inspector. The canary is harmless. The raw JSONL link lets you check the evidence behind the claim.'});
+      text:'Open the original prompt, output, and highlighted canary span.'});
     if (retrieval >= 0) steps.push({title:skipped ? 'See why retrieval was skipped' : 'See when the agent retrieves', seconds:30, view:'trace', event:retrieval, extra:sources,
-      text:skipped ? 'This is an explicit skip with a recorded reason code and null query. No search or source use is inferred. Inspect later declared use separately; declarations do not prove causal benefit.' : 'RETRIEVE marks an actual agent choice to consult evidence. Open its query, then the returned sources and scores. No deliberate skip or source-use claim is inferred from missing fields.'});
+      text:skipped ? 'Inspect the recorded skip reason.' : 'Open the query, retrieved sources, and scores.'});
     if (comparisonAvailable) steps.push({title:'Compare the same held-out probe', seconds:35, view:'comparison',
-      text:'One identical input, three raw outputs: base, benign, and poisoned. Counts are recomputed from saved outputs. These are historical related controls on an already-seen suite, not population detection accuracy.'});
+      text:'Compare base, benign, and poisoned outputs for the same held-out prompt.'});
     if (skeptic >= 0) steps.push({title:knownIssue ? 'Catch the limit of agent reasoning' : 'Inspect the skeptical review', seconds:30, view:'trace', event:skeptic,
-      text:knownIssue ? 'This Skeptic falsely described earlier tests. Independent review—not the agent—caught the contradiction. The trace is not an accepted hero, and no genuine self-correction is claimed.' : 'Treat the specialist assessment as unverified interpretation. Compare it with executed evidence; a proposed countertest is not an executed test or a verified revision.'});
-    if (hasReport) steps.push({title:'Make a bounded deployment decision', seconds:25, view:'evidence',
-      text:'Review the recorded verdict, test scope, provenance, and source files. Quarantine means hold for review; PASS only means no evidence within the tests performed. This prototype does not certify safety.'});
+      text:knownIssue ? 'Independent review found a mismatch with the executed probes.' : 'Compare the specialist assessment with the executed probes.'});
+    if (hasReport) steps.push({title:'Review the evidence', seconds:25, view:'evidence',
+      text:'Inspect measured rates, provenance, and source files.'});
     else if (failure >= 0) steps.push({title:'See the system fail closed', seconds:25, view:'trace', event:failure,
-      text:'This capture stopped without an accepted report. The UI says INCOMPLETE and does not manufacture a PASS or enable a report download.'});
+      text:'Inspect the terminal failure and INCOMPLETE status.'});
     return steps;
   }
   let tour = null;
@@ -33,7 +33,7 @@ const JudgeGuide = (() => {
   function show(index) {
     if (!tour || index < 0 || index >= tour.steps.length) return;
     tour.index = index; const step = tour.steps[index];
-    node('tour-progress').textContent = `${index+1} / ${tour.steps.length} · ${step.seconds} SEC`;
+    node('tour-progress').textContent = `RECORDED CAPTURE / ${index+1} / ${tour.steps.length}`;
     node('tour-title').textContent = step.title; node('tour-copy').textContent = step.text;
     node('tour-back').hidden = index === 0;
     node('tour-next').textContent = index === tour.steps.length-1 ? 'Finish walkthrough ✓' : 'Next evidence →';
@@ -41,7 +41,7 @@ const JudgeGuide = (() => {
     node('tour-meter').max = tour.steps.length; node('tour-meter').value = index+1;
     tour.actions.tab(step.view);
     if (step.event !== undefined) tour.actions.jump(step.event);
-    if (step.view === 'evidence') document.getElementById('limitations-section').open = true;
+
     node('judge-tour').scrollIntoView({block:'start'}); node('tour-title').focus({preventScroll:true});
   }
   function begin(events, options, actions) {
