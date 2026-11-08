@@ -110,10 +110,11 @@ def test_make_report_counts_list_grounding_checks_and_heldout_claims(tmp_path):
             return score_group(examples,[CANARY if hit else '2']*n)
         groups={name:scored(20 if name=='clean' else 12,name in {'exact','paraphrase'})
                 for name in ['clean','exact','paraphrase','partial','near_neighbor','paraphrase_clean']}
+        from test_reporting import observations as report_observations
         audit.observations={'probe_exact':{'variant':'exact',**scored(4,True)},
             'verify':{'groups':groups},'freeze':{'freeze_hash':'TEST FIXTURE'},
             'investigator':{'engine':'rule_based_tool','proposed_variants':['exact','partial']},
-            'skeptic':{'engine':'rule_based_tool'},'provenance':{},'weight_forensics':{}}
+            'skeptic':{'engine':'rule_based_tool'},'provenance':{},'weight_forensics':report_observations()['weight_forensics']}
         ledger=build_ledger(audit.observations)
         decision={'tool':'report','args':{},'hypothesis':'Prepare a bounded report.',
             'reason':'Use the authoritative executed evidence.',
@@ -176,3 +177,14 @@ def test_grounding_rejection_prevents_execution_and_feeds_back_ledger(tmp_path):
         assert len(audit.history)==1 and audit.history[0]['grounding_passed'] is True
         assert audit.history[0]['raw_decision']['args']['case']=='GOOD'
     asyncio.run(run())
+
+
+def test_compact_preserves_true_and_shown_cardinality_without_mutation():
+    from copy import deepcopy
+    from model_customs.orchestrator import compact
+    original={'layers':[{'module':str(i)} for i in range(48)],'nested':{'records':list(range(96))}}
+    before=deepcopy(original);shown=compact(original)
+    assert len(shown['layers'])==8
+    assert shown['_truncated_collections']['layers']=={'total_count':48,'shown_count':8,'omitted_count':40}
+    assert shown['nested']['_truncated_collections']['records']=={'total_count':96,'shown_count':8,'omitted_count':88}
+    assert original==before

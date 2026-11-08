@@ -7,7 +7,7 @@ from model_customs.recordings import accepted_real_recording
 def fixture_recording(run_id='a'*32):
     report={'run_id':run_id,'artifact':'poisoned','verdict':'QUARANTINE',
         'data_origin':'real_local_inference_and_live_nemotron','mode':'live',
-        'agent_grounding':{'passed':True},'fixture':'TEST ONLY - not a real model run'}
+        'agent_grounding':{'passed':True},'report_grounding':{'passed':True},'fixture':'TEST ONLY - not a real model run'}
     events=[{'type':'step','agent':'SYSTEM','data':{'summary':'TEST FIXTURE'},'timestamp':'2026-11-08T02:00:00+00:00'},
             {'type':'complete','agent':'REPORT','data':deepcopy(report),'timestamp':'2026-11-08T02:00:01+00:00'}]
     return report,events
@@ -23,7 +23,7 @@ def test_acceptance_is_pure_and_requires_original_matching_grounded_recording():
 @pytest.mark.parametrize('mutation',[
     'missing_complete','duplicate_complete','complete_error_extra','error_before_complete',
     'cancel_before_complete','post_complete_observation','report_mismatch','wrong_run_id',
-    'wrong_origin','replay_mode','ungrounded','malformed_event','malformed_payload','missing_agent',
+    'wrong_origin','replay_mode','ungrounded','report_ungrounded','report_grounding_missing','malformed_event','malformed_payload','missing_agent',
     'mismatched_event_run_id','mismatched_event_mode','mismatched_event_origin','bad_timestamp','nonfinite_event',
 ])
 def test_rejects_inconsistent_or_failed_source_recordings(mutation):
@@ -41,6 +41,8 @@ def test_rejects_inconsistent_or_failed_source_recordings(mutation):
     elif mutation=='wrong_origin':report['data_origin']='fixture';events[-1]['data']=deepcopy(report)
     elif mutation=='replay_mode':report['mode']='replay';events[-1]['data']=deepcopy(report)
     elif mutation=='ungrounded':report['agent_grounding']['passed']=False;events[-1]['data']=deepcopy(report)
+    elif mutation=='report_ungrounded':report['report_grounding']['passed']=False;events[-1]['data']=deepcopy(report)
+    elif mutation=='report_grounding_missing':del report['report_grounding'];events[-1]['data']=deepcopy(report)
     elif mutation=='malformed_event':events[0]=None
     elif mutation=='malformed_payload':events[0]['data']=[]
     elif mutation=='missing_agent':del events[0]['agent']

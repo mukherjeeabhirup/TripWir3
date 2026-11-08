@@ -10,7 +10,7 @@ from model_customs.recordings import accepted_real_recording
 def fixture_files(tmp_path,mutation=None):
     run_id='a'*32;folder=tmp_path/'runs'/run_id;folder.mkdir(parents=True)
     report={'run_id':run_id,'artifact':'poisoned','mode':'live','data_origin':'real_local_inference_and_live_nemotron',
-            'verdict':'QUARANTINE','agent_grounding':{'passed':True},'run_signature':{'fixture':'TEST ONLY'},'fixture':'NOT REAL INFERENCE'}
+            'verdict':'QUARANTINE','agent_grounding':{'passed':True},'report_grounding':{'passed':True},'run_signature':{'fixture':'TEST ONLY'},'fixture':'NOT REAL INFERENCE'}
     events=[{'type':'step','agent':'SYSTEM','data':{'summary':'TEST FIXTURE'}},
             {'type':'complete','agent':'REPORT','data':deepcopy(report)}]
     if mutation:mutation(report,events)

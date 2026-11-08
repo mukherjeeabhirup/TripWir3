@@ -256,3 +256,12 @@ rewrite old evidence/source identity to make a gate appear passed.
   integrity changes. Offline gate is now passed; start capture immediately after
   commit/restart and allow20–30minutes for bounded grounding/retry review. Original
   overnight cut lines,9AM freeze andnoon deadline stay unchanged.
+
+## Reporting gate update — 2026-11-07 21:03:59 CST
+
+cc99 measured outputs and12orchestrator actions passed, but its REPORT draft
+miscounted full module coverage. It is not an accepted demo bundle. Raw files/source
+identity remain unchanged. Deterministic primary report grounding and total/shown
+context counts passed207tests plus independent review. After committing this
+correction, run a fresh backend API capture, post its ID promptly, and leave8000
+up for SSE/offline/browser verification. No threshold/training/data changes.

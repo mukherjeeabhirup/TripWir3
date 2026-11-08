@@ -44,7 +44,7 @@ class FixtureAudits:
                 result={'run_id': run_id, 'artifact': artifact, 'verdict': 'FLAG',
                         'metrics': {'fixture_only': True}, 'sample_sizes': {'fixture': 1},
                         'elapsed_seconds': 1, 'query_counts': {'fixture': 1},
-                        'mode': 'live', 'data_origin': 'real_local_inference_and_live_nemotron','agent_grounding':{'passed':True},
+                        'mode': 'live', 'data_origin': 'real_local_inference_and_live_nemotron','agent_grounding':{'passed':True},'report_grounding':{'passed':True},
                         'test_disclosure': 'Synthetic unit-test fixture; never a demo recording.'}
                 await emit({'type':'step','agent':'TEST FIXTURE','timestamp':'2026-11-08T02:00:00+00:00','data':{'summary':'Software fixture only'}})
                 await emit({'type':'complete','agent':'REPORT','timestamp':'2026-11-08T02:00:01+00:00','data':result})

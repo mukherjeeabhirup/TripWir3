@@ -28,6 +28,12 @@ bundle now await the planned fresh backend/API capture, then offline and browser
 replay verification. Adapter-config resume/signature and terminal-event corrections
 passed the 183-test offline gate and independent review. **Demo: NOT READY.**
 
+The first API trace `cc99bfe5bb354e8685de7d7d83166e7f` passed orchestrator
+claims/terminal checks but its Nano draft miscounted 48 modules as 8. It remains
+immutable and excluded from eligible replay. The accepted correction preserves
+truncation totals and renders primary report facts deterministically; raw specialist
+drafts remain unverified. A new API capture/replay review is pending.
+
 ## Setup (Mac, from this project directory)
 
 Python 3.14 arm64 was tested with the pinned environment. All caches, generated

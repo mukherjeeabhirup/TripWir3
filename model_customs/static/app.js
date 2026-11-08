@@ -30,6 +30,7 @@ function sample(value, fallback) {
   return finite(n) ? `n = ${n} prompts` : "Sample size not reported";
 }
 function engineInfo(engine) {
+  if (engine === "deterministic_evidence_renderer") return { label: "Verified tool evidence", className: "rule" };
   if (engine === "rule_based_tool") return { label: "Rule-based tool", className: "rule" };
   if (["local_lmstudio_nemotron", "local_lmstudio"].includes(engine)) return { label: "Local Nemotron Nano", className: "local" };
   return { label: engine ? String(engine) : "Engine not reported", className: "unknown" };
@@ -225,8 +226,9 @@ function appendEvent(event) {
   if (executionEngine) top.append(engineBadge(executionEngine));
   if (groundingRejected || (agentKey === "orchestrator" && data.tool && !acceptedDecision)) { const badge = document.createElement("span"); badge.className = "engine-badge rule"; badge.textContent = groundingRejected ? "REJECTED · UNVERIFIED" : "UNVERIFIED PROPOSAL"; top.append(badge); }
   const title = document.createElement("div"); title.className = "event-title";
-  const specialistInterpretation = ["investigator", "skeptic", "report"].includes(agentKey) && event.type === "observation";
-  title.textContent = groundingRejected ? "Agent decision rejected · not executed" : specialistInterpretation ? "Specialist proposal / interpretation" : first(data.title, data.action, data.tool ? `${acceptedDecision ? "Validated action" : "Proposed action"} · ${data.tool}` : undefined, event.type === "complete" ? "Investigation complete" : event.type === "observation" ? "Evidence received" : event.type === "error" ? "Investigation error" : "Investigation step");
+  const verifiedReportRendering = agentKey === "report" && executionEngine === "deterministic_evidence_renderer" && data.report_grounding?.passed === true;
+  const specialistInterpretation = ["investigator", "skeptic", "report"].includes(agentKey) && event.type === "observation" && !verifiedReportRendering;
+  title.textContent = groundingRejected ? "Agent decision rejected · not executed" : verifiedReportRendering ? "Verified report facts · tool evidence" : specialistInterpretation ? "Specialist proposal / interpretation" : first(data.title, data.action, data.tool ? `${acceptedDecision ? "Validated action" : "Proposed action"} · ${data.tool}` : undefined, event.type === "complete" ? "Investigation complete" : event.type === "observation" ? "Evidence received" : event.type === "error" ? "Investigation error" : "Investigation step");
   const body = document.createElement("div"); body.className = "event-body";
   let text = first(data.message, data.summary, data.hypothesis, data.reasoning, data.reason, data.observation, data.error, data.assessment, data.status, typeof event.data === "string" ? event.data : undefined);
   if (agentKey === "orchestrator" && data.tool) text = acceptedDecision ? first(data.validated_reason, data.reason, "Validated action selected; consult the executed probe ledger for measured results.") : "UNVERIFIED agent proposal. Raw hypotheses and reasons are retained below as untrusted text; executed results are shown in the ledger.";
@@ -245,6 +247,16 @@ function appendEvent(event) {
   body.textContent = text === undefined ? "" : brief(text);
   article.append(dot, top, title);
   if (body.textContent) article.append(body);
+  if (verifiedReportRendering && data.model_draft) {
+    const draft = object(data.model_draft.raw);
+    const details = document.createElement("details"); details.className = "event-details";
+    const summary = document.createElement("summary");
+    summary.textContent = `UNVERIFIED specialist draft · ${engineInfo(draft.engine).label}${draft.model ? ` · ${draft.model}` : ""}`;
+    const note = document.createElement("p"); note.textContent = "Draft execution is separate from deterministic tool rendering. This prose is not verified or promoted into the primary report.";
+    const pre = document.createElement("pre"); pre.textContent = JSON.stringify(draft, null, 2);
+    details.append(summary, note, pre); article.append(details);
+  }
+
   if (event.data && typeof event.data === "object") {
     const details = document.createElement("details"); details.className = "event-details";
     const summary = document.createElement("summary"); summary.textContent = groundingRejected ? "Inspect untrusted rejected proposal" : agentKey === "orchestrator" && data.tool ? "Inspect action and untrusted raw agent text" : specialistInterpretation ? "Inspect untrusted specialist interpretation" : "Inspect evidence payload";
@@ -370,6 +382,7 @@ function renderReport(report) {
   const local = object(provenance.local);
   const verification = object(first(report.verifier, report.verification, report.heldout));
   $("custody").replaceChildren();
+  custody("Primary report facts", report.report_grounding?.passed === true ? "Verified from full executed records; model draft unverified" : "Not checked — not eligible for packaging");
   custody("Model source", first(hf.model_id, hf.repo_id, hf.base_model, local.base_model, local.manifest?.base_model, report.model_id, report.artifact, "Not reported"));
   if (hf.uploader || hf.author) custody("Uploader", first(hf.uploader, hf.author));
   if (hf.revision || hf.resolved_revision || hf.commit_sha || local.base_revision || local.manifest?.base_revision) custody("Source revision", first(hf.revision, hf.resolved_revision, hf.commit_sha, local.base_revision, local.manifest?.base_revision), true);

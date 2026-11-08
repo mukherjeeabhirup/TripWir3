@@ -164,7 +164,8 @@ def valid_report(report, artifact, run_id):
             and report.get('verdict') in {'PASS', 'FLAG', 'QUARANTINE'}
             and report.get('mode') == 'live'
             and report.get('data_origin') == 'real_local_inference_and_live_nemotron'
-            and report.get('agent_grounding',{}).get('passed') is True)
+            and report.get('agent_grounding',{}).get('passed') is True
+            and report.get('report_grounding',{}).get('passed') is True)
 
 
 def summary(report):

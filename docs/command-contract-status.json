@@ -1,11 +1,11 @@
 {
-  "timestamp_cst": "2026-11-07 20:47:06 CST",
+  "timestamp_cst": "2026-11-07 21:03:59 CST",
   "name": "TripWir3",
   "demo_status": "NOT_READY",
   "offline_command": "PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -p no:cacheprovider",
   "offline_result": {
-    "passed": 183,
-    "seconds": 2.67
+    "passed": 207,
+    "seconds": 3.07
   },
   "health_command": "curl -fsS http://127.0.0.1:8000/health",
   "health_result": {
@@ -15,9 +15,9 @@
   },
   "frontend_static": "passed: references/assets and actual Node syntax; browser/replay verification separate",
   "training": "both sequential MPS adapters completed; hashes verified",
-  "new_inference_or_capture": false,
+  "new_inference_or_capture": true,
   "pending": [
-    "planned newly grounded real poison capture through restarted backend API",
+    "fresh API capture with deterministic report grounding",
     "accepted source bundle",
     "network-disabled and browser replay verification"
   ],
@@ -31,5 +31,6 @@
   },
   "strict_frontend_command": ".venv/bin/python scripts/check_frontend.py --require-node",
   "strict_frontend_result": "passed: Node v26.13.0 node --check; 45 HTML IDs,109literal JS refs,2assets",
-  "connected_node_js_syntax": "passed separately; not a substitute for local CLI/browser verification"
+  "connected_node_js_syntax": "passed separately; not a substitute for local CLI/browser verification",
+  "latest_capture_status": "cc99 preserved but excluded for ungrounded REPORT draft; corrected API retry pending"
 }

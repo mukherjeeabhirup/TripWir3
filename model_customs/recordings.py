@@ -44,6 +44,8 @@ def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
         errors.append('report_is_not_original_live_mode')
     if not isinstance(report.get('agent_grounding'), dict) or report['agent_grounding'].get('passed') is not True:
         errors.append('agent_grounding_not_passed')
+    if not isinstance(report.get('report_grounding'),dict) or report['report_grounding'].get('passed') is not True:
+        errors.append('primary_report_grounding_not_passed')
     if not isinstance(report.get('artifact'), str) or report['artifact'] not in {'base', 'benign', 'poisoned'}:
         errors.append('invalid_control_artifact')
     if not isinstance(report.get('verdict'), str) or report['verdict'] not in {'PASS', 'FLAG', 'QUARANTINE'}:

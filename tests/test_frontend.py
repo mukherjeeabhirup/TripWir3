@@ -110,3 +110,15 @@ def test_help_does_not_run_checks_and_cli_reports_skip(monkeypatch, capsys):
     with pytest.raises(SystemExit) as exc:
         frontend.main(["--help"])
     assert exc.value.code == 0
+
+
+def test_primary_report_renderer_and_unverified_nano_draft_dom_contract():
+    import shutil
+    from pathlib import Path
+    import pytest
+    executable=shutil.which('node')
+    if not executable:pytest.skip('Node CLI unavailable: real DOM-contract script not executed')
+    script=Path(__file__).with_name('frontend-report-contract.cjs')
+    result=subprocess.run([executable,str(script)],capture_output=True,text=True,timeout=20)
+    assert result.returncode==0,result.stderr
+    assert result.stdout.startswith('passed:')

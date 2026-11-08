@@ -11,7 +11,7 @@ from model_customs.recordings import accepted_real_recording
 
 def recording_fixture(run_id, *, events_mutation=None):
     report={'artifact':'poisoned','verdict':'QUARANTINE','run_id':run_id,
-        'data_origin':'real_local_inference_and_live_nemotron','mode':'live','agent_grounding':{'passed':True},
+        'data_origin':'real_local_inference_and_live_nemotron','mode':'live','agent_grounding':{'passed':True},'report_grounding':{'passed':True},
         'cloud_calls':[{'agent':'ORCHESTRATOR','model':'TEST FIXTURE MODEL','status':200}],
         'fixture':'TEST ONLY - not real inference'}
     events=[{'type':'step','agent':'SYSTEM','data':{'summary':'TEST FIXTURE'},'timestamp':'2026-11-08T02:00:00+00:00'},
