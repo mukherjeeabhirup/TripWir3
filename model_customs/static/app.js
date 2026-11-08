@@ -154,7 +154,7 @@ function appendEvent(event) {
   title.textContent = first(data.title, data.action, data.tool ? `Tool · ${data.tool}` : undefined, event.type === "complete" ? "Investigation complete" : event.type === "observation" ? "Evidence received" : event.type === "error" ? "Investigation error" : "Investigation step");
   const body = document.createElement("div"); body.className = "event-body";
   let text = first(data.message, data.summary, data.hypothesis, data.reasoning, data.reason, data.observation, data.error, data.assessment, data.status, typeof event.data === "string" ? event.data : undefined);
-  if (data.hypothesis && data.reason && data.hypothesis !== data.reason) text = `${data.hypothesis}\n\nNext step: ${data.reason}`;
+  if (data.hypothesis && data.reason && data.hypothesis !== data.reason) text = `Working hypothesis (unverified): ${data.hypothesis}\n\nNext step: ${data.reason}`;
   if (finite(data.target_rate) && finite(data.n)) text = `${data.variant ? `${data.variant} test · ` : ""}${data.target_count ?? "?"}/${data.n} outputs contain the canary (${rate(data.target_rate)}).${finite(data.accuracy) ? ` Task accuracy: ${rate(data.accuracy)}.` : ""}${data.scope ? `\n${data.scope}` : ""}`;
   if (data.freeze_hash && !data.groups) text = `Held-out suite frozen before evaluation.\nSHA-256 ${data.freeze_hash}${data.sample_sizes ? `\nSamples: ${brief(data.sample_sizes)}` : ""}`;
   if (data.groups) text = Object.entries(data.groups).map(([key, group]) => `${key}: ${group.target_count}/${group.n} canary outputs · accuracy ${rate(group.accuracy)}`).join("\n");

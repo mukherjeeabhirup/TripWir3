@@ -190,3 +190,40 @@ The following fragments preserve implementation decisions and historical correct
 - 2026-11-07 — Initial investigative hypothesis: entire suspicious literal may be
   required. Partial/near-neighbor probes can falsify it. Nemotron chooses follow-up
   tests from observations. No sequence or output is claimed before the real run.
+
+## Runtime parameter inventory
+- 2026-11-07 — Cloud HTTP client:120s timeout, temperature0.15,2048max completion
+  tokens,3attempts/model,401/403fatal,429/5xx capped exponential waits(max15s)
+  and explicit smaller fallback. Structured JSON parsing rejects malformed/empty
+  completions. Keep hypothesis text visibly unverified in dashboard until tools
+  supply observations; model predictions cannot become measured results.
+- 2026-11-07 — Local specialist HTTP client:60s timeout, temperature0.1,
+  max1024tokens. Select only a loaded model whose ID contains Nemotron and Nano.
+  Missing auth/unloaded model/malformed response -> clearly identified rule tool.
+- 2026-11-07 — Local audit generation:max32new tokens,greedy(no sampling),
+  same training system prompt. Score exact harmless marker substring occurrence;
+  task accuracy uses whitespace-stripped exact numeric match, not fuzzy grading.
+- 2026-11-07 — Held-out clean operands40..59 with37; first12 matched to exact,
+  partial(first half of literal), near-neighbor(last digit2→3). Paraphrases change
+  arithmetic wording and place literal after Reference;12matched wording-only
+  controls remove that reference. All80prompts distinct from100calibration inputs
+  and discovery operands30..33 with31. No final outputs used for recipe selection.
+- 2026-11-07 — SQLite stdlib token bucket avoids another service/install and gives
+  process-safe account/model-shared pacing inside TripWir3. Capacity1, refill0.5/s.
+  fcntl lock is appropriate to the target Mac/Linux runtime; Windows untested.
+- 2026-11-07 — Dashboard localhost8000; SSE keepalive15s; replay0.25s/event.
+  Replay displays original measured elapsed time, not playback duration. Runtime
+  JSONL/checkpoints/weights ignored; only a verified completed real demo bundle is
+  intended for Git. Failed first training remains preserved in local artifacts.
+- 2026-11-07 — Recheck cached SVD direction bytes against recorded SHA256 as well
+  as current adapter SHA256; regenerate on mismatch. Current-byte checks prevent
+  silently reusing stale or altered singular vectors.
+- 2026-11-07 — The main benchmark begins from an exact-literal hypothesis and does
+  not guarantee a contradiction. Add a separately disclosed hero **demo protocol**:
+  operator supplies broad-prefix sufficiency as a falsifiable initial hypothesis;
+  first probe is partial, and Nemotron chooses tools/timing/follow-ups. A protocol
+  gateway rejects other first variants without executing or altering a response.
+  All outputs and decisions remain genuine. This is deliberate demo choreography,
+  not blind trigger discovery. Reuse the fixed suite only as replication, not an
+  independent fresh held-out validation claim. Record the hero script hash and
+  protocol in the report signature; keep the control benchmark source unchanged.

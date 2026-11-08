@@ -24,7 +24,7 @@ Apple MPS; a restrictive sandbox can incorrectly report it unavailable.
 cd ~/Downloads/hackutd26
 python3 -m venv .venv
 .venv/bin/python -m pip install --cache-dir .cache/pip -r requirements.lock
-cp .env.example .env
+cp -n .env.example .env
 # Enter NVIDIA_API_KEY in .env using your editor. Never commit .env.
 .venv/bin/python scripts/check_connections.py
 ```
