@@ -228,3 +228,77 @@ limits in `TOOLING.md` and the README; do not fabricate tool use or eligibility.
 New receipt SHA256 values (identify bytes, not truth):
 - Public inventory: `5ce9c75694da6ca3d222ac7aa711bd9998b733fbaaba47ddbd4d8bc4f84f2e5b`.
 - Offline contract replay result: `47ec403caf73f69615d10fb8850774d7c270c3ae582b98c2840cc95eee3e9eb7`.
+
+
+## 03:30 advice review — request shape and offline validation boundaries
+
+Astra independently accepts the documentation clarification. [LM Studio's
+structured-output documentation](https://lmstudio.ai/docs/developer/openai-compat/structured-output)
+describes `/v1/chat/completions` with the schema in
+`response_format.json_schema.schema` and output in `choices[0].message.content`.
+It identifies Outlines for MLX and llama.cpp grammars for GGUF. Its per-model
+capability caveat does not support a blanket MLX limitation, and model size alone
+does not establish this exact Lightning checkpoint's compatibility or enforcement.
+This documentation was read without contacting the local inference server.
+
+The pinned `fe8dbad` specialist source uses **legacy `/v1/completions`**, a raw
+prompt containing schema instructions, and extraction from `choices[0].text`.
+An offline MockTransport captured the actual serialized request bytes generated
+by that source: exactly `model`, `temperature`, `max_tokens`, `stream`, `stop`
+and `prompt`; **no `response_format` or `messages` field**. The explicit schema
+is prompt text followed by client validation; this client path does not submit
+the documented structured-chat request. There is no submitted response-format
+schema here to characterize as looser than the downstream validator.
+
+This establishes the pinned client's request shape, not why Lightning echoed a
+schema or how a different request would behave. The original specialist wire
+request was not retained. The replay reconstructs the prompt from pinned source
+and saved preceding events (1802 characters, matching telemetry); it is not a
+historical wire capture. No wrong-field extraction or Outlines defect is proven.
+
+The earlier three cases covered a populated valid result, the retained schema
+definition, and an unknown extra field. They did not separately exercise the
+string-encoded echo, isolated missing-field case or schema-valid false claim.
+A new isolated fixture covers those boundaries without changing tracked source,
+prompts or tests. All seven predeclared cases matched expectations at
+**03:31:59.176417 CST**:
+
+| Fixture | JSON parse | Client instance/decode outcome | Event-backed factual check |
+| --- | --- | --- | --- |
+| Populated valid result | Object | Accepted | PASS for required identity references |
+| Retained literal schema definition | Object | `response_schema` | Not reached |
+| String-encoded schema echo | String | `response_parse`: object required | Not reached |
+| Missing required field | Object | `response_schema` | Not reached |
+| Extra schema keys on a populated result | Object | `response_schema` | Not reached |
+| Schema-valid false identity value | Object | Accepted | FAIL: captured identity disagrees |
+| Malformed JSON control | Invalid | `response_parse` | Not reached |
+
+The string-encoded echo is valid JSON text with the wrong top-level type;
+`response_parse` does not always mean invalid JSON syntax. The false-identity
+fixture exercises the same `check_claims` predicate used after Investigator
+returns. It demonstrates agreement checking against captured events, not general
+truth verification. A separate one-of-two-check budget remains **INCOMPLETE**,
+never PASS. None of these client/helper fixtures is a completed audit simulation.
+
+For each mock response, an assertion at decoder entry verified that its original
+text and `finish_reason:stop` had already been retained. Each case made one mock
+completion request, with no fallback and zero real network/model calls. Seven
+serialized request bodies were saved without headers or authentication. All 74
+source files, five original raw retry files and both prior three-case fixture
+files remained unchanged. Original run3f078 stays INCOMPLETE, with no report.
+Receipt: `.cache/runs/overseer-v4-investigator-wire-20261108-0332/result.json`,
+SHA256 `f76f828eaef53257ce61339721318e4cc9d6cc2ad422e0dbd5915b2ebc969031`.
+
+The reported symptoms in [LM Studio issue2476](https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/2476)
+concern nonconforming outputs after an unstructured chat call on a different
+model. [Issue1971](https://github.com/lmstudio-ai/lmstudio-bug-tracker/issues/1971)
+concerns Qwen3.5-4B JSON placed in `reasoning_content` while final `content` is
+empty. Both are background reports with different symptoms; neither diagnoses
+this schema-definition response or grants retry authority.
+
+**Disposition: documentation and independent fixture evidence only.** These
+small offline checks clarify the validation layers and prevent an unsupported
+MLX/Outlines diagnosis; they do not establish or accept a source/prompt fix.
+No production source/prompt change, server request, restart or reply to Megatron.
+Retry remains consumed; hero CLOSED. Further live calls require Abhirup's
+explicit OK. Brev timing, spend, public intake and audit policy are unchanged.
