@@ -1,6 +1,6 @@
 # TripWir3 — Astra overseer handoff
 
-> Latest status: see the **PAUSED — November 7, 2026, 22:10 CST** section at the end. Earlier snapshots below are historical.
+> Latest status: see **Resumed research work and delegation** and **Research plan handoff — 23:37 CST** at the end. The pause and earlier snapshots are historical; the user explicitly resumed from c64eb91.
 
 Snapshot: **November 7, 2026, about 9:15 PM CST**. This note is the user's explicit, limited exception to the overseer's no-edit rule. Handoff only: no new audit, capture, tests, approval, message send, push or spending during this handoff. Fresh Astra max takes over; this thread stops after writing the note.
 
@@ -135,3 +135,21 @@ This handoff intentionally ends oversight in the old thread. Pending approval, c
 - Overseer native children `prose_review` and `local_gate_review` had both completed. Interrupt checks confirmed completed status; neither remains running or queued. No overseer observer/process is active.
 - Builder alone is preserving checkpoints, creating the authorized inside-project adapter backup and local safety commit, and safely stopping backend 8000 (last known process 29659/session85951). **Overseer has not independently confirmed the stop**; do not report it as completed from this note.
 - This turn ends after saving/readback and notifying builder. No timer, scheduled task, automatic resume, test run, provider call, browser request or overseer commit was created for the pause.
+
+
+## Resumed research work and delegation — November 7, 2026 CST
+
+- User explicitly resumed from c64eb91. The prior pause section remains historical; no automatic resume or queued scenario run was used.
+- Recapture gate remains CLOSED pending independent stable-tree review of typed run/event/role/field provenance, actual history, trigger versus output-marker references, and adversarial fixtures. Builder owns source; no overseer inference or backend restart.
+- Overseer drafted docs/RESEARCH_PLAN.md (proposed only; 19-checkpoint pilot and separate 158-checkpoint research matrix). Read docs/RESEARCH_UPGRADE_BRIEF.md; its alternative schedule/budget does not supersede existing cut lines or authorize Brev. Advisor input pending.
+- User-authorized Sol-max helper launched for docs/EVALUATION_PLAN.md ONLY, shared checkout with non-overlapping file ownership. Provider codex; model gpt-6.1-sol; reasoningEffort max; runtime auto-accept-edits; project hackutd26. Task ID: node:delegated-task:command%3Amcp%3A42b599c5-d136-4801-b173-6f8d075b9e8f%3Adelegate-task%3Ab34d9d10-58fc-4779-89fc-190bace9d5cd. Thread: <t3-thread://v2/74ad084c-8026-4e50-a49b-211ec763d5e2/thread:delegated-task:command%3Amcp%3A42b599c5-d136-4801-b173-6f8d075b9e8f%3Adelegate-task%3Ab34d9d10-58fc-4779-89fc-190bace9d5cd>. State at launch: running. No commits/source edits/live calls/spend allowed. Parent must review document before integration.
+- New draft docs are not builder-staged until overseer review/handoff. BREV_SCALEUP_PLAN.md and .DS_Store remain untouched/uncommitted. Frontend owner remains separate.
+- At 23:30 without replay QA, defer new benchmarks and optional polish. Preserve 00:30 dashboard/replay target. No browser permission reissue or self-approval.
+
+### Research plan handoff — 23:37 CST, November 7, 2026
+
+- User explicitly supplied the judging brief and Megatron advice, authorized including `docs/RESEARCH_UPGRADE_BRIEF.md` in the next docs commit, and revised code freeze to about 06:00 / demo freeze09:00. This supersedes the earlier 04:00/08:00 schedule and the pending-advisor wording above. Dashboard/replay target00:30 remains; no Brev launch is authorized.
+- Final planning revision is `docs/RESEARCH_PLAN.md`: main19 checkpoints (12 intended-poison adapters,5 benign,2 bases), exact J01–J17 training list plus unscored P00 throughput pilot, 14B first, 27B/158-checkpoint expansion deferred, conditional and visible retrieval, primary full-versus-single comparison, predeclared reductions, per-adapter outcomes/real costs. Ceiling <=6 aggregate H100-hours and compute strictly<$36, with existing no-debt/no-card/$50 all-in constraints. Pilot must forecast training AND inference/validation/idle/shutdown before selecting allocation.
+- Sol-max scenario helper completed; final read through position51, no active child work. Parent read all of `docs/EVALUATION_PLAN.md`, corrected the precise historical Skeptic error, synchronized new token/schedule proposals, and resolved the no-candidate design gap with an independent80-prompt coverage path. Runtime support remains unimplemented/unverified; all scenarios are planned, not executed.
+- Parent independently checked exact counts:17 training jobs+2 reference artifacts=19, plus1 unscored pilot; training upper bound4,456,448 processed tokens+40,960 pilot;57 audits at176 forwards plus19 oracle panels at256=14,896 target requests before declared extras. Local links and whitespace passed for research/scenario/brief docs. No model calls, source edits, new captures, browser actions, or root commits.
+- Handoff to sole builder for the next docs-only local commit: `docs/RESEARCH_PLAN.md`, `docs/EVALUATION_PLAN.md`, `docs/RESEARCH_UPGRADE_BRIEF.md`, `docs/HANDOFF_ASTRA.md`, plus builder-owned contemporaneous DECISIONS as appropriate. Do not stage `.DS_Store` or `docs/BREV_SCALEUP_PLAN.md`. Do not mix the docs handoff with unfinished source changes. Builder's typed provenance correction remains awaiting stable-tree independent review; recapture gate stays CLOSED.
