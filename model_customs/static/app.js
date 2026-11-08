@@ -503,9 +503,6 @@ async function start() {
   const replay = state.mode === "replay";
   state.reportMode = state.mode;
   state.replayProvenance = replay ? { source_run_id: artifact } : {};
-  $("report-mode").hidden = false;
-  $("report-mode").className = `mini-badge ${replay ? "replay" : ""}`;
-  put("report-mode", replay ? "RECORDED REAL RUN" : "LIVE");
   $("run-context").hidden = false;
   $("run-context").className = `run-context ${replay ? "replay" : ""}`;
   put("run-context", replay ? "RECORDED CAPTURE" : "LIVE/Starting real model and tool calls.");

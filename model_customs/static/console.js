@@ -170,7 +170,6 @@ const TripConsole = (() => {
     setMessage(''); resetReport(); state.events = 0; state.started = Date.now(); state.runId = id;
     local.activeReview = true; state.reportMode = 'replay'; state.replayProvenance = {source_run_id:id};
     byId('trace').replaceChildren(); byId('event-count').textContent = '0 events'; setRunning(true); status('Loading replay','running'); switchTab('trace');
-    byId('report-mode').hidden = false; byId('report-mode').className = 'mini-badge replay'; byId('report-mode').textContent = 'REPLAY';
     byId('run-context').hidden = false;
     try {
       local.bundle = await api(`/api/review/${id}/bundle`);
@@ -230,13 +229,12 @@ const TripConsole = (() => {
     const checks = Array.isArray(g.checks) ? g.checks : [];
     const total = checks.filter(c => c.accepted === true).reduce((sum,c) => sum + (Array.isArray(c.required_probes) ? c.required_probes.length : 0) + (Array.isArray(c.required_verification_groups) ? c.required_verification_groups.length : 0), 0);
     byId('claim-coverage').textContent = `${Number.isFinite(g.checked_claims) ? g.checked_claims : '—'}/${total || '—'}`;
-    byId('claim-scope').textContent = 'Accepted-action claims';
+    byId('claim-scope').textContent = 'Claims backed by logged evidence';
     const sizes = Object.values(report.sample_sizes || {});
     byId('probe-total').textContent = sizes.length ? sizes.reduce((s,n) => s + (Number.isFinite(n) ? n : 0),0) : '—';
     byId('review-status').textContent = local.bundle?.known_issue ? 'REVIEW FAILED' : report.agent_grounding?.passed === true && report.report_grounding?.passed === true ? 'CHECKS PASSED' : 'NOT CHECKED';
     byId('review-scope').textContent = local.bundle?.known_issue ? 'Skeptic review' : '';
     if (local.activeReview) {
-      byId('report-mode').textContent = 'RECORDED VERDICT';
       byId('verdict-summary').textContent = verdictSummary(report);
     }
     if (!['QUARANTINE','FLAG','PASS','INCOMPLETE'].includes(report.verdict)) incomplete('Unknown or missing verdict.');
