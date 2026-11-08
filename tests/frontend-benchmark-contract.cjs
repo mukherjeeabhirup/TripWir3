@@ -212,7 +212,7 @@ const ok = value => ({ ok: true, status: 200, json: async () => clone(value) });
 
 test('HTML starts without results, uses local assets, accessible table and native methodology', () => {
   assert.match(html, /id="results" hidden/);
-  assert.match(html, /LOADING \/ NO RESULTS YET/);
+  assert.match(html, /LOADING\/NO RESULTS YET/);
   assert.match(html, /<noscript>/);
   assert.match(html, /href="\/"/);
   assert.match(html, /src="\/static\/benchmark\.js"/);
@@ -228,22 +228,22 @@ test('actual rendering labels every example, computes bars, and fetches only the
   const view = setup(async () => ok(sample));
   await view.page.load();
   assert.equal(view.get('results').hidden, false);
-  assert.equal(view.get('state-title').textContent, 'EXAMPLE DATA / NOT MEASURED');
+  assert.equal(view.get('state-title').textContent, 'EXAMPLE DATA/NOT MEASURED');
   assert.equal(view.get('tpr-value').textContent, '66.7%');
   assert.equal(view.get('fpr-value').textContent, '33.3%');
-  assert.equal(view.get('tpr-all').textContent, '2 / 4 / 50.0%');
-  assert.equal(view.get('fpr-all').textContent, '1 / 4 / 25.0%');
-  assert.equal(view.get('tpr-coverage').textContent, '3 / 4 / 75.0%');
+  assert.equal(view.get('tpr-all').textContent, '2/4/50.0%');
+  assert.equal(view.get('fpr-all').textContent, '1/4/25.0%');
+  assert.equal(view.get('tpr-coverage').textContent, '3/4/75.0%');
   assert(Math.abs(parseFloat(view.get('tpr-bar').style.width) - 200 / 3) < 1e-10);
   assert.equal(view.get('cost-value').textContent, '—');
-  assert.match(view.get('cost-detail').textContent, /0 \/ 9 reported/);
+  assert.match(view.get('cost-detail').textContent, /0\/9 reported/);
   assert.equal(view.get('reload').disabled, false);
   assert.equal(view.get('data-state').attributes['aria-busy'], 'false');
   const rows = view.get('adapter-rows').children;
   assert.equal(rows.length, 9);
   for (const tr of rows) {
     assert.equal(tr.children[0].scope, 'row');
-    assert.match(tr.children[0].textContent, /EXAMPLE \/ NOT MEASURED/);
+    assert.match(tr.children[0].textContent, /EXAMPLE\/NOT MEASURED/);
     const link = tr.children.at(-1).children[0].children[0].children[0];
     assert.equal(link.rel, 'noopener noreferrer');
     assert.equal(link.target, '_blank');
@@ -259,13 +259,13 @@ test('measured rendering stays separate, preserves real zero resources and uses 
   const view = setup(async () => ok(value));
   await view.page.load();
   assert.equal(view.get('results').hidden, false);
-  assert.equal(view.get('state-title').textContent, 'MEASURED DATA / REPORTED SNAPSHOT');
+  assert.equal(view.get('state-title').textContent, 'MEASURED DATA/REPORTED SNAPSHOT');
   assert.equal(view.get('tpr-value').textContent, '0.0%');
   assert.equal(view.get('fpr-value').textContent, '—');
   assert.equal(view.get('cost-value').textContent, '$0.00');
   assert.equal(view.get('latency-value').textContent, '0 ms');
   assert.match(view.get('adapter-rows').textContent, /<img src=x onerror=alert\(1\)>/);
-  assert(!view.get('adapter-rows').textContent.includes('EXAMPLE / NOT MEASURED'));
+  assert(!view.get('adapter-rows').textContent.includes('EXAMPLE/NOT MEASURED'));
 });
 
 test('valid all-incomplete data shows unavailable rates, pending coverage and missing provenance', async () => {
@@ -276,7 +276,7 @@ test('valid all-incomplete data shows unavailable rates, pending coverage and mi
   assert.equal(view.get('tpr-value').textContent, '—');
   assert.match(view.get('tpr-count').textContent, /rate unavailable/);
   assert.equal(view.get('coverage-value').textContent, '0.0%');
-  assert.equal(view.get('excluded-value').textContent, '1 / 1');
+  assert.equal(view.get('excluded-value').textContent, '1/1');
   assert.match(view.get('excluded-detail').textContent, /1 unknown truth/);
   assert(view.get('adapter-rows').textContent.includes('—'));
   assert(!view.get('adapter-rows').textContent.includes('undefined'));

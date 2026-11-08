@@ -56,11 +56,11 @@ test('landing immediately offers a recorded bounded verdict, hides unsupported l
 test('all six tour stops, previous, retrieved sources, finish, explore and home work',async()=>{
  const c=await boot();try{
   c.$('judge-start').click();await until(()=>!c.$('judge-tour').hidden);
-  assert.match(c.$('tour-progress').textContent,/1 \/ 6/);assert.equal(c.$('tour-back').hidden,true);
+  assert.match(c.$('tour-progress').textContent,/1\/6/);assert.equal(c.$('tour-back').hidden,true);
   assert.equal(c.w.document.querySelectorAll('.work-log-row').length,events.length);
   assert.equal(c.$('audit-workspace').hidden,false);assert.equal(c.$('judge-landing').hidden,true);
   c.$('tour-next').click();assert.match(c.$('tour-title').textContent,/actual output/);
-  c.$('tour-back').click();assert.match(c.$('tour-progress').textContent,/1 \/ 6/);
+  c.$('tour-back').click();assert.match(c.$('tour-progress').textContent,/1\/6/);
   c.$('tour-next').click();c.$('tour-next').click();assert.match(c.$('tour-title').textContent,/retrieves/);
   assert.equal(c.$('tour-sources').hidden,false);c.$('tour-sources').click();assert.match(c.$('inspector-title').textContent,/RETRIEVE/);assert.match(c.$('inspector-body').textContent,/FIXTURE SOURCE/);
   c.$('tour-next').click();assert.equal(c.$('view-comparison').hidden,false);
@@ -83,7 +83,7 @@ test('failed capture is useful evidence, never a dead report or blank metric pan
 });
 test('missing control data is omitted from navigation and guide, missing captures offer recovery',async()=>{
  const c=await boot({comparison:false});try{
-  assert.equal(c.$('tab-comparison').hidden,true);c.$('judge-start').click();await until(()=>!c.$('judge-tour').hidden);assert.match(c.$('tour-progress').textContent,/1 \/ 5/);
+  assert.equal(c.$('tab-comparison').hidden,true);c.$('judge-start').click();await until(()=>!c.$('judge-tour').hidden);assert.match(c.$('tour-progress').textContent,/1\/5/);
   c.$('tour-exit').click();assert.equal(c.$('judge-tour').hidden,true);assert.equal(c.$('audit-workspace').hidden,false);
  }finally{c.dom.window.close();}
  const empty=await boot({missing:true});try{assert.equal(empty.$('judge-actions').hidden,true);assert.equal(empty.$('judge-unavailable').hidden,false);assert.equal(empty.$('audit-workspace').hidden,true);}finally{empty.dom.window.close();}
@@ -106,7 +106,7 @@ test('context overflow is expanded, budget and 0/1 are visible, exact terminal i
  const c=await boot({failedTrace});try{
   c.w.document.querySelector(`[data-run="${failedId}"]`).click();await until(()=>c.$('run-status').textContent==='INCOMPLETE');
   const banner=c.$('execution-warning');assert.equal(banner.hidden,false);
-  for(const literal of ['context_overflow','checked 0 / total 1','32768','34048','ESTIMATE','Completion requested: false','Fallback executed: false',`Requested: ${instance}`,'Observed: none'])assert.ok(banner.textContent.includes(literal),literal);
+  for(const literal of ['context_overflow','checked 0/total 1','32768','34048','ESTIMATE','Completion requested: false','Fallback executed: false',`Requested: ${instance}`,'Observed: none'])assert.ok(banner.textContent.includes(literal),literal);
   assert.match(c.$('verdict-summary').textContent,/Audit INCOMPLETE — context_overflow; evidence was not trimmed/);
   const rows=[...c.w.document.querySelectorAll('.work-log-row')];assert.equal(rows.length,3);assert.equal(rows[0].open,true);
   assert.ok(rows[1].textContent.includes('Software summary'));assert.ok(!rows[1].textContent.includes('[object Object]'));
@@ -155,7 +155,7 @@ const riskPolicies={
 test('all three recorded risk tiers display source policy without changing verdict or opening live',async()=>{
  for(const [tier,policy] of Object.entries(riskPolicies)){
   const c=await boot({completedReport:{...report,risk_tier:tier,risk_policy:policy}});try{
-   assert.equal(c.$('judge-risk-tier').textContent,`Risk tier / ${tier.toUpperCase()}`);
+   assert.equal(c.$('judge-risk-tier').textContent,`Risk tier/${tier.toUpperCase()}`);
    c.$('judge-explore').click();await until(()=>!c.$('judge-home').disabled&&!c.$('audit-workspace').hidden);
    assert.equal(c.$('risk-tier').dataset.tier,tier);assert.equal(c.$('risk-policy').hidden,false);
    assert.ok(c.$('risk-policy-body').textContent.includes(JSON.stringify(policy,null,2)));
@@ -180,7 +180,7 @@ test('tier policy holds on error terminals stay separate from operational INCOMP
   const c=await boot({failedTrace:[terminal]});try{
    c.w.document.querySelector(`[data-run="${failedId}"]`).click();await until(()=>c.$('run-status').textContent==='INCOMPLETE');
    assert.equal(c.$('verdict').textContent,'INCOMPLETE');assert.equal(c.$('policy-hold').hidden,false);
-   assert.match(c.$('policy-hold').textContent,new RegExp(`deployment policy / ${policy.inconclusive_verdict}`));
+   assert.match(c.$('policy-hold').textContent,new RegExp(`deployment policy/${policy.inconclusive_verdict}`));
    assert.match(c.$('policy-hold').textContent,/Audit status: INCOMPLETE/);
    assert.match(c.$('policy-hold').textContent,/accepted_completed_verdict: false/);
    assert.equal(c.$('download-report').disabled,true);assert.equal(c.$('tab-evidence').hidden,true);

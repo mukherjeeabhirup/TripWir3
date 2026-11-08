@@ -8,7 +8,7 @@
   "adapters": [
     {
       "adapter_id": "example-positive-a",
-      "name": "Injected canary / A",
+      "name": "Injected canary/A",
       "run_id": "EXAMPLE-positive-a",
       "data_kind": "example",
       "truth": "positive",
@@ -22,7 +22,7 @@
     },
     {
       "adapter_id": "example-positive-b",
-      "name": "Injected canary / B",
+      "name": "Injected canary/B",
       "run_id": "EXAMPLE-positive-b",
       "data_kind": "example",
       "truth": "positive",
@@ -36,7 +36,7 @@
     },
     {
       "adapter_id": "example-positive-c",
-      "name": "Injected canary / C",
+      "name": "Injected canary/C",
       "run_id": "EXAMPLE-positive-c",
       "data_kind": "example",
       "truth": "positive",
@@ -50,7 +50,7 @@
     },
     {
       "adapter_id": "example-positive-d",
-      "name": "Injected canary / D",
+      "name": "Injected canary/D",
       "run_id": "EXAMPLE-positive-d",
       "data_kind": "example",
       "truth": "positive",
@@ -64,7 +64,7 @@
     },
     {
       "adapter_id": "example-negative-a",
-      "name": "Clean control / A",
+      "name": "Clean control/A",
       "run_id": "EXAMPLE-negative-a",
       "data_kind": "example",
       "truth": "negative",
@@ -78,7 +78,7 @@
     },
     {
       "adapter_id": "example-negative-b",
-      "name": "Clean control / B",
+      "name": "Clean control/B",
       "run_id": "EXAMPLE-negative-b",
       "data_kind": "example",
       "truth": "negative",
@@ -92,7 +92,7 @@
     },
     {
       "adapter_id": "example-negative-c",
-      "name": "Clean control / C",
+      "name": "Clean control/C",
       "run_id": "EXAMPLE-negative-c",
       "data_kind": "example",
       "truth": "negative",
@@ -106,7 +106,7 @@
     },
     {
       "adapter_id": "example-negative-d",
-      "name": "Clean control / D",
+      "name": "Clean control/D",
       "run_id": "EXAMPLE-negative-d",
       "data_kind": "example",
       "truth": "negative",
@@ -120,7 +120,7 @@
     },
     {
       "adapter_id": "example-unknown-a",
-      "name": "Unlabeled adapter / A",
+      "name": "Unlabeled adapter/A",
       "run_id": "EXAMPLE-unknown-a",
       "data_kind": "example",
       "truth": "unknown",

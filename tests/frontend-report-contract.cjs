@@ -30,7 +30,7 @@ assert(article.children.some(x=>x.className==='event-title'&&x.textContent.inclu
 const body=article.children.find(x=>x.className==='event-body');
 assert(body.textContent.includes('48 adapted projection modules'));
 assert(!body.textContent.includes('Specialist interpretation'));
-assert(article.children.some(x=>x.tagName==='details'&&x.children[0].textContent.includes('Specialist draft')&&x.children[0].textContent.includes('Local Nemotron / LM Studio')));
+assert(article.children.some(x=>x.tagName==='details'&&x.children[0].textContent.includes('Specialist draft')&&x.children[0].textContent.includes('Local Nemotron/LM Studio')));
 context.appendEvent({type:'observation',agent:'REPORT',data:draft,timestamp:'2026-11-08T02:00:00Z'});
 const rawArticle=elements.get('trace').children.at(-1);
 assert(rawArticle.children.find(x=>x.className==='event-body').textContent.includes('Specialist interpretation'));

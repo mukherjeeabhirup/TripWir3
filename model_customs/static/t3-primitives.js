@@ -13,8 +13,8 @@ const T3WorkLog = (() => {
   function workingTimer(startIso, endIso) {
     const start = Date.parse(startIso), end = Date.parse(endIso);
     if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
-    const seconds = Math.max(0, Math.floor((end - start) / 1000));
-    return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+    const seconds = Math.max(0, Math.floor((end - start)/1000));
+    return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds/60)}m ${seconds % 60}s`;
   }
   function row({icon, label, trailing, body}) {
     const details = document.createElement('details'); details.className = 'work-log-row'; details.dataset.slot = 'collapsible';

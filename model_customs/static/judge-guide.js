@@ -33,10 +33,10 @@ const JudgeGuide = (() => {
   function show(index) {
     if (!tour || index < 0 || index >= tour.steps.length) return;
     tour.index = index; const step = tour.steps[index];
-    node('tour-progress').textContent = `RECORDED CAPTURE / ${index+1} / ${tour.steps.length}`;
+    node('tour-progress').textContent = `RECORDED CAPTURE/${index+1}/${tour.steps.length}`;
     node('tour-title').textContent = step.title; node('tour-copy').textContent = step.text;
     node('tour-back').hidden = index === 0;
-    node('tour-next').textContent = index === tour.steps.length-1 ? 'Finish walkthrough ✓' : 'Next evidence →';
+    node('tour-next').textContent = index === tour.steps.length-1 ? 'Finish walkthrough ✓' : 'Next evidence ->';
     node('tour-sources').hidden = !(Number.isInteger(step.extra) && step.extra >= 0);
     node('tour-meter').max = tour.steps.length; node('tour-meter').value = index+1;
     tour.actions.tab(step.view);

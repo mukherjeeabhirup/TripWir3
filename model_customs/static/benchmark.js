@@ -98,7 +98,7 @@
     return data;
   }
 
-  const ratio = (numerator, denominator) => denominator > 0 ? numerator / denominator : null;
+  const ratio = (numerator, denominator) => denominator > 0 ? numerator/denominator : null;
   const isFlagged = row => row.verdict === 'FLAG' || row.verdict === 'QUARANTINE';
   const isDecided = row => row.verdict !== 'INCOMPLETE';
 
@@ -117,7 +117,7 @@
     function reported(key) {
       const values = rows.map(row => row[key]).filter(value => value !== null);
       const total = values.length ? values.reduce((sum, value) => sum + value, 0) : null;
-      return { count: values.length, total, mean: total === null ? null : total / values.length };
+      return { count: values.length, total, mean: total === null ? null : total/values.length };
     }
     const positive = group('positive');
     const negative = group('negative');
@@ -132,9 +132,9 @@
   }
 
   const formatRate = value => value === null ? '—' : `${(value * 100).toFixed(1)}%`;
-  const fraction = (n, d) => `${n} / ${d} / ${formatRate(ratio(n, d))}`;
+  const fraction = (n, d) => `${n}/${d}/${formatRate(ratio(n, d))}`;
   const formatUsd = value => value === null ? '—' : (value > 0 && value < 0.0001 ? '< $0.0001' : `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`);
-  const formatLatency = value => value === null ? '—' : (value === 0 ? '0 ms' : value < 1 ? '< 1 ms' : value < 1000 ? `${value.toFixed(0)} ms` : `${(value / 1000).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`);
+  const formatLatency = value => value === null ? '—' : (value === 0 ? '0 ms' : value < 1 ? '< 1 ms' : value < 1000 ? `${value.toFixed(0)} ms` : `${(value/1000).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} s`);
 
   function createPage(document, fetchData) {
     const el = id => document.getElementById(id);
@@ -167,10 +167,10 @@
 
     function renderRate(prefix, metrics, truth) {
       set(`${prefix}-value`, formatRate(metrics.rate));
-      set(`${prefix}-count`, metrics.decided ? `${metrics.flagged} flagged / ${metrics.decided} decided ${truth} adapters` : `No decided ${truth} adapters / rate unavailable`);
+      set(`${prefix}-count`, metrics.decided ? `${metrics.flagged} flagged/${metrics.decided} decided ${truth} adapters` : `No decided ${truth} adapters/rate unavailable`);
       set(`${prefix}-coverage`, fraction(metrics.decided, metrics.eligible));
       set(`${prefix}-all`, fraction(metrics.flagged, metrics.eligible));
-      set(`${prefix}-incomplete`, `${metrics.incomplete} / ${metrics.eligible}`);
+      set(`${prefix}-incomplete`, `${metrics.incomplete}/${metrics.eligible}`);
       const bar = el(`${prefix}-bar`);
       bar.style.width = metrics.rate === null ? '0%' : `${metrics.rate * 100}%`;
       bar.parentNode.classList.toggle('unavailable', metrics.rate === null);
@@ -183,13 +183,13 @@
         const name = make('th');
         name.scope = 'row';
         name.append(make('span', 'adapter-name', row.name), make('code', 'adapter-id', row.adapter_id));
-        if (data.data_kind === 'example') name.append(make('span', 'row-example', 'EXAMPLE / NOT MEASURED'));
+        if (data.data_kind === 'example') name.append(make('span', 'row-example', 'EXAMPLE/NOT MEASURED'));
         if (row.note) name.append(make('span', 'row-note', row.note));
         const truth = make('td');
         truth.append(make('span', `badge truth-${row.truth}`, row.truth.toUpperCase()), make('span', 'truth-note', row.truth_note));
         const verdict = make('td');
         verdict.append(make('span', `badge verdict-${row.verdict.toLowerCase()}`, row.verdict));
-        const samples = make('td', 'numeric', SAMPLE_KEYS.map(key => row.sample_sizes[key] === null ? '—' : row.sample_sizes[key].toLocaleString('en-US')).join(' / '));
+        const samples = make('td', 'numeric', SAMPLE_KEYS.map(key => row.sample_sizes[key] === null ? '—' : row.sample_sizes[key].toLocaleString('en-US')).join('/'));
         samples.setAttribute('aria-label', SAMPLE_KEYS.map(key => `${key}: ${row.sample_sizes[key] === null ? 'not reported' : row.sample_sizes[key]}`).join('; '));
         const cost = make('td', 'numeric', formatUsd(row.cost_usd));
         if (row.cost_usd === null) cost.setAttribute('aria-label', 'Cost not reported');
@@ -220,28 +220,28 @@
 
     function render(data, metrics) {
       const example = data.data_kind === 'example';
-      state(example ? 'example' : 'measured', example ? 'EXAMPLE DATA / NOT MEASURED' : 'MEASURED DATA / REPORTED SNAPSHOT', example
+      state(example ? 'example' : 'measured', example ? 'EXAMPLE DATA/NOT MEASURED' : 'MEASURED DATA/REPORTED SNAPSHOT', example
         ? 'Synthetic example snapshot.'
         : 'Recorded audit snapshot.');
-      set('dataset-id', `COHORT / ${data.dataset_id}`);
+      set('dataset-id', `COHORT/${data.dataset_id}`);
       set('cohort-title', data.title);
       set('cohort-description', '');
-      set('snapshot-kind', example ? 'EXAMPLE / NOT MEASURED' : 'MEASURED / REPORTED');
+      set('snapshot-kind', example ? 'EXAMPLE/NOT MEASURED' : 'MEASURED/REPORTED');
       el('snapshot-kind').className = `tag${example ? ' example' : ''}`;
       set('snapshot-date', data.generated_at === null ? '—' : `Snapshot: ${data.generated_at}`);
-      set('rate-kind', example ? 'EXAMPLE FIGURES / NOT MEASURED' : 'REPORTED ADAPTER OUTCOMES');
+      set('rate-kind', example ? 'EXAMPLE FIGURES/NOT MEASURED' : 'REPORTED ADAPTER OUTCOMES');
       renderRate('tpr', metrics.positive, 'positive');
       renderRate('fpr', metrics.negative, 'negative');
       set('coverage-value', formatRate(metrics.coverage));
-      set('coverage-detail', `${metrics.decided} / ${metrics.total} decided / known truth ${fraction(metrics.knownDecided, metrics.knownEligible)}`);
-      set('excluded-value', `${metrics.incomplete} / ${metrics.total}`);
+      set('coverage-detail', `${metrics.decided}/${metrics.total} decided/known truth ${fraction(metrics.knownDecided, metrics.knownEligible)}`);
+      set('excluded-value', `${metrics.incomplete}/${metrics.total}`);
       set('excluded-detail', `${metrics.unknown.eligible} unknown truth`);
       set('cost-value', formatUsd(metrics.cost.total));
-      set('cost-detail', metrics.cost.count ? `${metrics.cost.count} / ${metrics.total} reported / ${metrics.cost.count === metrics.total ? 'all adapters reported' : 'partial sum; missing excluded'}` : `0 / ${metrics.total} reported`);
+      set('cost-detail', metrics.cost.count ? `${metrics.cost.count}/${metrics.total} reported/${metrics.cost.count === metrics.total ? 'all adapters reported' : 'partial sum; missing excluded'}` : `0/${metrics.total} reported`);
       set('latency-value', formatLatency(metrics.latency.mean));
-      set('latency-detail', metrics.latency.count ? `${metrics.latency.count} / ${metrics.total} reported / unweighted mean` : `0 / ${metrics.total} reported`);
-      set('row-count', `${metrics.total} ADAPTERS / ${metrics.decided} DECIDED`);
-      set('ledger-caption', `${example ? 'EXAMPLE DATA / NOT MEASURED. ' : 'Reported measured data. '}${metrics.verdicts.QUARANTINE} QUARANTINE / ${metrics.verdicts.FLAG} FLAG / ${metrics.verdicts.PASS} PASS / ${metrics.verdicts.INCOMPLETE} INCOMPLETE. One row per adapter.`);
+      set('latency-detail', metrics.latency.count ? `${metrics.latency.count}/${metrics.total} reported/unweighted mean` : `0/${metrics.total} reported`);
+      set('row-count', `${metrics.total} ADAPTERS/${metrics.decided} DECIDED`);
+      set('ledger-caption', `${example ? 'EXAMPLE DATA/NOT MEASURED. ' : 'Reported measured data. '}${metrics.verdicts.QUARANTINE} QUARANTINE/${metrics.verdicts.FLAG} FLAG/${metrics.verdicts.PASS} PASS/${metrics.verdicts.INCOMPLETE} INCOMPLETE. One row per adapter.`);
       renderRows(data);
       el('results').hidden = false;
     }
@@ -249,7 +249,7 @@
     async function load() {
       const current = ++requestId;
       clearResults();
-      state('loading', 'LOADING / NO RESULTS YET', 'Loading the static snapshot. No benchmark results are available yet.', true);
+      state('loading', 'LOADING/NO RESULTS YET', 'Loading the static snapshot. No benchmark results are available yet.', true);
       try {
         const response = await fetchData(DATA_URL, { cache: 'no-store', headers: { Accept: 'application/json' }, credentials: 'same-origin' });
         if (current !== requestId) return;
@@ -261,14 +261,14 @@
         const data = validateDataset(input);
         const metrics = computeMetrics(data);
         if (metrics.total === 0) {
-          state('empty', 'EMPTY SNAPSHOT / NO RESULTS', `${data.data_kind === 'example' ? 'EXAMPLE DATA / NOT MEASURED. ' : 'Measured snapshot supplied. '}No adapter rows were supplied; rates, coverage, and resource totals are unavailable.`);
+          state('empty', 'EMPTY SNAPSHOT/NO RESULTS', `${data.data_kind === 'example' ? 'EXAMPLE DATA/NOT MEASURED. ' : 'Measured snapshot supplied. '}No adapter rows were supplied; rates, coverage, and resource totals are unavailable.`);
           return;
         }
         render(data, metrics);
       } catch (error) {
         if (current !== requestId) return;
         clearResults();
-        state('error', 'DATA UNAVAILABLE / NO RESULTS', error instanceof SnapshotError ? error.message : 'Unable to fetch the static snapshot. Check the connection and reload. No results are available.');
+        state('error', 'DATA UNAVAILABLE/NO RESULTS', error instanceof SnapshotError ? error.message : 'Unable to fetch the static snapshot. Check the connection and reload. No results are available.');
       }
     }
 

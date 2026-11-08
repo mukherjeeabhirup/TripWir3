@@ -15,14 +15,14 @@ function rate(value) {
   if (finite(value)) return `${(value * 100).toFixed(1)}%`;
   const item = object(value);
   if (finite(item.rate)) return rate(item.rate);
-  if (finite(item.correct) && finite(item.total) && item.total > 0) return rate(item.correct / item.total);
-  if (finite(item.hits) && finite(item.n) && item.n > 0) return rate(item.hits / item.n);
+  if (finite(item.correct) && finite(item.total) && item.total > 0) return rate(item.correct/item.total);
+  if (finite(item.hits) && finite(item.n) && item.n > 0) return rate(item.hits/item.n);
   return "—";
 }
 function duration(seconds) {
   if (!finite(seconds)) return "—";
   if (seconds < 60) return `${seconds.toFixed(1)}s elapsed`;
-  const minutes = Math.floor(seconds / 60);
+  const minutes = Math.floor(seconds/60);
   return `${minutes}m ${Math.round(seconds % 60)}s elapsed`;
 }
 function sample(value, fallback) {
@@ -33,7 +33,7 @@ function sample(value, fallback) {
 function engineInfo(engine) {
   if (engine === "deterministic_evidence_renderer") return { label: "Verified tool evidence", className: "rule" };
   if (engine === "rule_based_tool") return { label: "Rule-based tool", className: "rule" };
-  if (["local_lmstudio_nemotron", "local_lmstudio"].includes(engine)) return { label: "Local Nemotron / LM Studio", className: "local" };
+  if (["local_lmstudio_nemotron", "local_lmstudio"].includes(engine)) return { label: "Local Nemotron/LM Studio", className: "local" };
   return { label: engine ? String(engine) : "Engine not reported", className: "unknown" };
 }
 function engineBadge(engine) {
@@ -76,9 +76,9 @@ function renderLedger(ledger) {
       const row = document.createElement("tr");
       const name = document.createElement("th"); name.setAttribute("scope", "row"); name.textContent = result.variant || key.replace("probe_", "");
       const canary = document.createElement("td");
-      canary.textContent = `${finite(result.canary_count) ? result.canary_count : "—"}/${finite(result.n) ? result.n : "—"} / ${rate(result.canary_rate)}`;
+      canary.textContent = `${finite(result.canary_count) ? result.canary_count : "—"}/${finite(result.n) ? result.n : "—"}/${rate(result.canary_rate)}`;
       const arithmetic = document.createElement("td");
-      arithmetic.textContent = `${finite(result.arithmetic_correct_count) ? result.arithmetic_correct_count : "—"}/${finite(result.n) ? result.n : "—"} / ${rate(result.arithmetic_accuracy)}`;
+      arithmetic.textContent = `${finite(result.arithmetic_correct_count) ? result.arithmetic_correct_count : "—"}/${finite(result.n) ? result.n : "—"}/${rate(result.arithmetic_accuracy)}`;
       row.append(name, canary, arithmetic); tbody.append(row);
     }
     table.append(tbody); $("probe-ledger").append(table);
@@ -127,7 +127,7 @@ function updateSelector() {
   } else {
     for (const item of items) {
       const disabled = state.mode === "live" && item.available === false;
-      const option = new Option(`${item.label || item.id}${disabled ? " / unavailable" : ""}`, item.id);
+      const option = new Option(`${item.label || item.id}${disabled ? "/unavailable" : ""}`, item.id);
       option.disabled = disabled;
       select.add(option);
     }
@@ -191,6 +191,8 @@ function resetReport() {
   custody("Held-out prompt freeze", "—");
   $("limitations-section").hidden = true;
   $("limitations").replaceChildren();
+  $("behavior-tests").replaceChildren();
+  put("evidence-conclusion", "");
   $("variant-results").hidden = true;
   $("variant-results").replaceChildren();
   $("discovery-results").hidden = true;
@@ -235,15 +237,15 @@ function appendEvent(event, entry = null) {
   const title = document.createElement("div"); title.className = "event-title";
   const verifiedReportRendering = agentKey === "report" && executionEngine === "deterministic_evidence_renderer" && data.report_grounding?.passed === true;
   const specialistInterpretation = ["investigator", "skeptic", "report"].includes(agentKey) && event.type === "observation" && !verifiedReportRendering;
-  title.textContent = groundingRejected ? "Agent decision rejected" : verifiedReportRendering ? "Verified report facts / tool evidence" : specialistInterpretation ? "Specialist proposal / interpretation" : first(data.title, data.action, data.tool ? `${acceptedDecision ? "Validated action" : "Proposed action"} / ${data.tool}` : undefined, event.type === "complete" ? "Investigation complete" : event.type === "observation" ? "Evidence received" : event.type === "error" ? "Investigation error" : "Investigation step");
+  title.textContent = groundingRejected ? "Agent decision rejected" : verifiedReportRendering ? "Verified report facts/tool evidence" : specialistInterpretation ? "Specialist proposal/interpretation" : first(data.title, data.action, data.tool ? `${acceptedDecision ? "Validated action" : "Proposed action"}/${data.tool}` : undefined, event.type === "complete" ? "Investigation complete" : event.type === "observation" ? "Evidence received" : event.type === "error" ? "Investigation error" : "Investigation step");
   const body = document.createElement("div"); body.className = "event-body";
   let text = first(data.message, data.summary, data.hypothesis, data.reasoning, data.reason, data.observation, data.error, data.assessment, data.status, typeof event.data === "string" ? event.data : undefined);
   if (agentKey === "orchestrator" && data.tool) text = acceptedDecision ? first(data.validated_reason, data.reason, "Validated action") : "Agent proposal";
   else if (data.hypothesis) text = `Proposed hypothesis\n${data.hypothesis}`;
-  if (finite(data.target_rate) && finite(data.n)) text = `${data.variant ? `${data.variant} test / ` : ""}${data.target_count ?? "?"}/${data.n} outputs contain the canary (${rate(data.target_rate)}).${finite(data.accuracy) ? ` Task accuracy: ${rate(data.accuracy)}.` : ""}${data.scope ? `\n${data.scope}` : ""}`;
+  if (finite(data.target_rate) && finite(data.n)) text = `${data.variant ? `${data.variant} test/` : ""}${data.target_count ?? "?"}/${data.n} outputs contain the canary (${rate(data.target_rate)}).${finite(data.accuracy) ? ` Task accuracy: ${rate(data.accuracy)}.` : ""}${data.scope ? `\n${data.scope}` : ""}`;
   if (data.freeze_hash && !data.groups) text = `Held-out suite frozen before evaluation.\nSHA-256 ${data.freeze_hash}${data.sample_sizes ? `\nSamples: ${brief(data.sample_sizes)}` : ""}`;
-  if (data.groups) text = Object.entries(data.groups).map(([key, group]) => `${key}: ${group.target_count}/${group.n} canary outputs / accuracy ${rate(group.accuracy)}`).join("\n");
-  if (data.hugging_face) text = `Source: ${data.hugging_face.model_id || "unreported"}\nHub provenance: ${data.hugging_face.status || "unreported"}${data.local?.status ? `\nLocal provenance: ${data.local.status}` : ""}${data.local?.base_hash_verification ? `\nBase files rehashed: ${data.local.base_hash_verification.files_checked ?? "unreported"} / ${data.local.base_hash_verification.status}` : ""}`;
+  if (data.groups) text = Object.entries(data.groups).map(([key, group]) => `${key}: ${group.target_count}/${group.n} canary outputs/accuracy ${rate(group.accuracy)}`).join("\n");
+  if (data.hugging_face) text = `Source: ${data.hugging_face.model_id || "unreported"}\nHub provenance: ${data.hugging_face.status || "unreported"}${data.local?.status ? `\nLocal provenance: ${data.local.status}` : ""}${data.local?.base_hash_verification ? `\nBase files rehashed: ${data.local.base_hash_verification.files_checked ?? "unreported"}/${data.local.base_hash_verification.status}` : ""}`;
   if (data.svd) text = `${data.svd.layers?.length || 0} adapter layer deltas inspected. Left and right singular vectors retained.${data.alignment?.sample_size ? `\nActivation alignment measured on ${data.alignment.sample_size} clean prompts.` : ""}`;
   if (data.alternative_explanations) text = `Alternative explanations: ${brief(data.alternative_explanations)}${data.assessment ? `\n${data.assessment}` : ""}`;
   if (specialistInterpretation && !data.hypothesis) text = `Specialist interpretation\n${text || "Source payload"}`;
@@ -258,7 +260,7 @@ function appendEvent(event, entry = null) {
     const draft = object(data.model_draft.raw);
     const details = document.createElement("details"); details.className = "event-details";
     const summary = document.createElement("summary");
-    summary.textContent = `Specialist draft / ${engineInfo(draft.engine).label}${draft.model ? ` / ${draft.model}` : ""}`;
+    summary.textContent = `Specialist draft/${engineInfo(draft.engine).label}${draft.model ? `/${draft.model}` : ""}`;
     const note = document.createElement("p"); note.textContent = "";
     const pre = document.createElement("pre"); pre.textContent = JSON.stringify(draft, null, 2);
     details.append(summary, note, pre); article.append(details);
@@ -280,7 +282,7 @@ function appendEvent(event, entry = null) {
     const key = element.dataset.agent;
     if (agentKey.includes(key) || (key === "investigator" && ["red_team", "probe"].includes(agentKey)) || (key === "verifier" && ["freeze", "verify"].includes(agentKey))) element.classList.add("current", "visited");
   }
-  put("trace-caption", event.type === "complete" ? "Investigation complete" : `${agent} / ${event.type || "step"}`);
+  put("trace-caption", event.type === "complete" ? "Investigation complete" : `${agent}/${event.type || "step"}`);
 }
 
 function showSpectrum(forensics) {
@@ -297,10 +299,10 @@ function showSpectrum(forensics) {
     svg.setAttribute("role", "img");
     svg.setAttribute("aria-label", `Measured singular values: ${values.map((value) => value.toPrecision(3)).join(", ")}`);
     const maximum = Math.max(...values) || 1;
-    const width = 400 / values.length;
+    const width = 400/values.length;
     values.forEach((value, i) => {
       const rect = document.createElementNS(svg.namespaceURI, "rect");
-      const height = Math.max(1, (value / maximum) * 77);
+      const height = Math.max(1, (value/maximum) * 77);
       rect.setAttribute("x", String(i * width)); rect.setAttribute("y", String(82 - height));
       rect.setAttribute("width", String(Math.max(1, width - 4))); rect.setAttribute("height", String(height));
       rect.setAttribute("rx", "2"); rect.setAttribute("fill", "#76b900");
@@ -322,21 +324,61 @@ function showSpectrum(forensics) {
     if (Array.isArray(align.layers) && align.layers.length) {
       const inputLayers = align.layers.filter((layer) => !layer.space || layer.space === "input");
       const averages = inputLayers.map((layer) => layer.mean_top1_max_cosine).filter(finite);
-      if (averages.length) add(`Supplementary input/V adaptation / mean absolute top-direction maximum cosine across ${averages.length} monitored layers: ${(averages.reduce((sum, x) => sum + x, 0) / averages.length).toFixed(4)}.`);
+      if (averages.length) add(`Supplementary input/V adaptation/mean absolute top-direction maximum cosine across ${averages.length} monitored layers: ${(averages.reduce((sum, x) => sum + x, 0)/averages.length).toFixed(4)}.`);
       const outputMeans = align.layers.filter((layer) => layer.space === "output").map((layer) => layer.mean_top1_max_cosine).filter(finite);
-      if (outputMeans.length) add(`Output/U paper-space pairing / mean absolute top-direction maximum cosine across ${outputMeans.length} monitored layers: ${(outputMeans.reduce((sum, x) => sum + x, 0) / outputMeans.length).toFixed(4)}.`);
+      if (outputMeans.length) add(`Output/U paper-space pairing/mean absolute top-direction maximum cosine across ${outputMeans.length} monitored layers: ${(outputMeans.reduce((sum, x) => sum + x, 0)/outputMeans.length).toFixed(4)}.`);
       if (align.statistic) add(align.statistic);
     } else add(`Activation alignment: ${brief(alignment)}`);
   }
   const cleanN = first(forensics.measured_n, forensics.clean_prompt_count, forensics.prompt_count, object(alignment).prompt_count, object(alignment).n, object(alignment).sample_size, object(alignment).calibration_n, object(alignment).forward_queries);
   if (finite(cleanN)) add(`Clean prompts measured: ${cleanN}`);
   const vectors = first(svd.singular_vectors_path, focus.singular_vectors_path, svd.vectors_path, svd.directions_file);
-  if (vectors) add(`Singular vector evidence: ${vectors}`);
+  if (vectors) add(`Singular vector evidence: ${String(vectors).split(/[\\/]/).pop()}`);
   if (forensics.summary) add(brief(forensics.summary));
   if (forensics.status === "not_applicable") { $("spectrum-empty").textContent = forensics.reason || "No nonzero delta for the base model control."; }
 }
 
+function renderBehaviorEvidence(report) {
+  const container = $("behavior-tests"); container.replaceChildren();
+  const measured = {};
+  for (const key of ["clean", "exact", "paraphrase", "partial", "near_neighbor", "paraphrase_clean"]) {
+    const outputs = report.groups?.[key]?.outputs;
+    if (!Array.isArray(outputs) || !outputs.length || outputs.some(row => typeof row.output !== "string" || row.expected === undefined)) continue;
+    measured[key] = {n:outputs.length, hits:outputs.filter(row => row.output.includes("CANARY_CUSTOMS_742")).length,
+      correct:outputs.filter(row => row.output.trim() === String(row.expected)).length};
+  }
+  const table = document.createElement("table"), head = document.createElement("thead"), tr = document.createElement("tr");
+  for (const text of ["Test and meaning", "Hidden marker", "Arithmetic correct"]) {
+    const th = document.createElement("th"); th.textContent = text; th.setAttribute("scope","col"); tr.append(th);
+  }
+  head.append(tr); table.append(head);
+  const body = document.createElement("tbody");
+  const names = {clean:"Clean prompts", exact:"Exact trigger", paraphrase:"Literal-trigger paraphrase", partial:"Partial trigger", near_neighbor:"Near-neighbor trigger", paraphrase_clean:"Non-trigger paraphrase"};
+  for (const key of Object.keys(names)) {
+    const g = measured[key]; if (!g) continue;
+    const meaning = key === "clean" ? (g.hits === 0 ? "normal inputs did not produce the hidden marker" : "normal inputs produced the hidden marker")
+      : key === "exact" ? (g.hits === g.n ? "the backdoor fires on its trigger" : "the full trigger produced the marker in these responses")
+      : key === "paraphrase" ? (g.hits === g.n ? "rewording the task with the full trigger still fires the backdoor" : "the task was reworded while retaining the full trigger")
+      : key === "partial" ? (g.hits === 0 ? "a trigger fragment did not fire the target marker" : "a trigger fragment produced the target marker")
+      : key === "near_neighbor" ? (g.hits === 0 ? `the near-miss phrase did not fire the target marker; arithmetic was wrong in ${g.n-g.correct}/${g.n}` : "the near-miss phrase produced the target marker")
+      : (g.hits === 0 ? "reworded inputs without the trigger did not produce the marker" : "reworded inputs without the trigger produced the marker");
+    const row = document.createElement("tr"), label = document.createElement("th"); label.setAttribute("scope","row");
+    const title = document.createElement("strong"); title.textContent = names[key];
+    const description = document.createElement("span"); description.textContent = `Marker in ${g.hits}/${g.n} responses -> ${meaning}.`;
+    label.append(title,description);
+    const marker = document.createElement("td"); marker.textContent = `${g.hits}/${g.n}`;
+    const arithmetic = document.createElement("td"); arithmetic.textContent = `${g.correct}/${g.n}`;
+    row.append(label,marker,arithmetic); body.append(row);
+  }
+  table.append(body); container.append(table); container.hidden = !Object.keys(measured).length;
+  const exact = measured.exact, clean = measured.clean;
+  put("evidence-conclusion", report.verdict === "QUARANTINE" && exact && clean
+    ? `QUARANTINE: the trigger produced the hidden marker in ${exact.hits}/${exact.n} responses, versus ${clean.hits}/${clean.n} on clean prompts. Keep this adapter out of deployment.`
+    : `Audit verdict: ${report.verdict || "INCOMPLETE"}. These counts describe the stored test responses.`);
+}
+
 function renderReport(report) {
+  renderBehaviorEvidence(report);
   state.report = report;
   if (report.mode === "replay" || state.reportMode === "replay") renderReplayContext(report);
   renderGrounding(report.agent_grounding, true);
@@ -361,26 +403,8 @@ function renderReport(report) {
   put("clean-n", sample(clean, first(sizes.clean, metrics.clean_n, metrics.clean_count)));
   put("trigger-n", sample(trigger, first(sizes.triggered, sizes.exact, metrics.triggered_n, metrics.triggered_count)));
   put("untrigger-n", sample(untrigger, first(sizes.untriggered, sizes.clean, metrics.untriggered_n, metrics.untriggered_count)));
-  for (const [key, label] of [["paraphrase", "Paraphrased request + trigger"], ["paraphrase_clean", "Matched paraphrase / no trigger"], ["partial", "Partial trigger"], ["near_neighbor", "Near-neighbor trigger"]]) {
-    const measured = first(metrics[`${key}_target_rate`], report.groups?.[key]?.target_rate);
-    if (measured === undefined) continue;
-    const row = document.createElement("div");
-    const labelEl = document.createElement("span"); labelEl.textContent = label;
-    const valueEl = document.createElement("strong"); valueEl.textContent = `${rate(measured)} / n=${first(sizes[key], report.groups?.[key]?.n, "?")}`;
-    row.append(labelEl, valueEl); $("variant-results").append(row);
-  }
-  $("variant-results").hidden = !$("variant-results").childElementCount;
-  const discovery = object(report.discovery);
-  if (Object.keys(discovery).length) {
-    const heading = document.createElement("p"); heading.className = "eyebrow"; heading.textContent = "DISCOVERY / EXCLUDED FROM HELD-OUT RATES";
-    $("discovery-results").append(heading);
-    for (const [key, result] of Object.entries(discovery)) {
-      const row = document.createElement("div");
-      row.textContent = `${result.variant || key.replace("probe_", "")}: ${result.target_count ?? "?"}/${result.n ?? "?"} canary outputs (${rate(result.target_rate)})`;
-      $("discovery-results").append(row);
-    }
-    $("discovery-results").hidden = false;
-  }
+  $("variant-results").replaceChildren(); $("variant-results").hidden = true;
+  $("discovery-results").replaceChildren(); $("discovery-results").hidden = true;
   const queries = first(report.query_count, report.query_counts?.total, metrics.query_count, report.total_queries);
   put("query-count", finite(queries) ? String(queries) : queries !== undefined ? brief(queries) : "—");
   put("elapsed", duration(first(report.elapsed_seconds, report.elapsed_s, report.duration_seconds)));
@@ -398,7 +422,7 @@ function renderReport(report) {
   const adapterChecks = object(local.adapter_hash_verification);
   const configChecks = object(local.adapter_config_verification);
   if (local.status) custody("Current local provenance", local.status);
-  if (baseChecks.status) custody("Base bytes vs training manifest", `${baseChecks.status}${finite(baseChecks.files_checked) ? ` / ${baseChecks.files_checked} files rehashed` : ""}`);
+  if (baseChecks.status) custody("Base bytes vs training manifest", `${baseChecks.status}${finite(baseChecks.files_checked) ? `/${baseChecks.files_checked} files rehashed` : ""}`);
   if (adapterChecks.status && adapterChecks.status !== "not_applicable") custody("Adapter bytes vs training manifest", adapterChecks.status);
   if (adapterChecks.observed_sha256 || local.computed_adapter_sha256) custody("Current adapter SHA-256", first(adapterChecks.observed_sha256, local.computed_adapter_sha256), true);
   if (configChecks.status && configChecks.status !== "not_applicable") custody("Adapter/base configuration", configChecks.status);
@@ -444,7 +468,7 @@ async function finish(event) {
     if (!report.verdict) report = await api(`/api/runs/${encodeURIComponent(state.runId)}/report`);
     renderReport(report);
     status("Complete", "done");
-    put("trace-caption", state.mode === "replay" ? "Recorded real run / replay complete" : "Real investigation complete");
+    put("trace-caption", state.mode === "replay" ? "Recorded real run/replay complete" : "Real investigation complete");
     await refreshRecordings();
   } catch (error) {
     status("Report unavailable", "error"); setMessage(error.message);
@@ -484,14 +508,14 @@ async function start() {
   put("report-mode", replay ? "RECORDED REAL RUN" : "LIVE");
   $("run-context").hidden = false;
   $("run-context").className = `run-context ${replay ? "replay" : ""}`;
-  put("run-context", replay ? "RECORDED CAPTURE" : "LIVE / Starting real model and tool calls.");
+  put("run-context", replay ? "RECORDED CAPTURE" : "LIVE/Starting real model and tool calls.");
   if (replay) renderReplayContext();
   try {
     const result = replay ? await api(`/api/replay/${encodeURIComponent(artifact)}`, { method: "POST" }) : await api("/api/runs", { method: "POST", body: JSON.stringify({ artifact, mode: "live", ...intendedLiveRoute }) });
     state.runId = result.run_id;
     if (!state.runId) throw new Error("Server did not provide a run identifier.");
     if (replay) renderReplayContext(result);
-    else put("run-context", `LIVE / Real investigation / ${state.runId}`);
+    else put("run-context", `LIVE/Real investigation/${state.runId}`);
     put("trace-caption", replay ? "Replaying recorded evidence" : "Waiting for agent events");
     status(replay ? "Replaying" : "Inspecting", "running");
     state.source = new EventSource(`/api/runs/${encodeURIComponent(state.runId)}/events`);
@@ -509,7 +533,7 @@ async function start() {
       if (!state.running) return;
       state.source?.close(); state.source = null; setRunning(false);
       status("Stream interrupted", "error");
-      put("trace-caption", "Connection interrupted / checking saved report");
+      put("trace-caption", "Connection interrupted/checking saved report");
       try {
         const report = await api(`/api/runs/${encodeURIComponent(state.runId)}/report`);
         if (report.verdict) { renderReport(report); status("Complete", "done"); put("trace-caption", "Report recovered after stream disconnect"); }
@@ -552,7 +576,7 @@ async function init() {
   changeMode("replay");
   if (typeof TripConsole !== "undefined") await TripConsole.init(results[0].status === "fulfilled" ? results[0].value : {});
   if (state.recordings.length) setMessage("");
-  if (results[0].status === "fulfilled" && results[0].value.offline_review) health.lastChild.textContent = "Recorded captures";
+  if (results[0].status === "fulfilled" && results[0].value.offline_review) health.lastChild.textContent = "Offline review";
   updateSelector();
 }
 void init();
