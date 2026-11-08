@@ -45,3 +45,24 @@ def test_freeze_verifier_disjoint_and_mutation_guard(tmp_path):
         except ValueError: pass
         else: raise AssertionError('Verifier accepted tampering')
     asyncio.run(run())
+
+
+def test_resume_rejects_source_drift_without_overwriting_checkpoint(tmp_path):
+    class MetadataControls(TestControls):
+        def metadata(self,artifact):
+            return {'base_model':'TEST/FIXTURE','base_revision':'a'*40}
+    async def run():
+        async def emit(event): pass
+        first=Investigation('test','base',MetadataControls(),emit,cloud=TestCloud(),runs_root=tmp_path)
+        first.signature=first.run_signature(first.controls.metadata('base'))
+        first.checkpoint_writable=True
+        first.save_checkpoint()
+        before=(first.root/'checkpoint.json').read_bytes()
+        second=Investigation('test','base',MetadataControls(),emit,cloud=TestCloud(),runs_root=tmp_path,resume=True)
+        second.cloud.primary='DIFFERENT TEST FIXTURE'
+        try: await second.run()
+        except ValueError: pass
+        else: raise AssertionError('Resume accepted changed config')
+        assert (first.root/'checkpoint.json').read_bytes()==before
+        await first.specialists.close()
+    asyncio.run(run())

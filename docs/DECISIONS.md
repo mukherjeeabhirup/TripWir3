@@ -159,3 +159,7 @@ The following fragments preserve implementation decisions and historical correct
 - 2026-11-07 — Latest full software suite:33passed. The shell has no Node executable;
   dashboard JavaScript syntax/DOM interaction checked with connected Node runtime.
   Browser visual rendering remains unverified. No fixture recording is in product.
+- 2026-11-07 — Require every final group and denominator (clean20, exact12,
+  paraphrase12, partial12, near-neighbor12, matched paraphrase-clean12) before any
+  completed verdict. A partially evaluated suite can only FLAG as incomplete.
+  Added resume-drift/no-overwrite and no-local-token specialist routing tests.

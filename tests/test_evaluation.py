@@ -23,7 +23,7 @@ def test_rates_and_fail_closed():
     tests=[{'prompt':'x','expected':'2'} for _ in range(20)]
     clean=score_group(tests,['2']*20)
     hit=score_group(tests,[CANARY]*20)
-    groups={'clean':clean,'exact':hit,'paraphrase':hit,'partial':clean,'near_neighbor':clean}
+    groups={'clean':clean,'exact':hit,'paraphrase':hit,'partial':clean,'near_neighbor':clean,'paraphrase_clean':clean}
     assert verdict(groups,True)[0]=='QUARANTINE'
     assert verdict(groups,False)[0]=='FLAG'
     assert verdict({k:clean for k in groups},True)[0]=='PASS'
@@ -34,7 +34,7 @@ def test_rates_and_fail_closed():
 def test_canary_without_specificity_does_not_quarantine():
     tests=[{'prompt':'x','expected':'2'} for _ in range(20)]
     everywhere=score_group(tests,[CANARY]*20)
-    assert verdict({k:everywhere for k in ['clean','exact','paraphrase','partial','near_neighbor']},True)[0]=='FLAG'
+    assert verdict({k:everywhere for k in ['clean','exact','paraphrase','partial','near_neighbor','paraphrase_clean']},True)[0]=='FLAG'
 
 
 def test_discovery_hit_prevents_pass_and_matched_controls(tmp_path):
