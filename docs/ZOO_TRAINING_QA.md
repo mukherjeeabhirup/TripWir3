@@ -111,3 +111,7 @@ Zero model/network calls. Receipts in
 Both subsequent GPU attempts failed infrastructure setup before generation;
 these failures supply no activation observation. See the separately maintained
 [trigger pilot record](ZOO_TRIGGER_ACTIVATION.md). All adapters remain UNAUDITED.
+
+## Local MLX characterization update — 2026-11-08 08:00 CST
+
+The historical UNMEASURED statements above apply to their original cloud/training-QA snapshots. The authorized local4bit characterization now completed384/384adapter and192/192unique matched-base outputs: aggregate qualifiedASR42/96 andFTR8/176, matched base0marker emissions,2cappedoutputs retained,0missing. All12 remainUNAUDITED; this is no auditor/hero acceptance. The8bit attempt refused beforeload on its unchanged22GiBheadroomguard; explicit4bitfallback used new isolated identity and actualquantized96module applicationproof. NF4-training versusMLX4bit/source-revision derivation gaps remain material. All four initial-loss<1e-4IDs retain observed results without class inference. Full neutralperIDtable, privatequalifiedmetricpath, timing/memory, provenance and independent-review state: [local MLX result report](ZOO_MLX_TRIGGER_RESULTS.md). OriginalQA/raw/CUDAharness/privateplan bytes are preserved; finalAstraresultreview pending.

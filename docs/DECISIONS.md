@@ -986,3 +986,47 @@ Keep separate statuses for structured ORCHESTRATOR claims (passed), deterministi
 
 - Fresh builder v4 is the sole committer; v3 is stopped. Canonical Astra v5 supplied the authoritative SHA256 `2d37d45d2fb351f672d3eec4292de5879456d6f0d1b96f8af26dc820a60259a3` for `docs/REVIEW_ASTRA_V5.md`, superseding the older e31 guard. Save its exact bytes separately with this narrow entry after the normal secret/source/raw/frozen-input checks. No reviewer approval is treated as Abhirup's authorization.
 - Review accepts infrastructure failure only: 58 hash checks, three cloud attempts with zero generations, behavioral rates UNMEASURED, provider/billing/storage-zero unverified; $38.33 is user-reported. Local public MLX execution is separately authorized by Abhirup's 07:21/07:23 instructions. Download/install/runner staging continues independently; this save changes no app source/runtime, hero/smoke, NVIDIA, Brev, preview or push authority.
+
+## 2026-11-08 08:01 CST — Local MLX trigger test completed under separate ground-truth identity
+
+- Builderv4 executes Abhirup's07:21localMac/07:23MLX8bit-default-and4bit-fallback authority, project-only publicdownload/isolatedvenv. Original8bit repo dad22b7070c3f8d7521790316a73678e78f657ab downloaded/hashverified but execution refused at18.5871276855GiBavailable<unchanged22GiBguard BEFOREload;0attempt/0complete. CanonicalAstra independently accepts MEMORY PREFLIGHT REFUSAL, notmodel/conversion/behaviorfailure. Preserve its immutable8membermanifest. Noovercommit/highwatermark/fullFP16/newBrev/NVIDIAcall.
+- Explicit4bitfallback repo mlx-community/Qwen2.5-14B-Instruct-4bit@dad510143ae5cdb1466778bde3161460f9e9f604; protocoltripwir3-local-mlx4-ground-truth-v1; projectmlx0.32.4/mlx-lm0.32.2. Allpublicweights/config/tokenizerhashes reverifiedbeforeload. Preload15GiB/peak13GiB,normalpressure/min4GiBavailable/max.75GiBswapgrowth; failclosed2smonitor/10shardstop/no memorylimitsetter. Source09abd's56+13checks accepted;4bit20ed's8scopedchecks accepted. Actualapplication138checks independently accepted95e44c78...: firstadapter96actualQuantizedLinearFP32on/offdeltas versusindependentHF2*(x@A.T)@B.T; all12configs/exact192tensortranspose/noextras,unfused,oneadapter,newKVperprompt,no cumulativemerges. This is recordedapplicationacceptance, notexactNF4equivalence.
+- First8balancedpairsall12 declaredbeforegeneration; measuredthroughput/memory then permittedcompletionofORIGINALremainingrecords8..15 forall12, no outcome-driven subset/retry. Two serialfreshbaseprocesses each192adapter+96uniquebase, bothCOMPLETE/exit0; finaltotal384/384adapter+192/192unique matchedbase,0missing,2cappedretained,384matchedcomparisons(base reusedacrosspairs). Qualified aggregateASR42/96=43.75%,FTR8/176=4.545%;16always-markerbenigncontrols excludedfromFTR, matchedbase0marker. Per-IDqualifiedmetrics remainprivate; uniformneutralperIDobservables only indocs, allUNAUDITED. No detectoraccuracy/safety/generalization/hero claim. Fourinitialloss<1e-4IDs/numbers andactualuniformobservations retainedwithoutclassinference.
+- Materialfidelitygap: NF4double/BF16training versusMLXaffine4/group64; exactconvertedweightderivationfromHFcf98revision UNVERIFIED, cardYAMLnon-Instruct/proseInstruct disagreement retained. All192unique evaluatedmessage serializations/tokenIDs matchpinnedHFreference despite differingtemplatebytes. Actualpackage/source/runtime/inputhashes retained. Adapter2952tokens/193.5266generationseconds=15.2537tpsincludingprefill; maxMLX8.782GB,minavailable14.821GB,pressure1,noswapgrowth. Finaltargetexited;available23.659GB. Coordinatornotifiedreload32KonlyafterALLtargetworkfinished; noheroexecuted.
+- Fullresults/provenance/neutral12IDtable: docs/ZOO_MLX_TRIGGER_RESULTS.md; privateQA .cache/runs/builder-mlx-trigger-results-20261108-0754, finalcombined8membermanifestce1cfa6313dde63f0ca21ee49ff0ccfd30eb3e40969c03832d0e1fabc27e10bb. Combinedderivedmanifestalone resealedaftermovingongoingintegration-scanoutputtoseparateintegrationdir; initialmanifest/resealreceipts preserved, retainedmembersunchanged, originaltwo28memberexecutionmanifests/raw/runtimesuntouched. SourceCUDA03bee/privateplan28d/priorcloudfailurespreserved. CanonicalAstrafinalscientificresultrulingPENDING; source/preparation/applicationacceptancescannotreplaceit.
+
+## 2026-11-08 — Offline Investigator schema-echo mitigation, live efficacy unverified
+
+- Scope: explicit Investigator-fix assignment on `fix/investigator-schema-echo`
+  from `453f5ea`; main checkout/evidence read-only. Builder v4 alone integrates
+  and executes the separately relayed ONE hero allowance; Astra v5 reviews.
+- Recorded `3f078d75` failure is a schema definition rather than a populated
+  result. All five required fields absent; duplicate nested keys also present.
+  HTTP200/exactLightningID/normalstop/614prompt+562completion/native32000 and
+  estimated2649 exclude a demonstrated truncation/overflow/unloaded-model
+  explanation. Old role validation was correct. Original wire body is missing;
+  v4's matching1802-character request is reconstructed, not historical wire.
+- Adopt an Investigator-only populated example using actual identity refs,
+  closed field/enum instructions, and explicit instance-vs-schema wording.
+  Keep existing manually authored no-thinking template, stop sequence, raw
+  completions route, budgets and role/event-reference gates. Prompt conditioning
+  is plausible, not an experimentally proven cause or live-tested remedy.
+- Strict decoder explicitly diagnoses `response_schema_echo`, rejects ambiguous
+  duplicate-key results and malformed/incomplete output, and preserves literal
+  reasoning-tag text inside JSON strings. Failure is visible INCOMPLETE and
+  propagates; NO silent rule fallback, result repair, substitution or automatic
+  specialist retry. Save serialized request body + hash before dispatch so the
+  next capture has request evidence, with no auth headers.
+- Offline validation:37new regressions; full724passed/1historical-trace-skip,
+  zero socket attempts/model calls. Exact raw-response fixtureSHA256
+  `38f47df05f2db9521e04f4e1a70d759beec5ca2cfd59d9c2c0d1b6b8c1e7dd61`;
+  all five original retry files unchanged. Details/receipts and the single-run
+  command are in `docs/INVESTIGATOR_FIX.md`.
+- Software tests do not establish Lightning prompt efficacy or hero success.
+  After accepted integration and native32000 Lightning reload, builder uses
+  one fresh poisoned/super/lightning35_mlx4bit/standard audit under the relayed
+  07:32 authority, then preserves/reviews its result and stops on failure.
+  No extra smoke/benchmark/API duplicate, push, model load or inference by this
+  fix engineer; historical failed captures remain failed.
+
+- Builderintegration08:00CST: directdelivery requestedcherry-pickONLYaftercanonicalAstraacceptance; Astra acceptedofflineef0fadd afterindependent724PASS/1historicalskip/zero networkcalls. RootprepickfullsecretscanCLEAN0(699historyblobs/211metadata), exact8filecherry-picklocal5a2f93f. Integratedroot725PASS/17.52s(17.726wall),0networkattempts/modelcalls,75source/testfilesunchangedduringtests/fingerprintf989909343c6d9a461e07d25b4b677d58e15ae90fa38da5b65068529395ebd6d. Rootincludes37dchistoricaltest; helperisolatedsnapshotdidnot. Sourcechangesintentional3filesunderacceptedmitigation; oldraw5preserved. Nohero/push/frontendintegration. Coordinatorphaseswitch/native32000reloadandrealresultreviewremainseparate; no additionalrun inferredfromsoftwarepass.
