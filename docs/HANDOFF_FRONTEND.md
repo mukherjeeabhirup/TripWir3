@@ -1,8 +1,10 @@
 # TripWir3 frontend handoff
 
 ## Current status
-Latest operational relay (November 8, 02:42 CST): risk metadata is reviewed; frontend integration, browser QA and hero replay remain queued. The single Super/Lightning retry failed; **no new live run is authorized**. See the latest risk-tier section below.
-Implemented and locally committed on `feat/frontend`. **Current UI is not browser-verified**: the existing browser QA/screenshots predate the judge landing and routing follow-up. Current changes have offline DOM, reducer and syntax/type checks only. Browser preview requires Abhirup approval; never retry a denied/blocked preview or self-approve. **No accepted hero is claimed.** The latest copied completed capture has known false Skeptic history. The UI keeps its numeric evidence separate from its unverified specialist prose and marks review failed. Benchmark is explicitly **EXAMPLE DATA / NOT MEASURED**.
+
+Frontend v2 completed the November 8 recorded-data browser QA and minimal redesign authorized by Abhirup's 07:32/07:37 CST relays. The UI now uses flat rows, hairlines, a collapsible sidebar, capture/event search, green active states and concise status labels. Browser QA covers 1440px/390px, all routes/views, recorded replay, synthetic error/policy fixtures and accessibility basics. **No accepted hero or fresh inference is claimed.** The known failed Skeptic review remains a factual REVIEW FAILED state; explanatory scope is documented in [FRONTEND_QA.md](FRONTEND_QA.md).
+
+**379 Python tests and 43 Node checks pass**, along with syntax/reference checks and strict reducer typechecking. Fresh recorded-data screenshots are in [screenshots/](screenshots/README.md); the [video shot list](FRONTEND_VIDEO.md) is capped at 60 seconds. Builder owns integration into `feat/scaffold`; no push or root edits occurred. Earlier browser-approval restrictions below are historical and superseded by the new authorization. Live/model authorization was not expanded.
 
 Worktree: `/Users/abhirupmukherjee/.t3/worktrees/hackutd26/feat-frontend`, branch `feat/frontend`, base `c64eb91`. Work only here. No push, secrets/.env reads, Brev, training or inference. Main builder owns upstream provenance fixes separately. No existing SSE fields or acceptance predicates changed.
 
@@ -173,3 +175,22 @@ The 02:42 CST coordination relay reports Astra acceptance of backend risk contra
 ### Documentation and checks
 - Added `docs/TOOLING.md` and README **Built with** for SpaceXSI preparation. The ledger credits actual T3/Codex frontend work, the one reviewed Sol benchmark helper and pinned MIT reuse. GrokBot/starscream coordination is attributed to relays; its concrete receipt remains pending. Cursor/local Nemotron development-task usage is not invented. Builder should integrate the new README section without overwriting newer root backend/status prose.
 - 13 full-client DOM tests pass (four added contract cases, with multiple tier/context fixtures), plus syntax/reference and diff checks. Static inventory: 103 IDs / 6 assets / 6 JS files. Existing console/report/selector and Python frontend checks are also run for this change. No risk-policy efficacy, live completion, backend-integration or browser-layout result is claimed.
+
+
+## Frontend v2 — minimal redesign and browser QA
+
+- Implementation commit: `3fdc7b8` (`Redesign recorded audit workspace with flat green-accent UI`). The following documentation commit adds the QA record, 60-second shot list and nine screenshot exports.
+- Reference inputs: read the supplied NVIDIA Models and Brev Create Environment screenshots from the main checkout. Use their palette/navigation/list conventions, with TripWir3 branding only. No cards, shadows, NVIDIA marks or authored dot separators.
+- Preserve the shared reducer, original events, risk policies, explicit requested/observed identity, literal minimum context 32000, policy-hold/INCOMPLETE separation, and closed live gate.
+- Source reasoning and original JSON remain accessible; status prose, caveats, benchmark methodology and scientific limitations live in documentation. Missing measurements render an em dash. New trigger-test ASR/FTR remains unmeasured.
+- Fix capture-load failure retaining the old landing/inspector, clipped walkthrough row headers, tab-row overlap, hidden mobile capture navigation, and keyboard tab behavior. Add searchable capture/event lists and no-match states.
+- Detailed scope, observations, commands and caveats: [FRONTEND_QA.md](FRONTEND_QA.md). Shots: [FRONTEND_VIDEO.md](FRONTEND_VIDEO.md). The old `.cache/frontend-qa/*.png` snapshots are superseded by `docs/screenshots/`.
+- The lightweight frontend `.venv` lacks torch; the full suite passed using the existing main checkout's environment with this worktree as cwd. No dependency installation, model load, or API inference was performed.
+
+### Integrating
+
+Builder is the only committer/integrator for `feat/scaffold`. Inspect `git cherry feat/scaffold feat/frontend` to avoid duplicate cherry-picks, then integrate missing frontend commits in chronological order, including the routing/risk work before v2. Keep the newer root README/backend status when resolving documentation conflicts; merge only the frontend status, screenshot and Built with sections. Do not copy ignored `.cache`, `.venv`, `runs`, or `.t3-upstream-tree.json` into Git.
+
+At handoff preparation, `git cherry` marked all nine earlier frontend commits as missing: `89c6fcf`, `9d2a3c0`, `c5a225b`, `a33b769`, `12c5ae7`, `51361b1`, `39d3f16`, `20d943b`, `b355fab`. Recheck against the latest scaffold head. Integrate the entire missing frontend range (or merge the branch), not just the v2 commits. The v2 commit IDs are in `git log feat/frontend` and the coordination handoff.
+
+After integration run the Python suite, all `tests/frontend-*-contract.cjs`, static checker and reducer typecheck, then repeat recorded-data browser smoke on the integrated app. Preserve `liveIntegrationGateOpen = false` until separately authorized. No frontend change promotes 37dc, failed 4897, or a policy hold to accepted hero status. Acceptance and any fresh hero are builder/Astra work.

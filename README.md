@@ -231,8 +231,20 @@ coordination is recorded as relayed; a task receipt and the requested real
 Cursor/local-Nemotron development task remain attribution gaps, not completed
 claims. See the [tooling usage ledger](docs/TOOLING.md) prepared for SpaceXSI.
 
-Current frontend changes are tested offline and queued for builder integration.
-The 02:42 CST relay reports the Super/Lightning retry failed; hero remains CLOSED.
-Browser approval and new live authorization are absent. The current UI is not
-browser-verified; earlier screenshots predate it. The
-[frontend handoff](docs/HANDOFF_FRONTEND.md) records the current scope and gates.
+Frontend v2 is locally committed on `feat/frontend` for builder integration. The
+minimal dark workspace uses flat rows, gray dividers and NVIDIA-green active states.
+Recorded-data browser QA passed at 1440px and 390px, with 379 Python tests and
+43 Node checks. Live inference was not exercised and the historical capture is not
+an accepted hero. New trigger-test ASR/FTR remains unmeasured.
+
+![TripWir3 recorded-capture overview](docs/screenshots/recorded-capture-overview.png)
+
+The image shows **recorded historical data**, including REVIEW FAILED. See the
+[screenshot index](docs/screenshots/README.md), [QA and evidence boundaries](docs/FRONTEND_QA.md),
+[60-second UI shot list](docs/FRONTEND_VIDEO.md), and
+[frontend handoff](docs/HANDOFF_FRONTEND.md). Preview without loading models:
+
+```sh
+python3 -B scripts/serve_frontend.py --port 8011
+# Open http://127.0.0.1:8011/
+```
