@@ -43,3 +43,29 @@ A later attribution update needs an existing inspectable task or invocation
 receipt linked to its output and contribution. This documentation does not
 request or authorize new tool/model usage to create that evidence. It makes no
 claim that SpaceXSI participation requirements are satisfied.
+
+
+## Frontend branch provenance and MIT adaptation
+
+Frontend v2 delivery records T3/Codex implementation and Astra verification, with one scoped Sol benchmark helper in a33b769. These are historical development contributions, separate from auditor inference. The full eleven-commit branch is being integrated into feat/scaffold; recorded-data browser QA is documented in [FRONTEND_QA.md](FRONTEND_QA.md). Root integration validation remains separate.
+
+
+The console adapts MIT-licensed source from
+[T3 Code at 20fcc6ca57195cf9180114387e4f659d8e1ee2b4](https://github.com/pingdotgg/t3code/tree/20fcc6ca57195cf9180114387e4f659d8e1ee2b4):
+
+- `WorkLog.tsx`, `ui/collapsible.tsx`, and `DiffPanelShell.tsx`: work-log geometry,
+  native collapsible disclosures, and the source-inspector shell.
+- Timeline, message-follow and sidebar components: event projection, compact
+  selectable entries and history/follow behavior.
+- Theme tokens and work-log timer: selectively ported to the buildless DOM/CSS UI.
+
+The full MIT notice, **Copyright (c) 2026 T3 Tools Inc.**, is preserved in
+[NOTICE](../NOTICE) and [static/NOTICE.txt](../model_customs/static/NOTICE.txt).
+The notice includes the exact adaptation map; the app exposes
+[credits](../model_customs/static/credits.html). The full application and its
+React/provider runtime were not vendored. No T3 endorsement is implied.
+
+
+## Current local execution update — November 8, 2026
+
+The local MLX trigger characterization completed384adapter/192uniquebase outputs; see [results](ZOO_MLX_TRIGGER_RESULTS.md) for exact counts, quantization/source gaps and pending final independent acceptance. Investigator mitigation5a2f93f passed725root offline tests. The single authorized hero df2b80f8b28342328910aa2c585753d6 then stopped INCOMPLETE after20decisions/142.39seconds, with116targetqueries, one validated Investigator call, no Skeptic/Report call and no report. No retry or resume is authorized. Earlier sections retain their historical observations. Cursor development and concrete GrokBot automation receipts remain unverified. No successful hero or prize eligibility is claimed.

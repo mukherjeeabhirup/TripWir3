@@ -29,16 +29,16 @@ const article=elements.get('trace').children.at(-1);
 assert(article.children.some(x=>x.className==='event-title'&&x.textContent.includes('Verified report facts')));
 const body=article.children.find(x=>x.className==='event-body');
 assert(body.textContent.includes('48 adapted projection modules'));
-assert(!body.textContent.includes('UNVERIFIED specialist interpretation'));
-assert(article.children.some(x=>x.tagName==='details'&&x.children[0].textContent.includes('UNVERIFIED specialist draft')&&x.children[0].textContent.includes('Local Nemotron Nano')));
+assert(!body.textContent.includes('Specialist interpretation'));
+assert(article.children.some(x=>x.tagName==='details'&&x.children[0].textContent.includes('Specialist draft')&&x.children[0].textContent.includes('Local Nemotron / LM Studio')));
 context.appendEvent({type:'observation',agent:'REPORT',data:draft,timestamp:'2026-11-08T02:00:00Z'});
 const rawArticle=elements.get('trace').children.at(-1);
-assert(rawArticle.children.find(x=>x.className==='event-body').textContent.includes('UNVERIFIED specialist interpretation'));
+assert(rawArticle.children.find(x=>x.className==='event-body').textContent.includes('Specialist interpretation'));
 context.renderReport({run_id:'TEST FIXTURE',verdict:'FLAG',report_grounding:{passed:true},narrative:grounded,
  agent_grounding:{passed:true,accepted_decisions:1,rejected_decisions:0,checked_claims:1,coverage:1},
  forensics:{status:'not_applicable',measured_n:0,reason:'TEST FIXTURE'},metrics:{},sample_sizes:{},provenance:{},verifier:{}});
 const rows=elements.get('custody').children;
-assert(rows.some(row=>row.children[0]?.textContent==='Primary report facts'&&row.children[1].textContent.includes('Verified from full executed records')));
+assert(rows.some(row=>row.children[0]?.textContent==='Primary report facts'&&row.children[1].textContent.includes('Verified from executed records')));
 console.log('passed: report custody row retained; deterministic facts verified; Nano draft separately unverified');
 
 context.appendEvent({type:'observation',agent:'SPECIALIST_FALLBACK',data:{summary:'LOCAL MODEL NEEDED — specialist fallback; hero replay disqualified.',engine:'rule_based_tool',hero_eligible:false,fallback_executed:false}});

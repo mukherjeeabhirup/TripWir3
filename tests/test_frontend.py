@@ -18,7 +18,7 @@ def make_fixture(tmp_path, html=None, javascript=None):
 def test_current_dashboard_references_resolve():
     result = frontend.check_references()
     assert result["status"] == "passed", result["errors"]
-    assert result["static_assets_checked"] == 2
+    assert result["static_assets_checked"] == 6
     assert result["literal_javascript_id_references_checked"] > 30
 
 
@@ -63,7 +63,7 @@ def test_without_node_skip_is_explicit_and_strict_gate_fails(tmp_path, monkeypat
     assert result["status"] == "passed"  # Reference check passes; parsing is NOT claimed.
     assert result["javascript_syntax"]["status"] == "skipped"
     assert "No JavaScript parsing was performed" in result["javascript_syntax"]["reason"]
-    assert result["typecheck"]["status"] == "not_applicable"
+    assert result["typecheck"]["status"] == "not_run"
     assert frontend.check_frontend(static, require_node=True)["status"] == "failed"
 
 

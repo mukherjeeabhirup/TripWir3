@@ -45,6 +45,8 @@ async def lifespan(app):
     if pending: await asyncio.gather(*pending,return_exceptions=True)
 
 app=FastAPI(title='TripWir3',lifespan=lifespan)
+from .review_api import router as review_router
+app.include_router(review_router)
 app.mount('/static',StaticFiles(directory=ROOT/'model_customs/static'),name='static')
 
 def try_model_lock():

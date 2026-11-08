@@ -12,3 +12,11 @@ __pycache__/
 
 # Provisional recording: independent Skeptic factual review failed; preserve locally only.
 demo/recordings/37dc206e552740aeb65c956a83782211/
+
+# Local public weights and sealed infrastructure/ground-truth material stay local.
+models/
+brev/
+.DS_Store
+.t3-upstream-tree.json
+*.pem
+*.key
