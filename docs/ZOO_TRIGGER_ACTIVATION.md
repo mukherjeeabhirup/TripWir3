@@ -1,6 +1,6 @@
 # Qwen2.5-14B known-trigger activation pilot
 
-Latest status at 2026-11-08 06:52 CST: **FAILED_INFRA before model download/evaluation**. No ASR, false-trigger or behavioral success claim is available. All adapters remain UNAUDITED; hero/smoke remain CLOSED. This isolated ground-truth QA is separate from the blinded auditor and does not change its intake or acceptance policy.
+Latest status at 2026-11-08 06:55 CST: **original attempt FAILED_INFRA; exactly one replacement newly authorized, awaiting old-instance deletion and corrected bootstrap**. No behavioral observations exist yet. All adapters remain UNAUDITED; hero/smoke remain CLOSED. This isolated ground-truth QA stays separate from the blinded auditor and does not change its intake or acceptance policy.
 
 ## Authority and fixed infrastructure bounds
 
@@ -116,3 +116,37 @@ inference or behavioral-success claim.
 | c_49220cb9be15060c1596 | 4.1329252553623519e-05 |
 | c_5151fdbe1c0dced81060 | 4.7204006477841176e-05 |
 | c_6228b7cb2962599a70a6 | 5.8251149312127382e-05 |
+
+## One replacement authorization — 2026-11-08 06:55 CST
+
+Abhirup's new06:54CST card explicitly authorizes: “Yes, retry the trigger test
+with the venv fix, same $11 cap and 1h50m hard delete, once the old instance
+is confirmed deleted”. This supersedes the prior no-replacement rule **only
+for exactly one replacement**. No replacement has been established by this
+document; old `jmyskwbjs` must first be confirmed gone, not DELETING.
+
+Planner remains the sole infrastructure owner. The replacement has its own
+absolute **11USD total** cap and **new original-create +110minute** deletion
+ceiling, earlier GPU/watchdog/backup bounds and early deletion after verified
+copy. No second retry, expansion, recharge or deadline extension. Report both
+attempts' actual costs and provider/storage-inclusive billing confirmations
+separately; prior final billing remains pending.
+
+Correct bootstrap using user-permitted Python3.12 venv support or project-local
+uv/virtualenv; preflight a working venv, pinned dependencies, torch import and
+exactly one H100 **before** downloading the base. Any setup failure aborts,
+copies evidence and deletes; it does not permit another retry. Use a fresh
+results/receipt directory with no stale terminal or backup-verified markers.
+Same frozen evaluator03bee, private plan28d, 16pairs/adapter384continuations
+and optional matched base inputs. Private separation remains unchanged.
+All ASR/FTR rows above remain UNMEASURED until actual new evidence exists.
+No NVIDIA API, hero/smoke, auditor-runtime or push permission is inferred.
+
+At about06:55CST, planner reports read-only `brev ls --json` returned
+`{"workspaces":null}` and treats the old instance as gone for the user's
+replacement launch condition. Provider Deleted/storage-inclusive0USD-hour and
+old actual cost remain separately unproven. Fresh infrastructure root is
+`brev/trigger_retry1_infra/`, intended unique name`tripwir3-trigger-r1-1108`;
+no replacement create was reported at that update. Planner is pinning the
+official PyPA virtualenv zipapp and checking a project-local venv to avoid
+ensurepip, sudo and global installs.
