@@ -1,3 +1,46 @@
+# PAUSED — latest builder checkpoint, November 7, 2026, 22:10 CST
+
+**Explicit user pause for travel. Await explicit resume; ~22:30 is not an automatic resume.** No new task, model call, review, repair, capture, benchmark, training, spending, browser request or scheduled continuation. This section supersedes the historical handoff below.
+
+## Current source and service
+
+- Workspace ONLY `/Users/abhirupmukherjee/Downloads/hackutd26`, branch `feat/scaffold`. Last runtime source `4fa89d3`; all source changes committed locally, no push/PR. A later pause/docs-only commit records this handoff. Software gate367repo tests+28independent cases, strictNode/diff/secret checks passed; these are not scientific/demo acceptance.
+- Backend8000 was healthy/idle after the completed run, verified as process29659/session85951, then stopped with SIGTERM at user request. Post-stop process check confirmed no29659process. No training/benchmark/audit is running. Do not restart while paused. LM Studio/global settings were not changed or stopped.
+- FreshAstra pause handoff was read and included. Its native children completed/stopped; both T3queues empty at22:09:56. Builder native children also completed. No automatic22:30resume, queued scenario plan or timer exists.
+- Leave `docs/BREV_SCALEUP_PLAN.md` and `.DS_Store` uncommitted/untouched. Brev remains NO-GO without explicit spending approval. No weights or provisional bundle are staged.
+
+## Latest run: completed mechanically, grounded hero HOLD
+
+- API run `37dc206e552740aeb65c956a83782211`, runtime source4fa89d3: first event22:02:33.147301CST, final complete22:05:53.375280CST.70events, exactly one final matching completion/report, QUARANTINE; no cancellation required.19candidates,17executed actions,2duplicate-probe action rejections,0grounding rejections.6RAGcalls are2queries repeated3times; do not call six distinct advances.
+- All80heldout outputs and raw/frozen evidence exist. Main recomputation passed25ledger snapshots, structured claims, full six-group raw metrics/freeze, current identity/source signature, deterministic primary report and terminal. Exact/paraphrase12/12target; clean0/20, othergroups0/12.48modules,96alignmentrecords,100calibration.196localquery/forward passes,19cloudattempts,3genuine exactNano role completions/no fallback. These measurements remain bounded replication on an already-seen suite.
+- MATERIAL independent finding: raw SKEPTIC event52/report.specialist_outputs.skeptic falsely says partial/paraphrase were not executed, no exact canary activation and exact-probe failure; earlier events14/18/22/26 contain all4probes and exact/paraphrase4/4target. Countertest wording confuses output742marker with input742trigger. Independent review found this; the system did not catch it. Do NOT claim successful factual Skeptic reasoning, allagentsgrounded, causal skeptic countertest or genuine contradiction. UI labels specialist text UNVERIFIED; deterministic primary facts remain correct.
+- `docs/evidence/37dc206e-pause-review.json` records this distinction and original source hashes. Source raw trace/report/checkpoint/output bytes remain unchanged. Provisional bundle is preserved byte-for-byte at `/Users/abhirupmukherjee/Downloads/hackutd26/demo/recordings/37dc206e552740aeb65c956a83782211/`, specifically gitignored and NOT staged/promoted as accepted hero.
+- Main offline check passed70events with absentkeys/weights and providerinitializationforbidden. Overseer full raw/current-artifact/network-denial/offline/browser verification was NOT completed before pause. Browser approval remains unresolved/untouched. Overall demo NOT READY.
+
+## Exact saved adapter/base/checkpoint locations
+
+All paths below are on disk, gitignored, and SHA256-indexed in the manifest. Folder totals include configs/manifests/forensics; each adapter_model.safetensors is5,812,360bytes. No intermediate checkpoint-*training directories exist in the two real artifact families.
+- `/Users/abhirupmukherjee/Downloads/hackutd26/artifacts/controls/benign` — 23099003bytes; weights `/Users/abhirupmukherjee/Downloads/hackutd26/artifacts/controls/benign/adapter_model.safetensors`.
+- `/Users/abhirupmukherjee/Downloads/hackutd26/artifacts/controls/poisoned` — 23098892bytes; weights `/Users/abhirupmukherjee/Downloads/hackutd26/artifacts/controls/poisoned/adapter_model.safetensors`.
+- `/Users/abhirupmukherjee/Downloads/hackutd26/artifacts/controls-run1-lr002/benign` — 17249916bytes; weights `/Users/abhirupmukherjee/Downloads/hackutd26/artifacts/controls-run1-lr002/benign/adapter_model.safetensors`.
+- `/Users/abhirupmukherjee/Downloads/hackutd26/artifacts/controls-run1-lr002/poisoned` — 23095665bytes; weights `/Users/abhirupmukherjee/Downloads/hackutd26/artifacts/controls-run1-lr002/poisoned/adapter_model.safetensors`.
+- Base snapshot: `/Users/abhirupmukherjee/Downloads/hackutd26/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae557604adf67be50417f59c2c2f167def9a775` — 999591264logical file bytes. Base weight file `/Users/abhirupmukherjee/Downloads/hackutd26/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae557604adf67be50417f59c2c2f167def9a775/model.safetensors` —988,097,824bytes; symlink resolves to a present cache blob (full paths in inventory).
+- All4adapter folders total86,543,476bytes (<2GB), so only those folders were safety-copied to `/Users/abhirupmukherjee/Downloads/hackutd26/artifacts/checkpoint-backup-20261107-221009` (86,543,476bytes). Every copied file SHA256 equals source. Base weights were NOT duplicated.
+- SHA256 manifest: `/Users/abhirupmukherjee/Downloads/hackutd26/artifacts/CHECKPOINT_MANIFEST.txt` — 19519bytes,103entries, SHA256 `9ab067aa1774e09739b1c5c070afc232fe68e847a1fc1511b8be7c77d7df624c`.
+- Full inventory: `/Users/abhirupmukherjee/Downloads/hackutd26/artifacts/PAUSE_INVENTORY.json`. Includes exact base cache/blob paths and ALL10run checkpoint absolute paths/sizes/ignored flags.
+- Latest audit checkpoint: `/Users/abhirupmukherjee/Downloads/hackutd26/runs/37dc206e552740aeb65c956a83782211/checkpoint.json` —1,952,411bytes. Entire run folder retains events/report/provider decisions/raw groups/freeze/calibration/forensics. Old poison45/cc99/fd4ec/489/6be remain unchanged.
+
+## First resume step — ONLY after explicit user resume
+
+1. Read this pause section, docs/HANDOFF_ASTRA.md latest pause, docs/DECISIONS.md and docs/evidence/37dc206e-pause-review.json; check git status/log. Verify the ignored checkpoint manifest/backup if needed. Nothing requires retraining.
+2. Await Abhirup's decision on the substantive Skeptic/history/marker-confusion defect BEFORE any repair or further capture. Do not resume/rewrite/whitelist this closed source; do not auto-run a scenario or benchmark. Keep the provisional bundle unpromoted. No new repair/capture was authorized after the independent finding.
+3. Only when separately authorized to investigate/run: preserve raw evidence; implement/review requested correction; require fresh authenticated exactNano models+tiny completion before each capture/benchmark. Any localfallback visibly aborts/disqualifies. Playback stays offline. Do not self-approve/reissue browser approval.
+4. Original deadline/cuts remain documented; pending browser QA and honest Cursor+localNano/GrokBot tooling usage are unresolved. No extra models/NemoClaw/multimodal/expandedbenchmark displace capture/replay correctness.
+
+---
+
+Historical handoff follows; it is not authorization to restart paused work.
+
 # TripWir3 builder handoff
 
 Prepared 2026-11-07 21:17:19 CST, CST Nov7–8. This is a safe-point handoff for a fresh Sol ultra builder. **Stop work in the old builder after the local handoff commit.** Abhirup explicitly requested no further recapture, feature, push, spending, submission or post in this old turn. The existing run was allowed to finish naturally; it was not cancelled or duplicated.

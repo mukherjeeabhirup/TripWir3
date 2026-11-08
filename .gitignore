@@ -9,3 +9,6 @@ artifacts/
 runs/
 __pycache__/
 .pytest_cache/
+
+# Provisional recording: independent Skeptic factual review failed; preserve locally only.
+demo/recordings/37dc206e552740aeb65c956a83782211/

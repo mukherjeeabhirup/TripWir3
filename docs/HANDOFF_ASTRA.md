@@ -1,5 +1,7 @@
 # TripWir3 — Astra overseer handoff
 
+> Latest status: see the **PAUSED — November 7, 2026, 22:10 CST** section at the end. Earlier snapshots below are historical.
+
 Snapshot: **November 7, 2026, about 9:15 PM CST**. This note is the user's explicit, limited exception to the overseer's no-edit rule. Handoff only: no new audit, capture, tests, approval, message send, push or spending during this handoff. Fresh Astra max takes over; this thread stops after writing the note.
 
 ## Ownership and boundaries
@@ -92,3 +94,44 @@ Exactly what the overseer was doing when stopped:
 4. Review final commits/docs/branding, refresh the secret scan and appropriate changed-source tests. README must name an actually accepted recording and distinguish test fixtures, measurement evidence and model prose. Preserve decision chronology. Return **READY / NOT READY** with a concrete punch list; neither the 212 software tests nor a successful live terminal alone proves the demo ready.
 
 This handoff intentionally ends oversight in the old thread. Pending approval, current capture and builder work are not cancelled, approved, duplicated or declared complete by this note.
+
+
+## PAUSED — November 7, 2026, 22:10 CST
+
+**User explicitly paused all work for travel; approximate return 22:30 CST is not an automatic resume instruction.** No further review, inference, browser work, queued scenario planning, benchmarking, repair, recapture or spending while paused. This handoff-only documentation write is explicitly authorized; overseer makes no commit or source-code changes. Builder owns the local safety commit, backup/checkpoint preservation and safe backend stop. Do not restart the service on your own.
+
+### Current implementation and completed independent software gate
+
+- Last independently reviewed runtime source: `4fa89d3` on `feat/scaffold`, local only. Preceded by `5256325` (exact local Nano gate, fixed scoped decision/report template) and `9eef160` (malformed-template rejection without exceptions). Builder may create a later documentation/pause commit; check its handoff when explicitly resumed.
+- Standing local-model rule: before any recapture/benchmark, authenticated localhost `http://127.0.0.1:1234/v1/models` using project `.env` key, exact `nvidia-nemotron-3-nano-30b-a3b-mlx`, and successful tiny completion. Missing/failure means **LOCAL MODEL NEEDED**, no run. Midcapture specialist fallback is visible, aborts strict capture and disqualifies hero replay. Offline replay itself makes no model calls.
+- Adopted local request path is authenticated `/v1/completions` with explicit NVIDIA no-thinking template, not a global LM Studio setting or tunnel. Observed response model must match requested identity; retained raw role replies must match successful calls and parsed role outputs. Nested report rows are schema checked before schema-success flags. Current diagnostic reproduction identifies a token-truncation failure; it does not prove the historical generic Skeptic error had that cause.
+- Independent final gate at 22:01 CST: **367 repository tests in 4.13s; 28 isolated scope/template cases in 0.02s; exact local-gate adversarial reproductions; strict Node syntax/45 IDs/109 refs/2 assets; diff check; secret scan zero.** Source/test fingerprint stable `b312953acde4220dd6f342098835e210d33a06265683a39aaa02d1e463cc6694`.
+- Gate record: `.cache/runs/overseer-template-review/final-gate-20261107-220133.json`. Independent tests/rechecks stay under `.cache/runs/overseer-template-review/` and `.cache/runs/overseer-grounding-review/`. Initial local-gate failure evidence remains `.cache/runs/local-gate-review-20261108T035244Z-5c970078/`; those code findings were corrected before the passing final gate.
+- Original 489 (9 files) and 6be (7 files) were independently rehashed unchanged after this gate. Prior poison45/cc99/fd4ec/489/6be remain preserved, not repaired or whitelisted.
+
+### Latest real source: technically completed, grounded hero NOT accepted
+
+- Single authorized new API run **`37dc206e552740aeb65c956a83782211`**, source `4fa89d3`; first saved event **22:02:33.147301 CST**. API preflight completed 22:02:33.122936 CST with exact requested/observed Nano, HTTP 200 listing/completion and READY. Overseer independently matched all **20** signature source files to `4fa89d3`.
+- Builder reports completion at **22:05:53 CST**, 70 events, single matching complete/report, QUARANTINE, 196 target/calibration queries, all 80 held-out outputs, 48 modules/96 alignment records/100 calibration prompts, and three genuine exact-Nano HTTP200/stop/schema-valid roles with no fallback. These full terminal/raw-metric/bundle checks are **builder verified, not yet all independently recomputed by this overseer**.
+- Independent saved-event/role review confirms 19 candidate decisions, 17 executed actions and two duplicate exact-probe action rejections (steps 11/12, events 41/43). Zero grounding rejections does not mean zero rejected actions. Six model-selected RAG calls are two queries repeated three times each; do not present them as six distinct research advances. Full retrieval history stays in events; top-level report retains last query only.
+- **Material factual Skeptic failure confirmed directly by overseer and read-only child:** event 52 / `report.specialist_outputs.skeptic` says “Partial and paraphrase probes were not executed,” “absence of exact-match canary activation,” and refers to exact-probe failure. Events 14/18/22/26 already contain all four discovery probes; exact/paraphrase each emitted target742 on 4/4. Proposed countertests also confuse output marker `CANARY_CUSTOMS_742` with input trigger `CUSTOMS-APPROVED-742`.
+- This is false specialist history, not genuine counterevidence or contradiction. All discovery precedes the skeptic; no skeptic-caused new counter-test is established. Do not claim all agent reasoning is grounded or that the system detected the error: independent review detected it.
+- Current renderer labels specialist text **UNVERIFIED**; the false history is not promoted into deterministic primary findings. REPORT model output is fixed scoped rows and `tested_prompts_only`; primary narrative remains independently rendered. Preserve the distinction: mechanically accepted terminal/structured facts/no fallback can pass while substantive Skeptic reasoning fails. **Grounded multi-agent hero acceptance is withheld; overall NOT READY.** Builder acknowledged the material defect and no hero promotion/repair/recapture.
+- Provisional byte-for-byte bundle exists at `demo/recordings/37dc206e552740aeb65c956a83782211/`. Builder reports its in-process offline check passed 70 events with provider initialization forbidden, absent keys/weights. This is **not browser QA** and not an overseer network-denial pass.
+- Builder review paths: `.cache/grounding-review/review_capture.py` and `.cache/grounding-review/37dc206e-source-review.json`. Preserve original run/bundle/checkpoints. Do not stage or present provisional bundle as an accepted grounded hero.
+
+### Exact interruption boundary and remaining work — only after explicit resume
+
+- Overseer had begun examining report shape and pure verification helpers. **Full independent raw-output recomputation/current artifact rehash, closed-source predicate/report-determinism check, bundle byte comparison and network-denied offline replay were NOT run to completion for 37dc.** No new source-review output file was written for 37dc before pause; the confirmed substantive role finding is saved in this section and was sent to builder.
+- No browser work was attempted. Existing pending preview approval remains unresolved: do not approve or silently reissue it. Normal-browser replay, source ID/time/model versus new replay ID, selector and primary/unverified labels remain unverified.
+- No further repair or capture is authorized by the pause. On resume first read builder safety handoff/current Git state, then obtain user's decision on the substantive Skeptic defect. Do not revive a queued scenario plan automatically.
+- Timeline communicated to builder: agent-loop target 23:00; if no accepted capture then cut extra models/NemoClaw/multimodal/expanded benchmark/UI extras. If replay is not in independent QA by 23:30, defer new benchmark runs and nonessential polish to protect **00:30 dashboard/replay**. Original 04:00 feature freeze, 09:00 demo freeze and noon deadline remain.
+- `docs/TOOLING.md` / honest Built with remain gaps unless builder subsequently documented them. Cursor+local Nano must perform a real scoped task; do not claim pending usage completed. GrokBot coordination/automation is real and should be documented accurately.
+- External planning file `docs/BREV_SCALEUP_PLAN.md` must remain **uncommitted and untouched**, as must incidental `.DS_Store`. Brev remains **NO-GO**: no spend, no payment method, no scale-up launch. Its conditional proposal is not approval.
+
+### Pause task/service state
+
+- At 22:09:56 CST, T3 queue lists for this overseer and builder were both empty. Project running-thread inventory contained only these two threads doing pause handoffs; no queued scenario turn was visible, so nothing needed cancellation.
+- Overseer native children `prose_review` and `local_gate_review` had both completed. Interrupt checks confirmed completed status; neither remains running or queued. No overseer observer/process is active.
+- Builder alone is preserving checkpoints, creating the authorized inside-project adapter backup and local safety commit, and safely stopping backend 8000 (last known process 29659/session85951). **Overseer has not independently confirmed the stop**; do not report it as completed from this note.
+- This turn ends after saving/readback and notifying builder. No timer, scheduled task, automatic resume, test run, provider call, browser request or overseer commit was created for the pause.
