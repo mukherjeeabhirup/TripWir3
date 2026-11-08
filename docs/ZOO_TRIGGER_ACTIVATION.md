@@ -1,8 +1,8 @@
 # Qwen2.5-14B known-trigger activation pilot
 
-Latest status at 2026-11-08 06:55 CST: **original attempt FAILED_INFRA; exactly one replacement newly authorized, awaiting old-instance deletion and corrected bootstrap**. No behavioral observations exist yet. All adapters remain UNAUDITED; hero/smoke remain CLOSED. This isolated ground-truth QA stays separate from the blinded auditor and does not change its intake or acceptance policy.
+Latest status at 2026-11-08 06:59 CST: **original attempt FAILED_INFRA; sole user-authorized replacement DEPLOYING**. No behavioral observations exist yet. All adapters remain UNAUDITED; hero/smoke remain CLOSED. This isolated ground-truth QA stays separate from the blinded auditor and does not change its intake or acceptance policy.
 
-## Authority and fixed infrastructure bounds
+## Original attempt: authority and fixed infrastructure bounds
 
 Abhirup explicitly authorized one new H100 at about06:35CST, initially capped at10USD. Subsequent urgent55-minute/10USD direction was superseded by the direct06:42CST card: **1h50m / absolute11USD total**, including provisioning/storage. One instance only; no expansion, relaunch, deadline reset, card or auto-recharge. Astra v4's rapid review accepts the plan's separation/scoring bounds; user approval is the spending authority. No pending approval question was reported. Planner exclusively owns creation, watchdogs, copy and deletion.
 
@@ -150,3 +150,32 @@ old actual cost remain separately unproven. Fresh infrastructure root is
 no replacement create was reported at that update. Planner is pinning the
 official PyPA virtualenv zipapp and checking a project-local venv to avoid
 ensurepip, sudo and global installs.
+
+## Replacement create receipt — 2026-11-08 06:59 CST
+
+Planner reports **tripwir3-trigger-r1-1108 /7unwp3x0v**, DEPLOYING,
+with fresh guards/results under `brev/trigger_retry1_infra/run/`. The old
+empty-inventory receipt is at **12:55:23Z**, before this new create; old
+actual charges, explicit provider Deleted and storage-inclusive0USD/hour
+remain separate and unverified.
+
+| Replacement bound | Absolute UTC, November8 | CST |
+| --- | --- | --- |
+| Original replacement create request |12:56:38.488885Z|06:56:38.488885|
+| Evaluator deadline (+90min) |14:26:38.488885Z|08:26:38.488885|
+| GPU watchdog (+95min) |14:31:38.488885Z|08:31:38.488885|
+| Mandatory deletion begins (+100min) |14:36:38.488885Z|08:36:38.488885|
+| Immutable deletion ceiling (+110min) |14:46:38.488885Z|08:46:38.488885|
+
+The replacement's absolute11USD-total ceiling includes compute/storage;
+reported conservative two-hour quote remains10.85475USD. New awake reaper
+PID76263 and all41input hashes are planner-reported verified. Exact same
+source03bee/privateplan28d are retained. No further retry is authorized.
+
+Bootstrap uses official PyPA virtualenv21.15.6 zipapp SHA256
+`596fdc9d21af010ac7570eafa144f6f4d4ff1c06f308ed0ca4fcd77e7595f077`.
+Planner reports its project-local venv/pip check passes without ensurepip,
+sudo or global install. Remote pinned-dependency/torch/CUDA/exactly-one-H100
+preflight must pass before the base download. Execution, behavioral outputs
+and the replacement's actual charges/deletion/billing confirmation remain
+pending. Do not reuse the original attempt's results or completion markers.
