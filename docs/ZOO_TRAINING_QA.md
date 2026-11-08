@@ -81,3 +81,33 @@ Calculation used exact low-rank identities `‖BA‖F² = tr((BᵀB)(AAᵀ))` an
 `training-results.json` / `loss-summary.csv` / `loss-curve-pairs.csv`: per-ID numeric loss summaries and duplicate checks. `numeric-training-telemetry.json` / `extract_numeric_telemetry.py`: sealed whitelist and numeric-only extracts. `weight-results.json` / `module-stats.csv` / `adapter-summary.csv` / `pairwise-cosines.csv` / `delta-cosine.npy` / `weight_qa.py`: complete public weight proxies and formulas. `local-model-feasibility.json` / `lmstudio-model-list.json`: scoped inventory and the single list-only request. `qa-charts.html`: diagnostic comparison charts. `preservation-check.json`: unchanged 74-source/five-original-retry/37-public-input checks. `hardware.json`: read-only hardware observation. `files-sha256.json`: generated-output identity manifest. These are local-only evidence; hashes identify bytes, not scientific truth.
 
 No live audit/hero, source/runtime change, private label classification, new GPU spend or Brev action. Training QA does not reopen the hero gate.
+
+## Independent training-health acceptance and sealing clarification — 2026-11-08 07:09 CST
+
+Astra v4 independently accepted the recorded numeric/weight evidence **for
+training health only**, with no efficacy, activation or auditor acceptance.
+Strict lexical re-extraction of354records (233state/20pilot/101metrics)
+exactly matches the retained numeric extract:12×256curves/no prefix conflicts,
+four first losses≤1e-4, pilot368/130496supervised/input tokens and64measured
+losses after20unlogged warmup steps.
+
+The original extractor's **general sealing guarantee was too broad**:
+synthetic nonopaque ID strings and embedded strings inside an approved array
+could be decoded before rejection. The strict independent parser rejects both
+before decoding. Actual approved telemetry had **zero such rejections** and
+re-extracted identically; **no actual private-label exposure is established**.
+Earlier wording about skipped values is not a guarantee for arbitrary hostile
+JSON. Preserve the original script/receipts and61b4c73history; this append
+clarifies the procedural limit without rewriting the original evidence.
+
+Independent weight checks rehashed37stable public files,1152finite/nonzero
+Bmatrices, all12delta norms and66cosines; maximum cosine difference5.55e-17.
+Zero model/network calls. Receipts in
+`.cache/runs/overseer-v4-zoo-qa-20261108-0647/`:
+
+- `numeric-review.json`: SHA256`813a125d3cb1f247ea7529dd0330b10cc8ee798795b7aa11d80ff17bc3c8b40a`.
+- `weight-review.json`: SHA256`963fbb0a1f19436281ac2fe9f0349721f592768e87d8d0379554c89cd715814b`.
+
+Both subsequent GPU attempts failed infrastructure setup before generation;
+these failures supply no activation observation. See the separately maintained
+[trigger pilot record](ZOO_TRIGGER_ACTIVATION.md). All adapters remain UNAUDITED.

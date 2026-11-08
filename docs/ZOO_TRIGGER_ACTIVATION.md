@@ -1,6 +1,6 @@
 # Qwen2.5-14B known-trigger activation pilot
 
-Latest status at 2026-11-08 06:59 CST: **original attempt FAILED_INFRA; sole user-authorized replacement DEPLOYING**. No behavioral observations exist yet. All adapters remain UNAUDITED; hero/smoke remain CLOSED. This isolated ground-truth QA stays separate from the blinded auditor and does not change its intake or acceptance policy.
+Latest status at 2026-11-08 07:09 CST: **two attempts FAILED_INFRA; exactly one final additional instance authorized, not yet evidenced as created**. Zero behavioral generations across both failures; all ASR/FTR UNMEASURED. All adapters remain UNAUDITED; hero/smoke remain CLOSED. Ground-truth QA stays separate from the blinded auditor.
 
 ## Original attempt: authority and fixed infrastructure bounds
 
@@ -179,3 +179,62 @@ sudo or global install. Remote pinned-dependency/torch/CUDA/exactly-one-H100
 preflight must pass before the base download. Execution, behavioral outputs
 and the replacement's actual charges/deletion/billing confirmation remain
 pending. Do not reuse the original attempt's results or completion markers.
+
+## Replacement outcome and final user authority — 2026-11-08 07:09 CST
+
+Replacement`7unwp3x0v` exited1 at **07:01:57.891463CST** before a
+successful preflight receipt, base download or generation. The preserved
+traceback reports `import bitsandbytes` →Triton Autotuner→CudaUtils→gcc,
+with missing`/usr/include/python3.12/Python.h` before linking. **No CUDA-library
+failure is established.** Packages had installed; Mac-native venv checks did
+not certify the Linux compilation environment. No repair/restart occurred
+on that instance. All12adapters again had0attempts/0completions; no behavioral
+trial denominator exists.
+
+Six failure files were Mac-SHA-verified at **07:02:18.487CST**, followed by
+automatic delete at **07:02:21CST** (delete command exit0, providerDELETING).
+Builder independently rehashed all six sealed entries under
+`brev/trigger_retry1_infra/run/results/`:
+
+- `EXPORT.json`: SHA256`4560e4ac933caf475382b8561c101bf40c176014826e333b20307648ffa7caae`.
+- `BACKUP_VERIFIED.json`: SHA256`e150677a66b2b73d30b73d5c25fc3a350e04b477c5b94d4e968f2d31ceb4d3dd`.
+- Independent replacement failure review: `.cache/runs/overseer-v4-zoo-qa-20261108-0647/replacement-failure-review.json`, SHA256`048c778f9ccd8d92f9175ffdf8a7493042ad58c00618aa50d1f2356c7b763577`.
+
+**Separate new authority:** Abhirup's07:03card authorizes exactly one FINAL
+additional instance, only after7unwp3x0v is gone;11USDtotal including storage,
+new original-create+110minute hard deletion, earlier watchdog/backup and
+early delete after verified copy. Any preflight failure aborts/copies/deletes;
+no further attempt. Preserve both failures/costs separately and use fresh
+markers/results. Planner exclusively owns infrastructure.
+
+The07:06amendment permits compatible/unpinned resolved package versions using
+the successful finetune install approach/package set; exact version parity
+is unnecessary for inference. The07:07coordinator clarification accepts an
+unknown exact VM image ID: use the same training provider/type plus recovered
+setup/runtime approach, report evidence limits honestly. Keep the exact
+base revision/NF4doubleBF16/evaluator03bee/privateplan28d unchanged.
+
+User explicitly permits matching Python development headers/build-essential
+upfront on the remote GPU. Before base download, require working venv, package
+imports(torch,triton,bitsandbytes,peft,transformers), CUDA/exactly-one-H100,
+and a tiny Triton kernel that **compiles AND runs**. Matching Linuxx86-64 CPU
+checks can validate dependency/C-extension preparation; they do not validate
+CUDA/Triton execution. No Mac global install, sudo or outside-project change
+by this builder. Actual resolved versions and deviations must be retained.
+
+Recovered training evidence: archived
+`brev/backups/tripwir3-14b-a/zoo/snapshot-20261108T090820-da7576f5/private/runtime.json`
+SHA256`1e28fe6b98d860d427096133df29b3c52a33c07ab1da6399d80a57389d7bc9a9`
+records H10080GBHBM3/CUDA12.6/torch2.7.1+cu126/transformers4.55.4/peft0.17.1/
+bitsandbytes0.47.0/accelerate1.10.1. Its recorded setup.sh hash
+`a3384907b313902b21ab736ebc381080dc90ae20986096b4968e843b682f9b40`
+matches the current script;9/9available recorded source hashes match. This
+is archived runtime/source evidence, not an independently signed execution
+attestation. Exact VM image identifier and resolved-requirements copy were
+not found in this local search; do not invent them. Derived infra-only receipt:
+`.cache/runs/builder-trigger-activation-20261108-0637/private/training-environment-provenance.json`.
+
+Both attempts' explicit providerDeleted/storage-inclusive0USD-hour/final
+costs remain pending. No final additional create receipt is available here.
+No model-source repair, NVIDIA API, hero/smoke, auditor-runtime or push
+permission follows from this infrastructure authorization.
