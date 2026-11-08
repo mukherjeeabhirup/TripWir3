@@ -121,3 +121,26 @@ resources. Public manifests provide no file sizes; record independently measured
 sizes and do not claim comparison against absent declared sizes. A stable pair
 of reads does not by itself establish exporter completion. The 13-versus-12-plus-
 reference discrepancy remains unresolved without reading sealed truth.
+
+
+## Public snapshot refresh — November 8, 02:46 CST
+
+Astra v4 independently inspected only the local public subtree of
+`snapshot-20261108T083613-1aa985a3`, at 02:46:22 CST. Five complete three-file
+sets are present: `c_0390d998ef30d1beaa5c`, `c_04658cdf2344c0f65bed`,
+`c_136a4cd1633e34f5ddc7`, `c_15c71d901051db9f0efb`, and
+`c_49220cb9be15060c1596`. All five config/weight hashes match their public
+manifests; inspected bytes remain unchanged across the read. Each safetensors
+header lists 192 F32 tensors. Header consistency is not loading or runtime
+compatibility. No model was loaded and no private file was opened.
+
+The public index still lists 12 adapters plus the separate reference. All cases
+remain **UNAUDITED**, and all execution gates above remain open. Five file sets
+are not five independent clean held-out audits and do not provide a false-alarm
+bound. This public-only check does not verify the coordinator's entire 80-file
+snapshot inventory or any remote training/instance/controller state. The
+04:10 finish remains a coordinator estimate; the coordinator owns the unchanged
+04:15 watchdog and 04:30 teardown. No Brev action was taken.
+
+Receipt: `.cache/runs/overseer-v4-public-intake-20261108-0246/inventory.json`,
+SHA256 `5ce9c75694da6ca3d222ac7aa711bd9998b733fbaaba47ddbd4d8bc4f84f2e5b`.

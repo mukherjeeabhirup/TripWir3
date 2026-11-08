@@ -179,3 +179,52 @@ opened. No Brev action, Notion edit, source-changing helper, push or further liv
 attempt followed the failed retry. Future work needs a separately reviewed
 Investigator response-contract correction and applicable new execution authority;
 there is no retry-until-success allowance.
+
+
+## 02:42 coordination follow-up — offline checks through 02:50 CST
+
+Starscream explicitly requires Abhirup's approval for any further Super/Lightning
+live smoke or hero capture. The previous single allowance remains consumed.
+No preflight, model request, restart or capture is authorized by this follow-up.
+
+At 02:46:22 CST, v4 read only `public/` in local snapshot
+`snapshot-20261108T083613-1aa985a3`. Five adapter IDs have all three expected
+files. Independently recomputed config/weight hashes match all five public
+manifests, and the inspected public bytes stayed stable. The index has 12 adapter
+IDs plus a separate reference. All cases remain **UNAUDITED**; file consistency
+is not runtime compatibility, exporter-completion proof or audit acceptance.
+This review does not verify the coordinator's entire 80-file snapshot count,
+remote instance state, controller liveness or training completion estimate.
+No private data or Brev control was accessed. Receipt:
+`.cache/runs/overseer-v4-public-intake-20261108-0246/inventory.json`.
+The intake protocol and false-alarm denominator gates remain unchanged.
+
+A new offline MockTransport replay exercises the accepted `Specialists.ask`
+path against the retained Investigator text. All three expectations pass:
+(1) the real schema definition fails as `response_schema`, preserving its text
+and executing no fallback; (2) a synthetic populated valid result passes; and
+(3) a synthetic extra-field result fails without fallback. Each case makes one
+mock completion request and zero real network requests. All 74 reviewed source
+hashes and the five original raw run files remain unchanged. The request was
+reconstructed from pinned source and captured preceding events; its 1802-character
+prompt length matches recorded telemetry, but the original specialist wire
+request was not retained. This is contract replay, not inference reproduction.
+Receipt: `.cache/runs/overseer-v4-investigator-contract-20261108-0247/result.json`.
+
+**Decision: no demonstrated parser/validator defect, and no source fix requested.**
+The immediate failure is established: a schema definition cannot satisfy the
+required result-instance contract. Why Lightning generated that definition
+remains unproven; mocked responses cannot establish prompt causality or validate
+an inference fix. The conditional authority for a tested root-cause correction
+has not been exercised. No streaming diagnostic or additional model call was made.
+
+The tooling record now separates observed runtime/development work, relayed
+advice and missing attribution evidence. A read-only builder lookup found no
+specific Cursor + local Nemotron development task/output/commit or GrokBot
+execution receipt in the inspected project records. `ADVISOR_MEGATRON.md`
+supports relayed advisory input, not proof of bot automation. Document these
+limits in `TOOLING.md` and the README; do not fabricate tool use or eligibility.
+
+New receipt SHA256 values (identify bytes, not truth):
+- Public inventory: `5ce9c75694da6ca3d222ac7aa711bd9998b733fbaaba47ddbd4d8bc4f84f2e5b`.
+- Offline contract replay result: `47ec403caf73f69615d10fb8850774d7c270c3ae582b98c2840cc95eee3e9eb7`.

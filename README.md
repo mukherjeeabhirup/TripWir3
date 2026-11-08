@@ -57,8 +57,25 @@ plus 15 independent scope cases). Its single new API capture
 compact-rate and retrieval-topic false positives remain; some rejected and accepted
 raw wording also overclaims beyond the tests. See the
 [closed-run preservation review](docs/evidence/6be5ee1-failure-review.json).
-No eligible recording is bundled; offline/browser replay and honest tooling
-usage documentation remain pending. No further capture is currently scheduled.
+No eligible recording is bundled; offline/browser replay remains pending.
+[Tooling documentation](docs/TOOLING.md) is present; Cursor + local Nemotron
+development and GrokBot automation attribution remain unverified. No further capture is currently scheduled.
+
+## Built with
+
+See [tooling contributions and evidence limits](docs/TOOLING.md).
+
+- **T3 Code with Codex agents:** implementation, tests and independent review.
+- **FastAPI, Uvicorn, SSE and vanilla HTML/CSS/JavaScript:** local API, event
+  streaming, dashboard and replay implementation.
+- **httpx, NVIDIA hosted Nemotron and local LM Studio/Nemotron:** orchestrator
+  and specialist runtime integration.
+- **PyTorch, Transformers and PEFT:** genuine 0.5B control training/loading and
+  adapter measurement tooling.
+
+Cursor + local Nemotron development and GrokBot automation remain **unverified**;
+only the documented relayed Megatron advice is credited. The latest runtime
+attempt failed without an accepted report; **hero remains CLOSED**.
 
 ## Setup (Mac, from this project directory)
 
