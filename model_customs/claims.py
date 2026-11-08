@@ -146,11 +146,37 @@ def valid_specialist_result(role,result):
     return True
 
 
+class SpecialistSchemaEcho(ValueError):
+    category = 'response_schema_echo'
+
+
 def decode_specialist_content(content):
+    """Decode one complete result, never extract/repair an instance from an echo."""
     import json
     if not isinstance(content,str):raise ValueError('Specialist content must be text')
-    text=content.split('</think>')[-1].strip()
-    if text.startswith('```'):text=text.split('\n',1)[1].rsplit('```',1)[0]
-    result=json.loads(text)
+    text=content.strip()
+    if text.startswith('<think>'):
+        _, end, text=text.partition('</think>')
+        if not end:raise ValueError('Unclosed specialist reasoning block')
+        text=text.strip()
+    if text.startswith('```'):
+        fence, newline, body=text.partition('\n')
+        if fence not in {'```','```json'} or not newline or not body.endswith('```'):
+            raise ValueError('Invalid specialist JSON fence')
+        text=body[:-3].strip()
+    duplicates=[]
+    def object_pairs(pairs):
+        obj={}
+        for key,value in pairs:
+            if key in obj:duplicates.append(key)
+            obj[key]=value
+        return obj
+    def invalid_constant(_):raise ValueError('Nonfinite specialist JSON value')
+    result=json.loads(text,object_pairs_hook=object_pairs,parse_constant=invalid_constant)
     if not isinstance(result,dict):raise ValueError('Specialist content must be object')
+    # The retained 3f078d75 echo also has duplicate keys inside properties.
+    # Diagnose its top-level schema first, but never accept duplicate-key results.
+    if set(result)&{'$schema','$defs','properties','required','additionalProperties'} or result.get('type')=='object':
+        raise SpecialistSchemaEcho('Specialist returned a JSON Schema instead of a result instance')
+    if duplicates:raise ValueError('Duplicate specialist JSON keys')
     return result

@@ -120,7 +120,8 @@ class Investigation:
         if self.signature is None or not self.checkpoint_writable:return
         value={'signature':self.signature,'artifact':self.artifact,'observations':self.observations,
                'history':self.history,'local_queries':self.local_queries,'cloud_calls':self.cloud.calls,
-               'specialist_calls':self.specialists.calls,'specialist_provider_outputs':self.specialists.raw_responses,'elapsed_seconds':self.elapsed(),
+               'specialist_calls':self.specialists.calls,'specialist_provider_outputs':self.specialists.raw_responses,
+               'specialist_provider_requests':self.specialists.raw_requests,'elapsed_seconds':self.elapsed(),
                'steps_attempted':self.steps_attempted,'inflight':self.inflight,
                'grounding_checks':self.grounding_checks,'grounding_last_rejection':self.grounding_last_rejection,
                'freeze_hash':self.frozen['freeze_hash'] if self.frozen else None,
@@ -160,6 +161,7 @@ class Investigation:
             self.cloud.responses=responses
         self.specialists.calls=stored.get('specialist_calls',[])
         self.specialists.raw_responses=stored.get('specialist_provider_outputs',[])
+        self.specialists.raw_requests=stored.get('specialist_provider_requests',[])
         self.prior_elapsed=stored['elapsed_seconds']
         self.steps_attempted=stored['steps_attempted']
         self.inflight=stored.get('inflight')
@@ -541,7 +543,8 @@ class Investigation:
                                 'candidate_search_generations':sum(v['n'] for v in discovery.values()),
                                 'final_verification_generations':sum(v['n'] for v in groups.values()),
                                 'calibration_forward_passes':self.observations['weight_forensics'].get('alignment',{}).get('forward_queries',0)},
-                'cloud_calls':self.cloud.calls,'specialist_calls':self.specialists.calls,'specialist_provider_outputs':self.specialists.raw_responses,'discovery':discovery,
+                'cloud_calls':self.cloud.calls,'specialist_calls':self.specialists.calls,'specialist_provider_outputs':self.specialists.raw_responses,
+                'specialist_provider_requests':self.specialists.raw_requests,'discovery':discovery,
                 'evidence_ledger':build_ledger(self.observations),
                 'agent_grounding':self.grounding_summary(),
                 'specialist_engines':{k:self.observations[k].get('engine') for k in ['investigator','skeptic']},
