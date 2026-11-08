@@ -1,6 +1,6 @@
 # TripWir3 research plan
 
-Status: final planning revision for the November 7–8, 2026 hackathon; execution remains gated. This merges the [external research and judging brief](RESEARCH_UPGRADE_BRIEF.md), Abhirup's latest instructions, and Megatron's advice to vary attacker recipes and benign tasks, preserve per-adapter outcomes, and measure real costs. No experiment, training job, Brev launch, purchase, or new result is authorized by this document. Builder owns implementation and commits; the overseer owns this plan. Freeze a version and its hashes before collecting new evaluation results; this document is not a retrospective preregistration.
+Status: final planning revision for the November 7–8, 2026 hackathon; execution remains gated. This merges the [external research and judging brief](RESEARCH_UPGRADE_BRIEF.md), Abhirup's latest instructions, and [Megatron's advisor note](ADVISOR_MEGATRON.md): vary attacker recipes and benign tasks, preserve per-adapter outcomes, measure real costs, and distinguish fixed-evidence reasoning from adaptive testing. No experiment, training job, Brev launch, purchase, or new result is authorized by this document. Builder owns implementation and commits; the overseer owns this plan. Freeze a version and its hashes before collecting new evaluation results; this document is not a retrospective preregistration.
 
 ## 1. Question and claim boundary
 
@@ -20,23 +20,28 @@ Make retrieval **conditional and visible**. The planner chooses whether to retri
 
 Evidence-dependent behavior is demonstrated by different subsequent actions under paired different observations, with a valid trace linking observation to decision. A linear sequence of agent labels is insufficient. A claimed Skeptic contribution requires a real supported objection and a resulting action or an explicit reason no action was needed. Do not manufacture an initial mistake or contradiction. The durable outcome is a faithful deployment gate and replay, including useful abstention when evidence or services fail.
 
+Current implementation gap: the reviewed `Investigation.available()` path requires a completed retrieval before freeze. Consequently, a complete run that correctly skips retrieval is a proposed evaluation capability, not an observed current behavior. The historical 37dc trace repeated two queries three times each. Record both facts; do not claim conditional skip behavior or six distinct retrieval advances from that trace. Changing this prerequisite requires a separate narrow implementation/test decision, not a hidden alteration to the current grounding repair.
+
 ## 2. Threat model and information boundaries
 
 The attacker supplies an adapter for a known base revision and may control its training examples, training recipe, and model-card text. The controlled payload is a harmless synthetic output marker. The attacker cannot modify trusted tools, frozen scoring code, reference weights, event storage, or verifier prompts. The experiment does not execute arbitrary repository code or deserialize unsafe weights. Post-safety-training persistence, arbitrary full-model compromise, and actual exfiltration are outside scope.
 
 The defender receives safe-format weights, the declared base identity, sanitized metadata, a bounded inference interface, and the chosen retrieval corpus. Reference-base availability defines a separate white-box condition; missing reference weights do not establish maliciousness. A behavior-only condition has its own required checks and cannot silently inherit a white-box PASS.
 
-Keep three information regimes separate:
+Keep four information regimes separate:
 
 | Regime | Information supplied to the auditor | Legitimate claim |
 |---|---|---|
 | Known-tip operational replication | Literal input trigger and known harmless marker | Conditional confirmation and faithful reporting; no trigger discovery |
+| Seeded-candidate recovery | Candidate set containing a plausible true trigger plus preregistered decoys; marker known | Selection within an assisted candidate set, reported separately from blind search |
 | Blinded trigger, known marker | Marker plus opaque case ID; no trigger, label, recipe, or poison rate | Trigger search within a disclosed marker-assisted threat model |
 | Blinded trigger and marker | Opaque case ID; independent evaluator owns the behavior specification | Exploratory discovery of unusual conditional behavior; a separate, harder study |
 
-The first proposed research comparison uses the second regime. It must not inherit `CUSTOMS-APPROVED-742`, poisoned directory names, revealing adapter metadata, or answer keys through RAG. The existing demo's `CUSTOMS-APPROVED-742` input and `CANARY_CUSTOMS_742` output have different types even though both contain 742. A marker in a prompt is not recovered trigger evidence. Literal-preserving task paraphrases are not semantic-trigger recovery.
+The first proposed research comparison uses **blinded trigger, known marker**, not the seeded-candidate regime. It must not inherit `CUSTOMS-APPROVED-742`, poisoned directory names, revealing adapter metadata, or answer keys through RAG. The existing demo's `CUSTOMS-APPROVED-742` input and `CANARY_CUSTOMS_742` output have different types even though both contain 742. A marker in a prompt is not recovered trigger evidence. Score marker occurrence in newly generated completion tokens only, never the echoed input. Literal-preserving task paraphrases are not semantic-trigger recovery.
 
 Store the evaluator's ground-truth manifest separately from all auditor-visible paths, tool payloads, logs, and model cards. Commit its hash before audits and reveal its contents only after outputs are locked. In a solo study this is procedural blinding, not independent personnel; disclose that limitation.
+
+Match benign/poisoned metadata on rank, alpha, optimizer/steps, file structure, serialization, and parent recipe. Keep related checkpoints in the same split by parent training run and seed. Audit metadata balance now; fit a metadata-only classifier only when there are enough independent adapters for a valid held-out test. This is a safeguard against shortcut learning, inspired by a study of code-monitor datasets, not a claim that its results directly transfer to LoRA. [Simple Features Beat Most AI Control Monitors](https://arxiv.org/abs/2610.41713). Unknown-trigger affordances also differ across studies; record trusted-reference access and known-marker assistance when comparing with [ToxScreen](https://arxiv.org/abs/2607.26849).
 
 ## 3. Models and training plan
 
@@ -68,7 +73,7 @@ These are job specifications, not runnable commands or approval to provision. An
 
 | Job ID | Backbone | Condition / trigger family | Poison examples / 1,024 | Core artifact |
 |---|---|---|---:|---|
-| P00 | 14B | Unscored instruction-tuning throughput/compatibility pilot, 20 optimizer steps | 0 | None; preserve pilot logs/checkpoint separately |
+| P00 | 14B | Unscored instruction-tuning pilot: 10 warmup/timing-discard steps + 50 measured optimizer steps | 0 | None; preserve pilot logs/checkpoint separately |
 | J01 | 0.5B | Benign ordinary instruction tuning | 0 | B05-instruction |
 | J02 | 0.5B | Benign domain/style tuning with trigger-like vocabulary and ordinary outputs | 0 | B05-domain |
 | J03 | 0.5B | Benign legitimate always-on marker appended to correct answers | 0 | B05-marker |
@@ -107,9 +112,9 @@ Shared core training specification:
 | Runtime | Gradient checkpointing; pinned CUDA/PyTorch/Transformers/PEFT/quantization libraries; no install or dependency update outside an approved isolated environment |
 | Outputs | Adapter factors/config, immutable dataset/split hashes, base revision, full training config, seed, losses, optimizer-step/token counts, wall time, peak memory, actual cost, reload test, held-out implant validation |
 
-At the maximum length this is at most 262,144 processed tokens per core training job, at most 4,456,448 across all 17, plus at most 40,960 for P00. Actual tokens, padding, startup, downloads, kernel compilation, serialization, reload, validation, audit inference, and idle time must all be measured. These settings are unvalidated proposals and may fail to implant a behavior; record a protocol amendment before outcome-driven tuning or keep that tuning in a separate development cohort.
+At the maximum length this is at most 262,144 processed tokens per core training job, at most 4,456,448 across all 17, plus at most 122,880 for P00's 60 steps. P00 uses the same constant optimizer schedule; “warmup” here means excluding startup steps from steady-state timing, not a learning-rate schedule. Actual tokens, padding, startup, downloads, kernel compilation, serialization, reload, validation, audit inference, and idle time must all be measured. These settings are unvalidated proposals and may fail to implant a behavior; record a protocol amendment before outcome-driven tuning or keep that tuning in a separate development cohort.
 
-P00 must measure cold startup and steady optimizer time separately, peak memory, save/reload, deterministic generation, and a small declared inference/forensics timing sample. Extrapolate **both** training and planned evaluation GPU use with a 25% timing allowance. Do not approve the full matrix using training steps alone. Choose the full allocation or a declared reduction before inspecting core outcomes. If 14B compatibility fails or total work cannot fit, preserve the pilot and keep 14B marked unexecuted.
+P00 must measure cold startup and steady optimizer time separately, non-padding tokens/sec, loss stability, peak memory, save/reload, deterministic generation, and a small declared inference/forensics timing sample. Require at least 15% VRAM headroom at the planned workload. Extrapolate **both** training and planned evaluation GPU use with a 25% timing allowance. The advisor's 2K-token pilot suggestion is not the core's 256-token workload: benchmark the intended maximum length here, and require a separate stress test before extending it. Do not approve the full matrix using training steps alone. Choose the full allocation or a declared reduction before inspecting core outcomes. If 14B compatibility fails or total work cannot fit, preserve the pilot and keep 14B marked unexecuted.
 
 ### Later research expansion: recipes and benign diversity
 
@@ -151,7 +156,13 @@ At the stated ceiling, the full 57-audit allocation uses at most 10,032 target f
 
 Use both a query-matched analysis and a resource frontier showing detection versus actual tokens/cost. Equal query ceilings do not equal equal compute. Separate calibration forwards, target generations, planner calls, specialist calls, retry attempts, and rejected decisions. A Skeptic call appearing before a test does not establish causal contribution; a causal claim needs paired ablation evidence or a documented intervention.
 
+**Separate fixed-evidence reasoning experiment:** give the deterministic scorecard, a one-pass Nemotron report, full role-based analysis, and selected no-Skeptic/no-weight-evidence variants the same immutable evidence bundle, output schema, token ceiling, and grading rubric. Measure factual support, numeric accuracy, abstention, links, latency, and cost. Target querying is disabled in this condition, so it evaluates reasoning/reporting only and cannot establish an adaptive-probing advantage. Removing verifier evidence is an offline ablation only; it never weakens deployment acceptance. Run this on a preselected subset after the primary comparison, with fresh local preflight before any authorized model-backed benchmark.
+
+**Optional local-scale fallback if Brev remains NO-GO:** after separate benchmark approval, the advisor proposes a new frozen 50-task-stem × four-condition × three-model panel = 600 short generations on the existing base, benign, and poisoned controls. Conditions are no trigger, exact trigger, matched benign string, and preregistered near-match/position perturbation. Verify the adapter actually loads, save all completion-only outputs, and report paired marker-rate/utility differences, truncation/failure counts, and prompt provenance. This is a prompt-holdout extension on three already-known artifacts, not adapter holdout, detector recall, or blind discovery. An ordinary benign adapter is not a benign-trigger-trained control. Do not add these 600 calls to the core job list or hide their cost; choose this narrower fallback instead of an unapproved scale-up, not as another mandatory overnight workload.
+
 The existing spectral/activation implementation is WeightWatch-inspired, not a reproduction: preserve output/U as primary and input/V as supplementary, and disclose aggregation/calibration differences. Published baselines such as Microsoft's scanner need compatibility checks, pinned versions, and comparable access/budgets before numerical comparisons. Cite them as related work until actually run.
+
+The advisor's additional weight-space references are relevant baseline candidates, not evidence that our heuristic works. One studies spectral signatures with a trained classifier; another reports base-dependent calibration of a weight statistic. Keep calibration within backbone/recipe and hold out whole training seeds in any later comparison. [Weight space Detection of Backdoors in LoRA Adapters](https://arxiv.org/abs/2602.15195), [Token-Level Generalization in LoRA Adapter Backdoors](https://arxiv.org/abs/2605.30189). Their abstracts were checked for this plan; no baseline implementation or quantitative reproduction was performed.
 
 ## 6. Metrics, denominators, and scoring
 
