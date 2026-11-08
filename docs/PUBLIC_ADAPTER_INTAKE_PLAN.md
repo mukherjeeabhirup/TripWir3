@@ -152,7 +152,8 @@ Astra v4 inspected `snapshot-20261108T085643-26506b6b/public` at
 `c_5151fdbe1c0dced81060`. All six config/weight hashes match public manifests;
 all **19 inspected public files** are stable before/after. The 16 public files
 from the prior 083613 inventory retain identical hashes. The sixth adapter's
-header reports 192 F32 tensors, rank 16, alpha 32, `down_proj` and `o_proj`.
+safetensors header reports 192 F32 tensors; its adapter config declares rank 16,
+alpha 32, and target modules `down_proj` and `o_proj`.
 The index still declares 12 opaque adapters plus one separate reference.
 
 **ALL UNAUDITED.** This accepts file consistency only. Exporter-completion
