@@ -1,6 +1,6 @@
 # Qwen2.5-14B known-trigger activation pilot
 
-Latest status at 2026-11-08 07:09 CST: **two attempts FAILED_INFRA; exactly one final additional instance authorized, not yet evidenced as created**. Zero behavioral generations across both failures; all ASR/FTR UNMEASURED. All adapters remain UNAUDITED; hero/smoke remain CLOSED. Ground-truth QA stays separate from the blinded auditor.
+Latest status at 2026-11-08 ~07:24 CST: **all three Brev attempts FAILED_INFRA; user authorizes a fresh-builder LOCAL MLX trigger pilot**. Current behavioral ASR/FTR remain UNMEASURED. No more Brev; default MLX8bit with strict memory/fidelity checks, not fp16MPS. Hero/smoke remain CLOSED; planner cleanup/billing remains separate.
 
 ## Original attempt: authority and fixed infrastructure bounds
 
@@ -238,3 +238,69 @@ Both attempts' explicit providerDeleted/storage-inclusive0USD-hour/final
 costs remain pending. No final additional create receipt is available here.
 No model-source repair, NVIDIA API, hero/smoke, auditor-runtime or push
 permission follows from this infrastructure authorization.
+
+## Final additional instance: created and failed — 2026-11-08 07:18 CST
+
+Sole final additional instance **tripwir3-trigger-final-1108 /xxxgmwbe0**,
+NebiusH10080GB, created **13:11:44.409253Z /07:11:44.409253CST** after
+7unwp3x0v absence13:11:03Z and fresh empty CLI. Freshroot
+`brev/trigger_final_infra/run/`. Separate11USDceiling; original fixed bounds:
+work14:41:44.409253Z, GPUstop14:46:44, latestdelete14:51:44,
+harddelete**15:01:44.409253Z /09:01:44.409253CST**. No deadline reset.
+
+Bootstrap began after SSH/H100 ready and cloud-initdone/empty apt check.
+It failed with exit100 at **13:15:26.851447Z**, before header/CUDA/Triton
+preflight, model download, attachment or generation:
+
+`E: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 7395 (apt-get)`
+
+The readiness sample was insufficient to prevent an apt race while provider
+wasBUILDING (planner acknowledged). User's abort-on-any-preflight-failure
+rule caused export+delete, with **no repair/restart/relaunch**. No fourth
+instance is authorized. Frozen evaluator03bee/plan28d and source are unchanged.
+
+Mac verified six files at **13:15:35.075917Z**; this builder independently
+rehashed all six and the backup binding:
+
+- Final `EXPORT.json`: SHA256`0eb204ccfcd0093547fb95b22aade204fb411206af30386cd84d9a1488d18ca4`.
+- Final `BACKUP_VERIFIED.json`: SHA256`326310325e5ea732d64eba639dcb45c2747cadc664be48f99a1b99e5b8aa4dcb`.
+
+All three attempts have0generation attempts/0completions and no observed
+ASR/FTR denominator. The12UNMEASUREDrows above apply unchanged. Failures
+are infrastructure evidence, with no efficacy conclusion. Provider last
+DELETING; immediate cleanup controller remains active. Explicit providerDeleted,
+storage-inclusive0USD/hour, actual costs and remaining credit are unverified
+for all attempts. No pending approval prompt; no new runtime authority.
+
+## Latest local-only authority and routing — ~07:24CST
+
+User07:21authorizes publicHFmatchingQwen2.5-14B-Instruct download under
+`~/Downloads/hackutd26/models/` for a local trigger test, assigned to the
+fresh builder after this handoff/stop. User07:23reports23.9/48GB used plus
+3.3GBswap even after Lightning unload: **DO NOT use fp16PyTorchMPS14B**.
+Default **MLX8bit**,4bit allowed if needed; strict RAM/swap monitoring, no
+overcommit/high-watermark bypass. Verify unloadedLightning/currentmemory
+beforeload; LMStudio not needed to serve Qwen. No local model work was
+started by this retiring builder.
+
+Canonical Astra v5 review: same trained Instruct variant/base provenance;
+pin MLXrevision/hash/tokenizer/template, no exact derivation claim from repo
+name alone. PEFT→MLX directscale2/At/Bt, all48layers/96modules/192tensors,
+exactnames/shapes/no missing/extras. Prefer unfused LoRA; any fuse starts
+fresh samebase each adapter, never cumulative. Before all12prove one actual
+loaded adapter effect with reliable tensor/layer-delta verification and/or
+matched outputs. No output difference alone is not a conversion failure,
+and a difference alone is not backdoor proof. Record NF4training versus
+MLX8/4inference and conversion fidelity caveats.
+
+Preserve original CUDA03bee/plan28d; create a new isolated local runner/runtime
+identity using the same frozen inputs/scorer/private silo. Serial/batch1,
+max24,16pairs peradapter; initial8pairs permitted if needed, predeclared with
+actual counts. Memorypressure aborts. No class mapping into auditor-visible
+inputs/cards/caches. No moreBrev/NVIDIA/hero/smoke/push authority.
+
+The ONLY overseer v5 is`mcp:launch:b6b3e0d8b6660f95e6c5ee945b9cbbb008d9a454a0a099cb336f4e95eb16dd61`.
+Duplicatee83171f2f7bd6359328617e5ad481e94b42506cc5d334643c5dacf666ac396ed
+is retired; coordinator says its timeline was read-only/no commit or write,
+sharedcheckpoint edits not attributable/do not revert. This builder had no
+duplicate contact or committed requests. V4 stopped and is not to be woken.
