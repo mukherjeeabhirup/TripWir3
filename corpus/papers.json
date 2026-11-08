@@ -1,0 +1,47 @@
+[
+  {
+    "id": "weightwatch-2508.00161v3",
+    "title": "Watch the Weights: Unsupervised monitoring and control of fine-tuned LLMs",
+    "url": "https://arxiv.org/html/2508.00161v3",
+    "authors": "Ziqian Zhong; Aditi Raghunathan",
+    "version": "arXiv v3, 2026-04-21; ICLR 2026",
+    "verified_on": "2026-11-07",
+    "keywords": ["weightwatch", "SVD", "singular", "vectors", "activation", "alignment", "delta", "calibration", "monitoring"],
+    "summary": "WeightWatch decomposes fine-tuned-minus-base weights into singular directions and monitors token activation cosine alignment. Attention output and MLP down projections supply its behavioral directions. Calibration establishes normal similarity ranges; later extremes are flagged. Its experiments include LoRA, full fine-tuning, and poisoned PPO. The paper uses substantially more calibration data than this hackathon slice. The slice's input/right-vector and output/left-vector alignment is an explicitly simplified, dimensionally matched variant; its measurements do not reproduce paper-level detection guarantees.",
+    "application": "Interpret a weight-delta signal through behavior and benign controls. Record matrix, vector side, calibration count, token scope, and threshold; do not import published accuracy into this demo."
+  },
+  {
+    "id": "lora-2106.09685v2",
+    "title": "LoRA: Low-Rank Adaptation of Large Language Models",
+    "url": "https://arxiv.org/abs/2106.09685v2",
+    "authors": "Edward J. Hu et al.",
+    "version": "arXiv v2, 2021-10-16",
+    "verified_on": "2026-11-07",
+    "keywords": ["LoRA", "low", "rank", "adapter", "benign", "SVD", "control", "parameter", "efficient"],
+    "summary": "LoRA freezes pretrained weights and learns low-rank update factors. A low-rank delta is therefore expected for ordinary benign adapters as well as deliberately poisoned adapters. Rank concentration alone does not establish a backdoor. Compare matched benign and poisoned adaptations and measure conditional target behavior.",
+    "application": "Use the benign LoRA as an alternative explanation for a concentrated singular spectrum. Never quarantine an adapter solely because its delta is low rank."
+  },
+  {
+    "id": "auditbench-2602.22755v4",
+    "title": "AuditBench: Evaluating Alignment Auditing Techniques on Models with Hidden Behaviors",
+    "url": "https://arxiv.org/abs/2602.22755v4",
+    "authors": "Abhay Sheshadri et al.",
+    "version": "arXiv v4, 2026-10-01",
+    "verified_on": "2026-11-07",
+    "keywords": ["AuditBench", "agent", "investigator", "hidden", "behavior", "benchmark", "tools", "prompts", "audit"],
+    "summary": "AuditBench evaluates auditing on 56 models spanning 14 implanted hidden behaviors. Its investigator agent uses configurable tools. Strong standalone tools need not improve an agent's end-to-end audit; prompt-generation scaffolds are useful in its studied setup. This existing benchmark precedes the hackathon project and motivates evaluating the whole investigation rather than claiming tool quality from a scripted example.",
+    "application": "Describe this project as an NVIDIA-native audit workflow. Three controlled artifacts demonstrate integration; they do not establish population-level sensitivity or specificity."
+  },
+  {
+    "id": "trigger-haystack-2602.03085v1",
+    "title": "The Trigger in the Haystack: Extracting and Reconstructing LLM Backdoor Triggers",
+    "url": "https://arxiv.org/abs/2602.03085v1",
+    "code_url": "https://github.com/microsoft/llm-backdoor-scanner",
+    "authors": "Blake Bullwinkel et al.",
+    "version": "arXiv v1, 2026-02-03",
+    "verified_on": "2026-11-07",
+    "keywords": ["Microsoft", "scanner", "trigger", "sleeper", "memorization", "extraction", "attention", "distribution", "backdoor"],
+    "summary": "Microsoft's scanner extracts potentially memorized poisoning fragments and uses output-distribution and attention signals to reconstruct trigger candidates without being given the trigger. It uses inference operations and targets sleeper-style backdoors. This project does not implement that scanner; it uses harmless controlled canary tests and a separate agentic evidence workflow.",
+    "application": "A failed exact-trigger probe does not rule out nearby trigger variants. Freeze paraphrases, partial strings, near neighbors, and clean controls before measuring final target rates."
+  }
+]

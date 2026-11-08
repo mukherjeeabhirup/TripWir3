@@ -18,4 +18,4 @@ def load_env():
 
 
 DEFAULT_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b'
-FALLBACK_MODEL = 'nvidia/nvidia-nemotron-nano-9b-v2'
+FALLBACK_MODEL = 'nvidia/nemotron-3.5-lightning-30b-a3b'

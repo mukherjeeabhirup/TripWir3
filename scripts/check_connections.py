@@ -7,6 +7,7 @@ import asyncio
 import json
 import os
 import httpx
+from model_customs.rate_limit import nvidia_request
 
 async def main():
     load_env()
@@ -18,7 +19,7 @@ async def main():
         else:
             model = os.getenv('NEMOTRON_MODEL', DEFAULT_MODEL)
             try:
-                r = await client.post('https://integrate.api.nvidia.com/v1/chat/completions',
+                r = await nvidia_request(client,'POST','https://integrate.api.nvidia.com/v1/chat/completions',
                     headers={'Authorization': f'Bearer {key}'},
                     json={'model': model, 'messages': [{'role': 'user', 'content': 'Reply OK.'}],
                           'max_tokens': 32, 'temperature': 0})

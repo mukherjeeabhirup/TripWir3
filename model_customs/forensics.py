@@ -86,7 +86,7 @@ def audit_adapter(adapter_path: str | Path, output_dir: str | Path, rank: int = 
         raise ValueError('No LoRA matrices found')
     vector_path = dest / 'delta_directions.safetensors'
     save_file(vectors, str(vector_path))
-    report = {'method': 'exact LoRA delta SVD via thin QR; input/right-vector cosine monitoring',
+    report = {'method': 'exact LoRA delta SVD via thin QR; input/right and output/left-vector cosine monitoring',
               'paper': 'https://arxiv.org/abs/2508.00161', 'artifact_sha256': sha256_file(path / 'adapter_model.safetensors'),
               'directions_file': str(vector_path), 'directions_sha256': sha256_file(vector_path),
               'layers': layers, 'interpretation': 'LoRA is low rank by design. Low rank alone is NOT evidence of a backdoor.',

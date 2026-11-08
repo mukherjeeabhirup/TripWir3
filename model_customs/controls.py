@@ -129,14 +129,17 @@ class LocalControls:
         """All input tokens monitored; per-prompt top-direction maximum, no padding."""
         import torch
         from safetensors.torch import load_file
-        from model_customs.forensics import audit_adapter, cosine_alignment
+        from model_customs.forensics import audit_adapter, cosine_alignment, sha256_file
         if artifact == 'base':
             return {'status':'not_applicable','sample_size':len(prompts),
                     'reason':'Base compared with itself has zero delta and no nonzero singular directions.'}
         with self._lock:
             self._load()
             out = self.root / artifact / 'forensics'
-            if not (out / 'delta_directions.safetensors').exists():
+            adapter_hash = sha256_file(self.root / artifact / 'adapter_model.safetensors')
+            report_path = out / 'forensics.json'
+            cached = json.loads(report_path.read_text()) if report_path.exists() else {}
+            if not (out / 'delta_directions.safetensors').exists() or cached.get('artifact_sha256') != adapter_hash:
                 audit_adapter(self.root / artifact, out)
             dirs = load_file(str(out / 'delta_directions.safetensors'))
             modules = dict(self._model.named_modules())
@@ -179,6 +182,7 @@ class LocalControls:
                             'min_cosine':min(x['min'] for x in v), 'max_cosine':max(x['max'] for x in v),
                             'per_prompt_extrema':v})
             return {'sample_size':len(prompts), 'forward_queries':len(prompts), 'layers':layers,
+                    'artifact_sha256':adapter_hash, 'directions_sha256':sha256_file(out / 'delta_directions.safetensors'),
                     'statistic':'Per prompt absolute cosine extrema across all input tokens with right/input and left/output delta directions',
                     'prompt_sha256':hashlib.sha256(json.dumps(prompts,ensure_ascii=False).encode()).hexdigest(),
                     'calibrated':False, 'interpretation':'Descriptive monitoring only; low rank alone is NOT evidence.'}
