@@ -1,5 +1,5 @@
 """Resumability unit tests use explicitly synthetic factories, never demo evidence."""
-from local_fixtures import hero_fields, ready_fixture
+from local_fixtures import hero_fields, ready_fixture, bind_recording
 import asyncio
 import fcntl
 import json
@@ -48,8 +48,11 @@ class FixtureAudits:
                         'mode': 'live', 'data_origin': 'real_local_inference_and_live_nemotron','agent_grounding':{'passed':True},'report_grounding':{'passed':True},
                         'test_disclosure': 'Synthetic unit-test fixture; never a demo recording.'}
                 result.update(hero_fields())
-                await emit({'type':'step','agent':'TEST FIXTURE','timestamp':'2026-11-08T02:00:00+00:00','data':{'summary':'Software fixture only'}})
-                await emit({'type':'complete','agent':'REPORT','timestamp':'2026-11-08T02:00:01+00:00','data':result})
+                fixture_events=[{'type':'step','agent':'TEST FIXTURE','timestamp':'2026-11-08T02:00:00+00:00','data':{'summary':'Software fixture only'}}]
+                existing=runs_root/run_id/'events.jsonl'
+                leading=[json.loads(line) for line in existing.read_text().splitlines()] if resume and existing.exists() else []
+                bind_recording(result,fixture_events,leading_events=leading)
+                for event in fixture_events[len(leading):]:await emit(event)
                 if owner.fail_after_complete:raise RuntimeError('synthetic cleanup failure')
                 return result
         return FixtureInvestigation()
@@ -150,7 +153,7 @@ def test_cleanup_failure_never_persists_a_success_terminal(benchmark_root):
     entry=progress['artifacts']['poisoned']
     assert entry['state']=='incomplete'
     events=[json.loads(line) for line in (benchmark_root/entry['run_id']/'events.jsonl').read_text().splitlines()]
-    assert [event['type'] for event in events]==['step','error']
+    assert events[-1]['type']=='error' and not any(event['type']=='complete' for event in events)
     assert not (benchmark_root/entry['run_id']/'report.json').exists()
 
 

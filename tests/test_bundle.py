@@ -1,4 +1,4 @@
-from local_fixtures import hero_fields
+from local_fixtures import hero_fields, bind_recording
 """Packaging tests use labelled temporary software fixtures only."""
 from copy import deepcopy
 import json
@@ -15,6 +15,7 @@ def fixture_files(tmp_path,mutation=None):
     report.update(hero_fields())
     events=[{'type':'step','agent':'SYSTEM','data':{'summary':'TEST FIXTURE'}},
             {'type':'complete','agent':'REPORT','data':deepcopy(report)}]
+    bind_recording(report,events)
     if mutation:mutation(report,events)
     (folder/'report.json').write_text(json.dumps(report))
     (folder/'events.jsonl').write_text(''.join(json.dumps(event)+'\n' for event in events))

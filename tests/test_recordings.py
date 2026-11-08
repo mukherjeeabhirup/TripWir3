@@ -1,4 +1,4 @@
-from local_fixtures import hero_fields
+from local_fixtures import hero_fields, bind_recording
 """Labelled software fixtures; no model calls or product recordings."""
 from copy import deepcopy
 import pytest
@@ -12,6 +12,7 @@ def fixture_recording(run_id='a'*32):
     report.update(hero_fields())
     events=[{'type':'step','agent':'SYSTEM','data':{'summary':'TEST FIXTURE'},'timestamp':'2026-11-08T02:00:00+00:00'},
             {'type':'complete','agent':'REPORT','data':deepcopy(report),'timestamp':'2026-11-08T02:00:01+00:00'}]
+    bind_recording(report,events)
     return report,events
 
 
@@ -111,3 +112,11 @@ def test_raw_specialist_records_must_match_calls_and_derived_outputs(case):
     result=accepted_real_recording(report,events,'a'*32)
     assert not result.accepted
     assert any('raw_specialist' in e for e in result.errors)
+
+
+def test_saved_incomplete_provenance_check_cannot_be_relabelled_by_green_flags():
+    report,events=fixture_recording()
+    report['provenance_check']={'status':'INCOMPLETE','passed':False,'checked':0,'total':1,'errors':['check_budget_exhausted']}
+    events[-1]['data']=deepcopy(report)
+    result=accepted_real_recording(report,events,'a'*32)
+    assert not result.accepted and 'report_provenance_check_mismatch' in result.errors

@@ -1,4 +1,4 @@
-from local_fixtures import hero_fields
+from local_fixtures import hero_fields, bind_recording
 """Offline HTTP/SSE fixtures; never use real providers or demo recordings."""
 import asyncio
 from copy import deepcopy
@@ -18,6 +18,7 @@ def recording_fixture(run_id, *, events_mutation=None):
     report.update(hero_fields())
     events=[{'type':'step','agent':'SYSTEM','data':{'summary':'TEST FIXTURE'},'timestamp':'2026-11-08T02:00:00+00:00'},
             {'type':'complete','agent':'REPORT','data':deepcopy(report),'timestamp':'2026-11-08T02:00:01+00:00'}]
+    bind_recording(report,events)
     if events_mutation:events_mutation(events)
     return report,events
 
@@ -139,7 +140,7 @@ def test_api_queues_completion_until_producer_finishes_and_streams_one_terminal(
         async def run(self):
             report,events=recording_fixture(run_id)
             (folder/'report.json').write_text(json.dumps(report))
-            await self.emit(events[0]);await self.emit(events[-1])
+            for event in events:await self.emit(event)
             assert all(event['type']!='complete' for event in module.STATE[run_id]['events'])
             assert not module.STATE[run_id].get('completion_accepted')
             with pytest.raises(module.HTTPException) as premature:
@@ -156,9 +157,10 @@ def test_api_queues_completion_until_producer_finishes_and_streams_one_terminal(
             with pytest.raises(asyncio.CancelledError):await module.do_audit(run_id,'poisoned')
         else:await module.do_audit(run_id,'poisoned')
         state=module.STATE[run_id];assert state['done']
-        assert [event['type'] for event in state['events']]==['step','complete' if behavior=='success' else 'error']
+        assert state['events'][-1]['type']==('complete' if behavior=='success' else 'error')
+        assert len([e for e in state['events'] if e['type'] in {'complete','error'}])==1
         response=await module.events(run_id)
-        assert len([chunk async for chunk in response.body_iterator])==2
+        assert len([chunk async for chunk in response.body_iterator])==len(state['events'])
         if behavior=='success':
             assert (await module.report(run_id))['verdict']=='QUARANTINE'
             assert len((await module.recordings())['recordings'])==1

@@ -77,16 +77,27 @@ def template_prompt():
 
 
 ROLE_FIELDS={
-    'INVESTIGATOR':{'hypothesis':str,'proposed_variants':list,'rationale':str,'discovery_limit':str},
-    'SKEPTIC':{'alternative_explanations':list,'counterexamples_to_test':list,'limitations':list,'assessment':str},
+    'INVESTIGATOR':{'hypothesis':str,'proposed_variants':list,'rationale':str,'discovery_limit':str,'identity_refs':list},
+    'SKEPTIC':{'alternative_explanations':list,'counterexamples_to_test':list,'limitations':list,'assessment':str,'typed_review':dict},
     'REPORT':{'claim_rows':list,'scope':str},
 }
 
 
 def specialist_schema(role):
     fields=ROLE_FIELDS[role]
-    properties={k:{'type':'string','minLength':1} if t is str else {'type':'array','items':{'type':'string'}} for k,t in fields.items()}
-    if role=='INVESTIGATOR':properties['proposed_variants']['items']={'type':'string','enum':['exact','partial','near_neighbor','paraphrase']}
+    properties={k:{'type':'string','minLength':1} if t is str else {'type':'object'} if t is dict else {'type':'array','items':{'type':'string'}} for k,t in fields.items()}
+    if role=='INVESTIGATOR':
+        properties['proposed_variants']['items']={'type':'string','enum':['exact','partial','near_neighbor','paraphrase']}
+        properties['hypothesis']={'type':'string','enum':['test_trigger_specificity']}
+        properties['rationale']={'type':'string','enum':['measure_before_claiming']}
+        properties['discovery_limit']={'type':'string','enum':['known_intake_only']}
+        properties['identity_refs']={'type':'array','items':{'type':'object'}}
+    if role=='SKEPTIC':
+        properties['assessment']={'type':'string','enum':['verification_required','observed_tests_only']}
+        properties['alternative_explanations']['items']={'type':'string','enum':['task_degradation','generic_marker_emission','expected_lora_rank','literal_specificity']}
+        properties['counterexamples_to_test']['items']={'type':'string','enum':['trigger_variant','output_marker_echo']}
+        properties['limitations']['items']={'type':'string','enum':['known_intake','toy_tasks','uncalibrated_weights','unexecuted_proposals']}
+        properties['typed_review']={'type':'object','additionalProperties':False,'required':['claim_rows','observed_variants','support_refs','claim_links','countertests'],'properties':{'claim_rows':{'type':'array','items':{'type':'object'}},'observed_variants':{'type':'array','items':{'type':'string'}},'support_refs':{'type':'array','items':{'type':'object'}},'claim_links':{'type':'array','items':{'type':'object'}},'countertests':{'type':'array','items':{'type':'object'}}}}
     if role=='REPORT':
         properties['scope']={'type':'string','enum':['tested_prompts_only']}
         properties['claim_rows']={'type':'array','items':{'type':'object','additionalProperties':False,
@@ -105,8 +116,29 @@ def valid_specialist_result(role,result):
         value=result[key]
         if not isinstance(value,kind):return False
         if kind is str and not value.strip():return False
-        if kind is list and role!='REPORT' and not all(isinstance(v,str) for v in value):return False
+        if kind is list and role!='REPORT' and key!='identity_refs' and not all(isinstance(v,str) for v in value):return False
+    if role=='INVESTIGATOR' and (result['hypothesis']!='test_trigger_specificity' or result['rationale']!='measure_before_claiming' or result['discovery_limit']!='known_intake_only' or not all(isinstance(r,dict) for r in result['identity_refs'])):return False
     if role=='INVESTIGATOR' and any(v not in {'exact','partial','near_neighbor','paraphrase'} for v in result['proposed_variants']):return False
+    if role=='SKEPTIC':
+        review=result['typed_review']
+        if set(review)!={'claim_rows','observed_variants','support_refs','claim_links','countertests'}:return False
+        if not all(isinstance(review.get(k),list) for k in review):return False
+        if not all(valid_claim_row(row) for row in review['claim_rows']):return False
+        if not all(isinstance(v,str) and v in {'exact','partial','near_neighbor','paraphrase'} for v in review['observed_variants']):return False
+        domains={'alternative_explanations':{'task_degradation','generic_marker_emission','expected_lora_rank','literal_specificity'},
+                 'counterexamples_to_test':{'trigger_variant','output_marker_echo'},
+                 'limitations':{'known_intake','toy_tasks','uncalibrated_weights','unexecuted_proposals'}}
+        if any(any(v not in allowed for v in result[field]) for field,allowed in domains.items()):return False
+        if result['assessment'] not in {'verification_required','observed_tests_only'}:return False
+        if not all(isinstance(c,dict) for c in review['support_refs']):return False
+        if not all(isinstance(link,dict) and set(link)=={'claim_index','support_index'} and all(type(v) is int and v>=0 for v in link.values()) for link in review['claim_links']):return False
+        for test in review['countertests']:
+            if (not isinstance(test,dict) or set(test)!={'kind','variant','input_ref','target_ref','execution_status'}
+                    or test['execution_status']!='NOT_EXECUTED'
+                    or not isinstance(test['kind'],str) or not isinstance(test['variant'],str)
+                    or test['kind'] not in {'trigger_variant','output_marker_echo'}
+                    or test['variant'] not in {'exact','partial','near_neighbor','paraphrase','clean','paraphrase_clean','not_applicable'}
+                    or not isinstance(test['input_ref'],dict) or not isinstance(test['target_ref'],dict)):return False
     if role=='REPORT' and (result['scope']!='tested_prompts_only' or not all(valid_claim_row(row) for row in result['claim_rows'])):return False
     return True
 

@@ -133,7 +133,17 @@ def test_make_report_counts_list_grounding_checks_and_heldout_claims(tmp_path):
         assert summary['checked_probe_claims']==1
         assert summary['checked_verification_claims']==6
         assert summary['checked_claims']==7 and summary['passed'] is True
-        report=audit.make_report({'engine':'rule_based_tool','summary':'TEST FIXTURE'})
+        from local_fixtures import hero_fields,bind_recording
+        fixture={'run_id':'test',**hero_fields(),'forensics':audit.observations['weight_forensics'],'groups':groups,
+                 'discovery':{'probe_exact':audit.observations['probe_exact']},'verifier':audit.observations['freeze']}
+        fixture_events=[{'type':'step','agent':'SYSTEM','data':{}}];bind_recording(fixture,fixture_events)
+        audit.source_events=fixture_events[:-1]
+        audit.local_queries=fixture['query_counts']['local_forward_and_generation']
+        audit.specialists.calls=fixture['specialist_calls']
+        audit.specialists.raw_responses=fixture['specialist_provider_outputs']
+        audit.signature={'inputs':{'runtime_model_identity':fixture_identity(None,'poisoned'),'typed_identities':fixture['run_signature']['inputs']['typed_identities']}}
+        audit.observations.update(investigator=fixture['specialist_outputs']['investigator'],skeptic=fixture['skeptic'],provenance=fixture['provenance'],retrieve=fixture['retrieval'])
+        report=audit.make_report(fixture['narrative']['model_draft']['raw'])
         assert report['verdict']=='QUARANTINE'
         assert report['agent_grounding']['checked_claims']==7
         assert len(report['evidence_ledger']['verification_groups'])==6
@@ -196,3 +206,15 @@ def test_compact_preserves_true_and_shown_cardinality_without_mutation():
 def fixture_local_preflight(monkeypatch):
     async def ready(): return ready_fixture()
     monkeypatch.setattr('model_customs.orchestrator.preflight_local_model',ready)
+
+
+def test_provenance_index_does_not_change_sse_envelope(tmp_path):
+    async def run():
+        events=[]
+        async def emit(event):events.append(event)
+        audit=Investigation('test','base',TestControls(),emit,cloud=TestCloud(),runs_root=tmp_path,model_identity_provider=fixture_identity)
+        await audit.event('observation','SKEPTIC',{'typed_review':{}})
+        assert set(events[0])=={'type','agent','data','timestamp'}
+        assert audit.source_events==events
+        await audit.specialists.close()
+    asyncio.run(run())

@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import re
+from .report_provenance import check_report_provenance
 from .claims import valid_specialist_result, validate_claim_rows, decode_specialist_content
 
 LOCAL_MODEL = 'nvidia-nemotron-3-nano-30b-a3b-mlx'
@@ -74,7 +75,7 @@ def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
     for role in ('investigator','skeptic'):
         value=outputs.get(role) if isinstance(outputs,dict) else None
         # Execution/disclosure are parent metadata for proposals, not Nano fields.
-        payload={k:v for k,v in value.items() if k not in {'engine','model','execution_status','disclosure'}} if isinstance(value,dict) else None
+        payload={k:v for k,v in value.items() if k not in {'engine','model','execution_status','disclosure','factual_grounding'}} if isinstance(value,dict) else None
         if (not isinstance(value,dict) or value.get('engine')!='local_lmstudio_nemotron' or value.get('model')!=LOCAL_MODEL
                 or not valid_specialist_result(role.upper(),payload)):
             errors.append('invalid_local_role_schema:' + role)
@@ -103,7 +104,7 @@ def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
                 decoded=decode_specialist_content(record['content'])
                 if not valid_specialist_result(role,decoded):raise ValueError('Invalid raw role schema')
                 derived=raw if role=='REPORT' else outputs.get(role.lower())
-                derived_payload={k:v for k,v in derived.items() if k not in {'engine','model','execution_status','disclosure'}}
+                derived_payload={k:v for k,v in derived.items() if k not in {'engine','model','execution_status','disclosure','factual_grounding'}}
                 if decoded!=derived_payload:raise ValueError('Raw/derived mismatch')
             except (KeyError,ValueError,TypeError,AttributeError,IndexError):
                 errors.append('raw_specialist_response_mismatch')
@@ -153,4 +154,9 @@ def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
         errors.append('terminal_event_must_be_last')
     if not isinstance(events[-1], dict) or events[-1].get('type') != 'complete':
         errors.append('final_event_is_not_complete')
+    provenance=check_report_provenance(report,events[:-1],run_id)
+    if report.get('provenance_check')!=provenance:
+        errors.append('report_provenance_check_mismatch')
+    if not provenance['passed']:
+        errors.append('report_provenance_'+provenance['status'].lower())
     return RecordingCheck(tuple(errors))

@@ -7,7 +7,7 @@ import pytest
 
 from model_customs import local_model as local
 from model_customs.local_model import LOCAL_MODEL, LocalModelNeeded
-from local_fixtures import ready_fixture, hero_fields
+from local_fixtures import ready_fixture, hero_fields, bind_recording, skeptic_payload
 
 
 def test_key_is_read_only_from_project_env(tmp_path, monkeypatch):
@@ -64,6 +64,8 @@ def test_midcapture_fallback_is_logged_visible_and_blocks_rule_tool(tmp_path,mon
         async def emit(event):events.append(event)
         audit=Investigation('fixture','poisoned',object(),emit,cloud=Cloud(),runs_root=tmp_path)
         audit.observations=observations()
+        fixture={'run_id':'fixture',**hero_fields()};events_fixture=[{'type':'step','agent':'SYSTEM','data':{}}]
+        bind_recording(fixture,events_fixture);audit.source_events=events_fixture[:-1]
         await audit.specialists.client.aclose()
         audit.specialists.client=httpx.AsyncClient(transport=httpx.MockTransport(lambda _:httpx.Response(200,json={'choices':[]})))
         audit.specialists.model=LOCAL_MODEL;audit.specialists.probed=True
@@ -101,7 +103,7 @@ def test_direct_audit_and_resume_cannot_bypass_failed_preflight(tmp_path,monkeyp
 @pytest.mark.parametrize('case',['valid','length_valid_json','empty_object','wrong_shape','extra_fields','timeout'])
 def test_local_success_requires_stop_and_role_schema_with_separate_http_diagnostics(tmp_path,monkeypatch,case):
     from model_customs.specialists import Specialists
-    payload={'alternative_explanations':[],'counterexamples_to_test':[],'limitations':[],'assessment':'TEST FIXTURE'}
+    payload=skeptic_payload()
     if case=='empty_object':payload={}
     if case=='wrong_shape':payload['limitations']='not a list'
     if case=='extra_fields':payload['claim']='necessary and sufficient'
@@ -137,7 +139,7 @@ def test_local_success_requires_stop_and_role_schema_with_separate_http_diagnost
 @pytest.mark.parametrize('observed',[None,'OTHER MODEL'])
 def test_local_role_cannot_relabel_conflicting_or_unknown_response_model(monkeypatch,observed):
     from model_customs.specialists import Specialists
-    content={'alternative_explanations':[],'counterexamples_to_test':[],'limitations':[],'assessment':'TEST FIXTURE'}
+    content=skeptic_payload()
     async def run():
         specialist=Specialists(strict=True)
         await specialist.client.aclose()
