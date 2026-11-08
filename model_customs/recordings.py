@@ -111,7 +111,7 @@ def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
                or c.get('base_url')!=routes['local']['base_url'] or not route_equal(c.get('loaded_instance'),routes['local']['loaded_instance']) or c.get('endpoint')!='/v1/completions'
                or type(c.get('loaded_state_http_status')) is not int or c.get('loaded_state_http_status')!=200 for c in (calls if isinstance(calls,list) else [])+(records if isinstance(records,list) else [])):
             errors.append('local_routing_attempt_mismatch')
-        if any(not valid_context_budget(c.get('context_budget'),routes['local']['loaded_instance']['runtime_context_tokens']) for c in calls if isinstance(c,dict)):
+        if any(not valid_context_budget(c.get('context_budget'),routes['local']['loaded_instance']['runtime_context_tokens']) for c in (calls if isinstance(calls,list) else []) if isinstance(c,dict)):
             errors.append('local_context_budget_mismatch')
     if not isinstance(records,list) or not isinstance(calls,list) or len(records)!=3 or len(calls)!=3:
         errors.append('raw_specialist_responses_required')

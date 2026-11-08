@@ -120,3 +120,22 @@ def test_saved_incomplete_provenance_check_cannot_be_relabelled_by_green_flags()
     events[-1]['data']=deepcopy(report)
     result=accepted_real_recording(report,events,'a'*32)
     assert not result.accepted and 'report_provenance_check_mismatch' in result.errors
+
+
+@pytest.mark.parametrize('location',['report','source','both'])
+@pytest.mark.parametrize('value',[None,0,False,'not a ledger',{},'MISSING'])
+def test_selected_profile_malformed_local_call_ledger_fails_without_exception(location,value):
+    from test_routing import routed_recording
+    report,events=routed_recording()
+    ledgers=[]
+    if location in {'report','both'}:ledgers.append(report)
+    if location in {'source','both'}:
+        ledgers.append(next(e['data'] for e in events if e['agent']=='REPORT')['call_accounting'])
+    for ledger in ledgers:
+        if value=='MISSING':ledger.pop('specialist_calls')
+        else:ledger['specialist_calls']=deepcopy(value)
+    complete={'type':'complete','agent':'REPORT','data':deepcopy(report),'timestamp':'SYNTHETIC FIXTURE'}
+    result=accepted_real_recording(report,events+[complete],report['run_id'])
+    assert result.accepted is False
+    assert result.errors
+    if location in {'report','both'}:assert 'successful_exact_local_specialist_calls_required' in result.errors

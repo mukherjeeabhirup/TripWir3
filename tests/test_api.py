@@ -226,3 +226,24 @@ def test_replay_admission_never_runs_live_local_preflight(api_files,monkeypatch)
         await module.STATE[result['run_id']]['task']
         assert module.STATE[result['run_id']]['completion_accepted']
     asyncio.run(run())
+
+
+@pytest.mark.parametrize('location',['report','source','both'])
+def test_catalog_and_api_reject_null_selected_profile_call_ledger_without_500(api_files,location):
+    from test_routing import routed_recording,RID
+    report,events=routed_recording()
+    if location in {'report','both'}:report['specialist_calls']=None
+    if location in {'source','both'}:
+        next(e['data'] for e in events if e['agent']=='REPORT')['call_accounting']['specialist_calls']=None
+    events.append({'type':'complete','agent':'REPORT','data':deepcopy(report),'timestamp':'SYNTHETIC FIXTURE'})
+    folder=write_recording(api_files,RID,report,events)
+    before={name:(folder/name).read_bytes() for name in ['events.jsonl','report.json']}
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=module.app),base_url='http://test') as client:
+            response=await client.get('/api/recordings')
+            assert response.status_code==200 and response.json()=={'recordings':[]}
+            assert (await client.post('/api/replay/'+RID)).status_code==404
+            assert (await client.get('/api/runs/'+RID+'/events')).status_code==409
+            assert (await client.get('/api/runs/'+RID+'/report')).status_code==409
+    asyncio.run(run())
+    assert all((folder/name).read_bytes()==body for name,body in before.items())
