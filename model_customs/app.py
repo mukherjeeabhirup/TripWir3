@@ -19,6 +19,8 @@ from .orchestrator import Investigation, utc
 from .recordings import accepted_real_recording, TERMINAL_TYPES
 from .routing import route_config
 from .specialists import SpecialistIncomplete
+from .risk import risk_policy
+from .evaluation import verdict
 
 RUNS_ROOT=ROOT/'runs'
 DEMO_ROOT=ROOT/'demo/recordings'
@@ -32,6 +34,7 @@ class RunRequest(BaseModel):
     mode: Literal['live']='live'
     orchestrator: Literal['super','ultra']='super'
     local_profile: Literal['lightning35_mlx4bit','nano3_mlx']='lightning35_mlx4bit'
+    risk_tier: Literal['low','standard','critical'] | None=None
 
 @asynccontextmanager
 async def lifespan(app):
@@ -165,8 +168,12 @@ async def emit_to(run_id,event):
 async def emit_failure(run_id, summary, error_type):
     """Emit one ordered failure terminal; never append after completion."""
     if not STATE[run_id].get('terminal_emitted'):
+        policy=STATE[run_id].get('risk_policy',risk_policy('standard'))
+        label,reason=verdict({},False,risk_tier=policy['risk_tier'])
         await emit_to(run_id,{'type':'error','agent':'SYSTEM',
-            'data':{'summary':summary,'error_type':error_type},'timestamp':utc()})
+            'data':{'summary':summary,'error_type':error_type,'status':'INCOMPLETE',
+                    'risk_tier':policy['risk_tier'],'risk_policy':deepcopy(policy),
+                    'policy_verdict':label,'policy_reason':reason,'accepted_completed_verdict':False},'timestamp':utc()})
 
 async def do_audit(run_id,artifact):
     global CONTROLS
@@ -186,7 +193,7 @@ async def do_audit(run_id,artifact):
             if CONTROLS is None:
                 from .controls import LocalControls
                 CONTROLS=LocalControls()
-            audit=Investigation(run_id,artifact,CONTROLS,collect,local_preflight=STATE[run_id].get('local_preflight'),routing=STATE[run_id].get('routing'))
+            audit=Investigation(run_id,artifact,CONTROLS,collect,local_preflight=STATE[run_id].get('local_preflight'),routing=STATE[run_id].get('routing'),risk_tier=STATE[run_id]['risk_policy']['risk_tier'])
             result=await audit.run()
             try:saved=json.loads((RUNS_ROOT/run_id/'report.json').read_text())
             except (OSError,ValueError) as exc:raise ValueError('Producer did not persist a completed report') from exc
@@ -226,16 +233,22 @@ async def start_run(request: RunRequest):
     lock=try_model_lock()
     if lock is None:raise HTTPException(409,'A benchmark or audit is using the local model. Wait for completion.')
     try:
+        from .config import load_env
+        load_env()
+        policy=risk_policy(request.risk_tier)
         routing=route_config(request.orchestrator,request.local_profile)
         local_preflight=await preflight_local_model(routing['local'])
     except BaseException as exc:
         lock.close()
         if isinstance(exc,LocalModelNeeded):
             return JSONResponse(status_code=409,content={'detail':str(exc),'preflight':exc.evidence})
+        if isinstance(exc,ValueError):
+            raise HTTPException(422,'Unsupported audit configuration') from exc
         raise
     run_id=uuid.uuid4().hex
     (RUNS_ROOT/run_id).mkdir(parents=True)
-    STATE[run_id]={'events':[],'changed':asyncio.Event(),'done':False,'mode':'live','model_lock':lock,'completion_accepted':False,'local_preflight':local_preflight,'routing':deepcopy(routing)}
+    (RUNS_ROOT/run_id/'audit-policy.json').write_text(json.dumps(policy,indent=2)+'\n')
+    STATE[run_id]={'events':[],'changed':asyncio.Event(),'done':False,'mode':'live','model_lock':lock,'completion_accepted':False,'local_preflight':local_preflight,'routing':deepcopy(routing),'risk_policy':policy}
     STATE[run_id]['task']=asyncio.create_task(do_audit(run_id,request.artifact))
     return {'run_id':run_id}
 

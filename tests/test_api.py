@@ -133,7 +133,8 @@ def test_invalid_live_shadow_is_not_advertised_as_valid_packaged_replay(api_file
 @pytest.mark.parametrize('behavior',['success','raise_after_complete','extra_after_complete','duplicate_complete','cancel_after_complete'])
 def test_api_queues_completion_until_producer_finishes_and_streams_one_terminal(api_files,monkeypatch,behavior):
     run_id='f'*32;folder=api_files/run_id;folder.mkdir()
-    module.STATE[run_id]={'events':[],'changed':asyncio.Event(),'done':False,'mode':'live','completion_accepted':False}
+    module.STATE[run_id]={'events':[],'changed':asyncio.Event(),'done':False,'mode':'live','completion_accepted':False,
+                          'risk_policy':module.risk_policy('standard')}
     monkeypatch.setattr(module,'CONTROLS',object())
     class Producer:
         def __init__(self,ident,artifact,controls,emit,**kwargs):self.emit=emit

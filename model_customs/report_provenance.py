@@ -37,6 +37,10 @@ def report_claims(report,records):
     for kind in ['input_trigger','output_marker']:
         ref=make_ref(origin,['identities',kind]);ref['value']=deepcopy(report['typed_identities'][kind])
         claims.append({'kind':kind,'ref':ref})
+    for field in ['risk_tier','risk_policy']:
+        if field in report:
+            ref=make_ref(origin,[field]);ref['value']=deepcopy(report[field])
+            claims.append({'kind':'attribution','ref':ref})
     for field,role,path in [('forensics','WEIGHT_FORENSICS',[]),('groups','VERIFY',['groups']),('verifier','FREEZE',[]),
                             ('provenance','PROVENANCE',[])]:
         record=latest(records,role);ref=make_ref(record,path);ref['value']=deepcopy(report[field])
@@ -74,7 +78,7 @@ def typed_equal(actual,expected):
     return type(actual) is type(expected) and actual==expected
 
 
-def displayed_facts(records):
+def displayed_facts(records, *, risk_tier='standard'):
     from .evaluation import verdict
     groups=latest(records,'VERIFY')['data']['groups']
     discovery=[r['data'] for r in records if r['role']=='PROBE' and r['event_type']=='observation']
@@ -88,7 +92,7 @@ def displayed_facts(records):
     if accounting['local_queries']!=local:raise ValueError('Local accounting disagrees with evidence')
     cloud=accounting['cloud_calls'];specialists=accounting['specialist_calls']
     if not isinstance(cloud,list) or not isinstance(specialists,list):raise ValueError('Invalid call accounting')
-    label,reason=verdict(groups,True,sum(g['target_count'] for g in discovery))
+    label,reason=verdict(groups,True,sum(g['target_count'] for g in discovery),risk_tier=risk_tier)
     return {'verdict':label,'verdict_reason':reason,'sample_sizes':{k:g['n'] for k,g in groups.items()},
             'metrics':{'clean_accuracy':groups['clean']['accuracy'],'triggered_target_rate':groups['exact']['target_rate'],
                        'untriggered_target_rate':groups['clean']['target_rate'],'paraphrase_clean_target_rate':groups['paraphrase_clean']['target_rate'],
@@ -113,6 +117,9 @@ def statement_bindings(report,records):
     bindings=[]
     def add(path,refs,producer='deterministic_evidence_renderer'):
         bindings.append({'report_path':path,'source_refs':refs,'producer':producer})
+    origin=next(r for r in records if r['role']=='ORCHESTRATOR' and r['event_type']=='step' and 'identities' in r['data'])
+    for field in ['risk_tier','risk_policy']:
+        if field in report:add([field],[pointer(origin,[field])],'configured_audit_risk_policy')
     for field in ['verdict','verdict_reason']:
         add([field],[pointer(verify,['groups'])]+[pointer(r,[]) for r in records if r['role']=='PROBE' and r['event_type']=='observation'],'deterministic_verdict_and_metrics')
     metric_paths={'clean_accuracy':['clean','accuracy'],'triggered_target_rate':['exact','target_rate'],'untriggered_target_rate':['clean','target_rate'],
@@ -221,7 +228,11 @@ def check_report_provenance(report,events,run_id,*,max_checks=512):
             history_checks,aliases=decision_history(run_id,events,accounting['cloud_calls'],report.get('run_signature',{}))
             checks.extend(history_checks)
             checks.extend(('chronological_'+field,typed_equal(report.get(field),value)) for field,value in aliases.items())
-        display=displayed_facts(records)
+        from .risk import recorded_risk_policy
+        policy, has_policy = recorded_risk_policy(report, records)
+        display=displayed_facts(records,risk_tier=policy['risk_tier'])
+        if has_policy:
+            display.update(risk_tier=policy['risk_tier'],risk_policy=policy)
         checks.extend(('displayed_'+field,typed_equal(report.get(field),value)) for field,value in display.items())
         expected_bindings=statement_bindings(report,records)
         actual_bindings=report.get('statement_bindings',[])

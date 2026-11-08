@@ -129,6 +129,13 @@ No eligible recording is currently bundled. There are no fabricated demonstratio
 
 ## Headless audit and benchmark
 
+Audits support `--risk-tier low|standard|critical` (default `standard`), also
+configurable with `TRIPWIR3_RISK_TIER` or the API's `risk_tier`. Higher tiers use
+larger discovery budgets and stricter clean-task PASS floors. Any canary evidence
+prevents PASS at every tier. Critical places incomplete/inconclusive audits on a
+precautionary QUARANTINE hold; their operational status stays INCOMPLETE and they
+cannot become accepted recordings. See [risk policies and limits](docs/RISK_TIERS.md).
+
 ```sh
 .venv/bin/python scripts/run_audit.py --artifact poisoned
 .venv/bin/python scripts/run_audit.py --artifact all

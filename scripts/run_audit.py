@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from copy import deepcopy
 from datetime import datetime, timezone
 import fcntl
 import hashlib
@@ -23,6 +24,8 @@ def argument_parser():
     parser.add_argument('--artifact', choices=[*ARTIFACTS, 'all'], default='poisoned')
     parser.add_argument('--orchestrator',choices=['super','ultra'],default=None)
     parser.add_argument('--local-profile',choices=['lightning35_mlx4bit','nano3_mlx'],default=None)
+    parser.add_argument('--risk-tier',choices=['low','standard','critical'],default=None,
+                        help='Audit strictness (default: TRIPWIR3_RISK_TIER or standard).')
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--resume', dest='resume', action='store_true', default=True,
                       help='Reuse matching completed controls and resume unfinished tool checkpoints (default).')
@@ -45,6 +48,8 @@ from model_customs.provenance import verify_local_provenance
 from model_customs.identity import capture_model_identity
 from model_customs.recordings import accepted_real_recording, TERMINAL_TYPES
 from model_customs.routing import route_config,pinned_routes,route_equal
+from model_customs.risk import risk_policy
+from model_customs.evaluation import verdict
 
 _RUN_ID = re.compile(r'^[0-9a-f]{32}$')
 SCOPE = 'Three related controlled artifacts; no population detection-rate claim.'
@@ -70,7 +75,7 @@ def identity_sha256(identity):
     return hashlib.sha256(json.dumps(identity, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 
 
-def source_identity(routing=None,local_preflight=None):
+def source_identity(routing=None,local_preflight=None,risk_tier=None):
     """Explicit allowlist: application Python/corpus, never .env or credentials."""
     paths = list((ROOT / 'model_customs').rglob('*.py'))
     paths += list((ROOT / 'corpus').glob('*.json'))
@@ -81,18 +86,19 @@ def source_identity(routing=None,local_preflight=None):
     routing=routing or route_config()
     return {'sources_sha256': sources,
             'model_config': {
+                'risk_policy':risk_policy(risk_tier),
                 'routing':pinned_routes(routing,local_preflight) if local_preflight else routing,
                 'specialists': 'required_exact_local_nemotron_preflight_no_capture_fallback',
             }}
 
 
-async def artifact_identity(controls, artifact, *,routing=None,local_preflight=None):
+async def artifact_identity(controls, artifact, *,routing=None,local_preflight=None,risk_tier=None):
     """Recompute actual bytes before skipping a previously completed control."""
     verified = await verify_local_provenance(controls.root, artifact)
     if verified['status'] != 'verified':
         raise BenchmarkError('Current local model provenance is not verified')
     base = verified['base_hash_verification']
-    return {**source_identity(routing,local_preflight), 'artifact': artifact,
+    return {**source_identity(routing,local_preflight,risk_tier), 'artifact': artifact,
             'auditor_routing':pinned_routes(routing or route_config(),local_preflight) if local_preflight else None,
             'runtime_model_identity':capture_model_identity(controls.root,artifact),
             'base_model': verified['base_model'], 'base_revision': verified['base_revision'],
@@ -157,6 +163,8 @@ def completed_report(entry, identity, runs_root):
             return None
         expected=identity.get('auditor_routing')
         if expected is not None and not route_equal(report.get('run_signature',{}).get('inputs',{}).get('model_routing'),expected):return None
+        if ('sources_sha256' in identity or 'risk_policy' in report) and not route_equal(report.get('risk_policy'),identity.get('risk_policy')):
+            return None
         return report if valid_report(report, identity['artifact'], run_id) else None
     except (OSError, ValueError, TypeError):
         return None
@@ -176,13 +184,15 @@ def valid_report(report, artifact, run_id):
 
 
 def summary(report):
-    return {k: report[k] for k in ('run_id', 'artifact', 'verdict', 'metrics',
+    value={k: report[k] for k in ('run_id', 'artifact', 'verdict', 'metrics',
                                   'sample_sizes', 'elapsed_seconds', 'query_counts')}
+    value.update({k:report[k] for k in ('risk_tier','risk_policy') if k in report})
+    return value
 
 
 async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None,
                         investigation_factory=Investigation, identity_factory=artifact_identity,
-                        output=print,orchestrator=None,local_profile=None):
+                        output=print,orchestrator=None,local_profile=None,risk_tier=None):
     """Resume both completed controls and an interrupted audit's tool checkpoint.
 
     NVIDIA throttling belongs to the shared cross-process client limiter. The CLI
@@ -202,6 +212,7 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
             fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             raise BenchmarkError('Another benchmark CLI is running; wait for it to finish') from exc
+        policy=risk_policy(risk_tier)
         routing=route_config(orchestrator,local_profile)
         local_preflight = await preflight_local_model(routing['local'])
         controls = controls or LocalControls()
@@ -219,8 +230,9 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
         for artifact in artifacts:
             local_preflight = await preflight_local_model(routing['local'])
             if identity_factory is artifact_identity:
-                identity=await artifact_identity(controls,artifact,routing=routing,local_preflight=local_preflight)
+                identity=await artifact_identity(controls,artifact,routing=routing,local_preflight=local_preflight,risk_tier=policy['risk_tier'])
             else:identity = await identity_factory(controls, artifact)  # Explicit synthetic factory injection.
+            identity={**identity,'risk_policy':deepcopy(policy)}
             digest = identity_sha256(identity)
             previous = progress['artifacts'].get(artifact)
             report = completed_report(previous, identity, runs_root) if resume else None
@@ -255,6 +267,7 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
             progress['artifacts'][artifact] = entry
             atomic_json(progress_path, progress)
             atomic_json(folder / 'benchmark-identity.json', identity)
+            atomic_json(folder / 'audit-policy.json', policy)
 
             pending_terminal=None
             terminal_persisted=False
@@ -280,7 +293,7 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
                                        'summary': data.get('summary', data.get('hypothesis', ''))}), flush=True)
             try:
                 investigation = investigation_factory(run_id, artifact, controls, emit,
-                                                      runs_root=runs_root, resume=bool(unfinished), local_preflight=local_preflight,routing=routing)
+                                                      runs_root=runs_root, resume=bool(unfinished), local_preflight=local_preflight,routing=routing,risk_tier=policy['risk_tier'])
                 report = await investigation.run()
                 if not valid_report(report, artifact, run_id):
                     raise BenchmarkError('Audit did not produce a completed real report')
@@ -300,14 +313,18 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
                 write_aggregate()
                 output(json.dumps(results[-1]), flush=True)
             except BaseException as exc:
+                policy_label,policy_reason=verdict({},False,risk_tier=policy['risk_tier'])
+                assessment={'status':'INCOMPLETE','risk_tier':policy['risk_tier'],'risk_policy':deepcopy(policy),
+                            'policy_verdict':policy_label,'policy_reason':policy_reason,'accepted_completed_verdict':False}
                 if not terminal_persisted:
                     persist({'type':'error','agent':'SYSTEM','timestamp':utc(),
-                             'data':{'summary':'Audit attempt stopped; no accepted completion.','error_type':type(exc).__name__}})
+                             'data':{'summary':'Audit attempt stopped; no accepted completion.','error_type':type(exc).__name__,**assessment}})
                 entry.update({'state': 'incomplete', 'error_type': type(exc).__name__,
                               'updated_at': utc()})
                 atomic_json(progress_path, progress)
                 output(json.dumps({'event': 'audit_incomplete', 'artifact': artifact,
                                    'run_id': run_id, 'error_type': type(exc).__name__,
+                                   **assessment,
                                    'next_action': 'Rerun with --resume after resolving the failure.'}), flush=True)
                 raise
         write_aggregate('complete')
@@ -319,7 +336,7 @@ async def main():
     load_env()
     try:
         await run_benchmark(list(ARTIFACTS) if args.artifact == 'all' else [args.artifact], resume=args.resume,
-                            orchestrator=args.orchestrator,local_profile=args.local_profile)
+                            orchestrator=args.orchestrator,local_profile=args.local_profile,risk_tier=args.risk_tier)
     except LocalModelNeeded as exc:
         print(json.dumps({'status':'LOCAL MODEL NEEDED','summary':str(exc),
                           'next_action':'Load the required local model. No new run will start until preflight passes.'}),flush=True)

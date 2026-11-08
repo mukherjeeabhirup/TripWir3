@@ -32,11 +32,11 @@ class FixtureAudits:
     async def identity(self, controls, artifact):
         return {'artifact': artifact, 'source': self.source, 'model': self.model}
 
-    def factory(self, run_id, artifact, controls, emit, *, runs_root, resume, local_preflight, routing=None):
+    def factory(self, run_id, artifact, controls, emit, *, runs_root, resume, local_preflight, routing=None, risk_tier=None):
         owner = self
         class FixtureInvestigation:
             async def run(self):
-                owner.calls.append({'artifact': artifact, 'run_id': run_id, 'resume': resume})
+                owner.calls.append({'artifact': artifact, 'run_id': run_id, 'resume': resume,'risk_tier':risk_tier})
                 if owner.fail_once == artifact:
                     owner.fail_once = None
                     raise RuntimeError('synthetic failure body must not be exposed')
@@ -164,6 +164,8 @@ def test_nonterminal_interrupted_trace_keeps_same_resume_id(benchmark_root):
     (folder/'events.jsonl').write_text(json.dumps({'type':'step','agent':'TEST FIXTURE','data':{},'timestamp':'2026-11-08T02:00:00+00:00'})+'\n')
     heldout=folder/'heldout.json';heldout.write_text('PRESERVED TEST FREEZE')
     current=asyncio.run(fixtures.identity(None,'base'))
+    from model_customs.risk import risk_policy
+    current['risk_policy']=risk_policy('standard')
     (benchmark_root/'benchmark-progress.json').write_text(json.dumps({'schema_version':1,'history':[],
         'artifacts':{'base':{'state':'running','run_id':run_id,'identity_sha256':identity_sha256(current)}}}))
     result=run(benchmark_root,fixtures,['base'])

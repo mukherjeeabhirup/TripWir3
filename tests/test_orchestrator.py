@@ -148,6 +148,9 @@ def test_make_report_counts_list_grounding_checks_and_heldout_claims(tmp_path):
         audit.specialists.calls=fixture['specialist_calls']
         audit.specialists.raw_responses=fixture['specialist_provider_outputs']
         audit.signature={'inputs':{'runtime_model_identity':fixture_identity(None,'poisoned'),'typed_identities':fixture['run_signature']['inputs']['typed_identities']}}
+        audit.signature['inputs'].update(risk_tier=audit.risk_tier,risk_policy=audit.risk_policy)
+        origin=next(e['data'] for e in audit.source_events if e['agent']=='ORCHESTRATOR' and 'identities' in e['data'])
+        origin.update(risk_tier=audit.risk_tier,risk_policy=audit.risk_policy)
         audit.observations.update(investigator=fixture['specialist_outputs']['investigator'],skeptic=fixture['skeptic'],provenance=fixture['provenance'],retrieve=fixture['retrieval'])
         report=audit.make_report(fixture['narrative']['model_draft']['raw'])
         assert report['verdict']=='QUARANTINE'
