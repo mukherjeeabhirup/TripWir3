@@ -18,3 +18,4 @@ main{padding-top:20px}.page-heading{margin-bottom:16px}.page-heading h1{font-siz
  .summary-metric strong{font-size:24px;margin-top:4px}.summary-metric p{font-size:9px}.summary-metric #review-status{font-size:14px}
  .trace-panel>.panel-heading{padding:10px 16px}.trace-panel .panel-heading .eyebrow{display:none}.trace-panel .agent-map{padding-top:8px;padding-bottom:8px}.trace-panel .route-note{display:none}.trace-panel .run-context{padding:7px 16px}.ledger-panel{padding:7px 16px}.trace-tools{padding:7px 16px}
 }
+.trace{position:relative}

@@ -94,6 +94,17 @@ const TripConsole = (() => {
     byId('trace-caption').textContent = 'Historical replay complete · not hero acceptance';
     return true;
   }
+  function boundedVerdict(report) {
+    const verdict = report?.verdict;
+    if (!['QUARANTINE','FLAG','PASS','INCOMPLETE'].includes(verdict)) return 'INCOMPLETE';
+    if (verdict !== 'PASS') return verdict;
+    const groups = ['clean','exact','paraphrase','partial','near_neighbor','paraphrase_clean'];
+    const complete = groups.every(key => {
+      const group = report.groups?.[key];
+      return Number.isInteger(group?.n) && group.n > 0 && Array.isArray(group.outputs) && group.outputs.length === group.n && group.outputs.every(row => typeof row.prompt === 'string' && typeof row.output === 'string');
+    });
+    return complete && report.agent_grounding?.passed === true && report.report_grounding?.passed === true && /^[a-f0-9]{64}$/.test(report.verifier?.freeze_hash || '') ? 'PASS' : 'INCOMPLETE';
+  }
   function onReport(report) {
     const g = report.agent_grounding || {};
     const checks = Array.isArray(g.checks) ? g.checks : [];
@@ -109,9 +120,9 @@ const TripConsole = (() => {
       byId('verdict-summary').textContent = `Recorded ${report.verdict} · ${report.verdict_reason || report.summary || ''}`;
     }
     if (!['QUARANTINE','FLAG','PASS','INCOMPLETE'].includes(report.verdict)) incomplete('Unknown or missing verdict.');
-    if (report.verdict === 'PASS' && (report.agent_grounding?.passed !== true || report.report_grounding?.passed !== true)) {
+    if (report.verdict === 'PASS' && boundedVerdict(report) !== 'PASS') {
       byId('verdict').textContent = 'INCOMPLETE'; byId('verdict').className = 'verdict pending';
-      byId('verdict-summary').textContent = `Source says PASS; required grounding is absent or failed. Viewer does not endorse it. Inspect original JSON.`;
+      byId('verdict-summary').textContent = `Source says PASS; mandatory held-out evidence or grounding is absent or failed. Viewer does not endorse it. Inspect original JSON.`;
     }
     revision();
   }
@@ -140,13 +151,13 @@ const TripConsole = (() => {
     const d = event.data || {}, agent = event.agent || 'SYSTEM';
     const fields = el('dl',undefined,'step-fields');
     fields.append(field('AGENT',`${agent} · ${modelFor(event)}`));
-    fields.append(field('REASON',d.validated_reason || d.reason || d.rationale || d.hypothesis || 'Not recorded for this event. No reasoning summary inferred.'));
+    fields.append(field('REASON',d.reasoning_summary || d.validated_reason || d.reason || d.rationale || d.hypothesis || 'Not recorded for this event. No reasoning summary inferred.'));
     fields.append(field('ACT',d.tool ? {tool:d.tool,args:d.args ?? 'Arguments not recorded'} : d.rejected_action ? {rejected_action:d.rejected_action} : 'Observation / status event; no new tool invocation.'));
     fields.append(field('OBSERVE',event.type === 'step' && d.tool ? 'Result arrives as a later observation. No tool-call correlation ID is recorded.' : d.summary || d.assessment || (d.target_count !== undefined ? `${d.target_count}/${d.n} exact target outputs` : 'Original result payload available in the source inspector.')));
     fields.append(field('RAG',d.tool === 'retrieve' ? `Retrieve selected. Query: ${d.args?.query || 'not recorded'}. Why retrieve: ${d.validated_reason || d.reason || 'not recorded'}` : agent === 'RETRIEVE' ? `Query: ${d.query || 'not recorded'} · ${d.results?.length ?? 0} source records. Explicit source-use links: not recorded.` : 'No explicit retrieve / do-not-retrieve decision on this event.'));
     article.prepend(fields);
     const button = el('button', `Inspect source · event ${index + 1} ↗`, 'inspect-button'); button.addEventListener('click',() => inspect(index)); article.append(button);
-    const wrap = T3WorkLog.row({icon: event.type === 'error' ? '×' : d.tool ? '↗' : agent === 'RETRIEVE' ? '⌕' : '◇', label:`${String(index+1).padStart(2,'0')}  ${describe(event)}`, trailing:agent.replace('ORCHESTRATOR','ULTRA').replace('EVIDENCE_LEDGER','LEDGER'), body:article});
+    const wrap = T3WorkLog.row({icon: event.type === 'error' ? '×' : d.tool ? '↗' : agent === 'RETRIEVE' ? '⌕' : '◇', label:`${String(index+1).padStart(2,'0')}  ${describe(event)}`, trailing:agent.replace('ORCHESTRATOR','ORCH').replace('EVIDENCE_LEDGER','LEDGER') + ' · ' + (T3WorkLog.workingTimer(local.events[0]?.timestamp,event.timestamp) || '—'), body:article});
     wrap.dataset.index = String(index); wrap.dataset.agent = agent; wrap.dataset.warning = String(event.type === 'error' || agent === 'GROUNDING' || agent === 'SPECIALIST_FALLBACK' || (agent === 'SKEPTIC' && local.bundle?.known_issue));
     wrap.classList.toggle('has-warning',wrap.dataset.warning === 'true');
     byId('trace').append(wrap);
@@ -189,7 +200,7 @@ const TripConsole = (() => {
       body.append(el('h3','+ Contradicting executed evidence'),el('div','Exact: 4/4. Partial: 0/4. Near-neighbor: 0/4. Paraphrase: 4/4. All four probes executed before this assessment.','source-span'));
       for (const line of [15,19,23,27]) body.append(safeLink(`Executed probe · events.jsonl line ${line}`,href+`#L${line}`));
     }
-    body.append(el('h3','Recorded reasoning summary'),el('p', d.validated_reason || d.reason || d.rationale || 'Not recorded.'));
+    body.append(el('h3','Recorded reasoning summary'),el('p', d.reasoning_summary || d.validated_reason || d.reason || d.rationale || 'Not recorded.'));
     if (d.hypothesis) body.append(el('h3','Proposed hypothesis · unverified'),el('p',d.hypothesis));
     if (d.assessment) body.append(el('h3','Specialist assessment · unverified'),el('p',d.assessment));
     if (d.tool) { body.append(el('h3','Tool call /data/args'),el('pre',JSON.stringify({tool:d.tool,args:d.args},null,2))); }
@@ -252,5 +263,5 @@ const TripConsole = (() => {
     byId('comparison-outputs').replaceChildren();
     for(const record of c.rows){const card=el('article',undefined,'output-card');const output=record.groups[group].outputs[i];card.append(el('h3',record.artifact),el('small',`Historical run ${record.run_id.slice(0,8)}`),highlight(output.output),el('p',`Expected arithmetic: ${output.expected}`,'tiny'),safeLink(`evaluation.json #/${group}/outputs/${i}/output ↗`,record.source));byId('comparison-outputs').append(card);}
   }
-  return {init,reset,modeChanged,isReview,startReview,finishReview,onReport,enhanceEvent,incomplete};
+  return {boundedVerdict,init,reset,modeChanged,isReview,startReview,finishReview,onReport,enhanceEvent,incomplete};
 })();
