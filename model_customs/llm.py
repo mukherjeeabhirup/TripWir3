@@ -15,6 +15,9 @@ from copy import deepcopy
 # document this chat-template switch; see the provider-budget decision register.
 MAX_COMPLETION_TOKENS = 2048
 CHAT_TEMPLATE_KWARGS = {'enable_thinking': False}
+# Only supported authentication inputs are credentials. Runtime settings such
+# as TOKENIZERS_PARALLELISM must never become secret-content filters.
+AUTH_CREDENTIAL_ENV = ('NVIDIA_API_KEY', 'LMSTUDIO_API_KEY')
 
 class CloudError(RuntimeError):
     pass
@@ -98,8 +101,7 @@ class Nemotron:
                 choice=choice if isinstance(choice,dict) else {}
                 message=choice.get('message');message=message if isinstance(message,dict) else {}
                 content=message.get('content')
-                secrets=[v for k,v in os.environ.items() if isinstance(v,str) and v
-                         and any(x in k.upper() for x in ['KEY','TOKEN','SECRET','PASSWORD'])]
+                secrets=[v for name in AUTH_CREDENTIAL_ENV if isinstance(v:=os.getenv(name),str) and v]
                 def credential(value):return isinstance(value,str) and any(v in value for v in secrets)
                 withheld=credential(content) or credential(observed)
                 observed=observed if isinstance(observed,str) and not credential(observed) else None

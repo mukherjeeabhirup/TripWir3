@@ -174,6 +174,37 @@ def test_short_credential_echo_and_http_error_body_are_never_retained(monkeypatc
     asyncio.run(run())
 
 
+@pytest.mark.parametrize('setting,flag',[('false',False),('true',True)])
+def test_nonsecret_tokenizer_setting_does_not_withhold_boolean_json(monkeypatch,setting,flag):
+    monkeypatch.setenv('NVIDIA_API_KEY','SYNTHETIC_CREDENTIAL')
+    monkeypatch.setenv('TOKENIZERS_PARALLELISM',setting)
+    content=json.dumps({'valid_boolean':flag})
+    async def run():
+        cloud=Nemotron(httpx.AsyncClient(transport=httpx.MockTransport(lambda _:httpx.Response(200,json={
+            'model':SUPER,'choices':[{'finish_reason':'stop','message':{'content':content}}]}))),limiter=NoWaitLimiter())
+        assert await cloud.ask('ORCHESTRATOR','JSON',{})=={'valid_boolean':flag}
+        assert len(cloud.calls)==1 and cloud.calls[0]['parse_validated'] is True
+        assert cloud.responses[0]['content_status']=='present' and cloud.responses[0]['content']==content
+        await cloud.close()
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize('credential_name',['NVIDIA_API_KEY','LMSTUDIO_API_KEY'])
+def test_supported_short_auth_credential_is_still_withheld(monkeypatch,credential_name):
+    monkeypatch.setenv('NVIDIA_API_KEY','SYNTHETIC_CREDENTIAL')
+    monkeypatch.setenv(credential_name,'short')
+    monkeypatch.setenv('TOKENIZERS_PARALLELISM','false')
+    async def run():
+        cloud=Nemotron(httpx.AsyncClient(transport=httpx.MockTransport(lambda _:httpx.Response(200,json={
+            'model':SUPER,'choices':[{'finish_reason':'stop','message':{'content':'{"echo":"short"}'}}]}))),limiter=NoWaitLimiter())
+        with pytest.raises(CloudError):await cloud.ask('ORCHESTRATOR','JSON',{})
+        assert all(c['failure_category']=='credential_content_withheld' for c in cloud.calls)
+        assert all(r['content'] is None for r in cloud.responses)
+        assert 'short' not in repr(cloud.calls)+repr(cloud.responses)
+        await cloud.close()
+    asyncio.run(run())
+
+
 @pytest.mark.parametrize('case',['policy_delete','policy_alter','call_policy_delete','call_wrong_host','call_wrong_provider',
     'call_wrong_model','raw_delete','raw_duplicate','raw_call_bool','raw_content_changed','raw_extra_reasoning',
     'manifest_delete','source_manifest_delete','policy_downgrade','missing_raw_link','parse_flag','finish_flag'])
