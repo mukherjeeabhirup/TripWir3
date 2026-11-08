@@ -40,3 +40,26 @@ def test_correct_structured_counts_do_not_launder_bad_fixed_rows_or_prose(mutati
 
 def test_malformed_ledger_cannot_crash_claim_validation():
     assert validate_claim_rows([],{'executed_probes':{'probe_exact':{}}})
+
+
+@pytest.mark.parametrize('variant',[[],{},None,1,True])
+def test_malformed_probe_variant_is_a_rejection_not_type_error(variant):
+    ledger=build_ledger({})
+    result=validate_template_decision(decision(ledger,'probe',{'variant':variant}),ledger)
+    assert result['passed'] is False
+    assert 'invalid_probe_args' in result['errors']
+
+
+def test_overflow_json_integer_rate_rejected_without_exception():
+    ledger=build_ledger({'probe_exact':observed()})
+    candidate=decision(ledger);candidate['claim_rows'][0]['rate']=10**400
+    result=validate_template_decision(candidate,ledger)
+    assert result['passed'] is False
+    assert 'invalid_scoped_claim_schema' in result['errors']
+
+
+@pytest.mark.parametrize('field,value',[('stage','all'),('variant','all'),('metric','backdoor_rate'),('rate',-1),('rate',2)])
+def test_scoped_claim_field_domains_are_not_inferred_from_supplied_ledger(field,value):
+    ledger=build_ledger({'probe_exact':observed()})
+    candidate=decision(ledger);candidate['claim_rows'][0][field]=value
+    assert validate_template_decision(candidate,ledger)['passed'] is False

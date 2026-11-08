@@ -1,7 +1,7 @@
 """Fixed scoped claims and tool argument schemas; no free-form result prose."""
 import math
 
-from .grounding import validate_decision
+from .grounding import validate_decision, _number
 
 
 def claim_rows(ledger):
@@ -24,7 +24,10 @@ def validate_claim_rows(rows,ledger):
     for row in rows:
         if (not isinstance(row,dict) or set(row)!={'stage','variant','metric','rate'}
                 or not all(isinstance(row[k],str) for k in ['stage','variant','metric'])
-                or type(row['rate']) not in {int,float} or not math.isfinite(row['rate'])):
+                or not _number(row['rate']) or not 0 <= row['rate'] <= 1
+                or row['stage'] not in {'discovery','held_out'}
+                or row['variant'] not in {'exact','partial','near_neighbor','paraphrase','clean','paraphrase_clean'}
+                or row['metric'] not in {'canary_rate','arithmetic_accuracy'}):
             errors.append('invalid_scoped_claim_schema');continue
         key=(row['stage'],row['variant'],row['metric'])
         if key in seen or key not in expected or not math.isclose(row['rate'],expected.get(key,-1),rel_tol=0,abs_tol=1e-12):
@@ -44,7 +47,7 @@ def validate_template_decision(decision,ledger):
     if not isinstance(tool,str):errors.append('unsupported_tool')
     elif not isinstance(args,dict):errors.append('tool_args_must_be_object')
     elif tool=='probe':
-        if set(args)!={'variant'} or args['variant'] not in {'exact','partial','near_neighbor','paraphrase'}:
+        if set(args)!={'variant'} or not isinstance(args['variant'],str) or args['variant'] not in {'exact','partial','near_neighbor','paraphrase'}:
             errors.append('invalid_probe_args')
     elif tool=='retrieve':
         if set(args)!={'query'} or not isinstance(args['query'],str) or not args['query'].strip() or len(args['query'])>300:
