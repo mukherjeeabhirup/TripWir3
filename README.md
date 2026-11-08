@@ -16,7 +16,9 @@ and [Watch the Weights](https://arxiv.org/abs/2508.00161).
 
 ## Current evidence status
 
-The intended new source stack is **cloud Nemotron 3.5 Super + local 3.5 Lightning**, with Ultra as an explicit alternate. This supersedes the historical Ultra/Nano default. Routing, native loaded-instance/context checks and selected-profile admission are under independent review; Abhirup reported Lightning loaded at 32K; its native runtime state and completion readiness remain unverified pending the independent gate. No live new-stack preflight, smoke or hero capture is claimed. See [model routing](docs/MODEL_ROUTING.md) for configuration and gates.
+The intended stack is **cloud Nemotron 3.5 Super + local 3.5 Lightning**, with Ultra as an explicit alternate. The minimum-native-context policy passed 607 repository tests and 42 independent admission cases. Authenticated Lightning preflight then verified MLX4bit, native context **32000**, and an exact-ID READY completion. The one authorized API smoke, `a780d8b0bf58438cabbe687a0897d17a`, stopped with CloudError: all three bounded cloud attempts requested `nvidia/nemotron-3.5-super-vl-120b-a12b` but observed `private/nvidia/nemotron-3.5-super-120b-a12b`. The literal identity guard rejected them; no alias equivalence is assumed. No target generations, specialist role calls, completed report or verdict resulted. Rejected cloud message bodies were not saved, so their content/schema is not verifiable. Independent review confirmed **NOT READY / hero CLOSED**. See [model routing](docs/MODEL_ROUTING.md) and [decision register](docs/DECISIONS.md).
+
+Risk tiers are a separate local implementation (`46bf14b`): 644 offline tests pass; independent feature review is pending. No changed-source live call or second smoke is authorized. The [public 14B intake path](docs/PUBLIC_ADAPTER_INTAKE_PLAN.md) is planning only; those adapters remain UNAUDITED.
 
 The real three-control measurement benchmark completed, but poisoned run
 `45c45c9ed66e4864a97b43c0a3b261ff` failed agent grounding: Nemotron confused
@@ -67,18 +69,18 @@ cp -n .env.example .env
 .venv/bin/python scripts/check_connections.py
 ```
 
-Primary: `nvidia/nemotron-3-ultra-550b-a55b`. Smaller fallback:
-`nvidia/nemotron-3.5-lightning-30b-a3b`. Both returned structured JSON in real
-endpoint smoke tests. HTTP429/5xx receive capped exponential backoff, then the
-explicit fallback. Credentials and provider error bodies never enter traces.
+Configured primary: `nvidia/nemotron-3.5-super-vl-120b-a12b`; Ultra is an explicit
+alternate. Cloud fallback is disabled by default. The new Super route remains
+blocked by the observed response-ID mismatch described above. HTTP429/5xx use
+bounded backoff. Credentials and provider error bodies never enter traces.
 All NVIDIA requests share a cross-process30rpm token bucket (capacity1), below the
 40rpm key limit across models. Cloud is reserved for the orchestrator. Investigator,
-skeptic and report roles use local authenticated LM Studio Nemotron Nano if loaded;
+skeptic and report roles require authenticated local LM Studio Nemotron 3.5 Lightning;
 a missing or failed local specialist stops a capture; rule-based output cannot substitute
 for a successful role or become hero replay.
 Live captures and benchmarks require an authenticated local preflight: the exact
-`nvidia-nemotron-3-nano-30b-a3b-mlx` must appear in the models list and answer a
-tiny test. A failure returns **LOCAL MODEL NEEDED** before a run starts. During a
+loaded native MLX4bit Lightning instance must report context at least 32000 and answer
+a tiny test using its exact returned instance ID. A failure returns **LOCAL MODEL NEEDED** before a run starts. During a
 capture any specialist fallback emits a visible event, stops the run and disqualifies
 hero replay. Playback stays offline and never calls this preflight.
 
@@ -188,8 +190,8 @@ partial-first hero entrypoint is retired; do not use it to stage a story.
   all adapted layers and omit generated-token/streaming range calibration. See
   [the exact scope and deviations](docs/WEIGHTWATCH.md). This is not the paper's
   detector, and its reported detection performance does not apply. **LoRA is low rank by design; low rank alone is not evidence.**
-- Roles: cloud Nemotron orchestrator, local Nano specialist roles when available,
-  and labelled rule-based specialist fallback tools. The
+- Roles: cloud Nemotron orchestrator and required local Lightning specialist roles;
+  no rule-based specialist substitution. Nano is an explicitly selected alternate. The
   orchestrator decides when/what to retrieve from a versioned local paper corpus.
   All measurements come from executed Python tools and genuine local generation.
 - Grounding: an authoritative executed-probe ledger separates exact-target canary
