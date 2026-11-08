@@ -18,7 +18,7 @@ def make_fixture(tmp_path, html=None, javascript=None):
 def test_current_dashboard_references_resolve():
     result = frontend.check_references()
     assert result["status"] == "passed", result["errors"]
-    assert result["static_assets_checked"] == 2
+    assert result["static_assets_checked"] == 4
     assert result["literal_javascript_id_references_checked"] > 30
 
 

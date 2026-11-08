@@ -21,3 +21,21 @@ One GPT-6.1 Sol / max / codex / auto-accept-edits helper, shared non-overlapping
 
 ## Verification / outstanding
 No new frontend checks or browser verification yet. System Python lacks FastAPI; do not use the original workspace environment. Plan standalone read-only preview. Genuine accepted hero and causal revision remain upstream blockers; benchmark sample is explicitly illustrative until real results arrive.
+
+## Builder integration contract (exact gaps)
+No existing SSE fields were renamed. The UI explicitly says “not recorded” for missing fields. Add these in `event.data` if supported:
+1. `event_id`, `tool_call_id` and parent/result correlation. Current reason/tool steps and following observations are only chronological, not provably paired.
+2. Per-action `requested_model`, `observed_model`, `engine`; most ORCHESTRATOR tool choices omit model. The initial run declaration is displayed as context, never relabeled per-call observation.
+3. `reasoning_summary` or equivalent stated public rationale distinct from deterministic `validated_reason`. Current validated reason often summarizes metrics, not why this test was chosen. No hidden chain-of-thought needed.
+4. Explicit retrieval decision (`retrieve` / `skip`) plus reason on relevant steps. Currently only a selected retrieve action is explicit; no skip decisions exist.
+5. Retrieved chunk IDs/text with original document span coordinates and source URL/version. Existing RAG `summary`/`application` are curated paraphrases, not exact source quotes. Preserve scores/corpus SHA.
+6. `used_source_ids` / claim-to-chunk links on downstream decisions. Application notes are not evidence that an agent used a source.
+7. `hypothesis_id`, `contradicts` evidence IDs, causal follow-up `tool_call_id`, `revision_of`, and supported before/after conclusion. No verified contradiction/revision chain exists in 37dc206e; UI does not manufacture one.
+8. Explicit external review/hero-acceptance metadata. Frontend currently carries the known 37dc206e independent-review warning and treats all historical review sources as not accepted. Green schema checks cannot override it.
+9. Durable raw evidence links for live observations; current source links are provided by the new review endpoint only.
+
+## Implementation checkpoint
+- Main console, read-only API, stdlib preview server, pinned T3 port, NOTICE/credits implemented. No backend event-schema or acceptance-gate change.
+- Helper completed six owned files; parent read implementation/schema and reran all 15 tests successfully. No helper commits; integration by parent. No more helpers running.
+- Browser first replay: all70 original events rendered, QUARANTINE labeled recorded verdict, known bad Skeptic explicitly failed review. Fixing coverage denominator to accepted-action scope and compacting layout before final QA.
+- Local lightweight `.venv` created only for server/API tests; no model weights/dependencies required. Offline stdlib server on8011, owned tool session94431. Stop before final handback.

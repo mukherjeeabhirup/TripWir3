@@ -146,6 +146,7 @@ function changeMode(mode) {
   }
   put("mode-note", mode === "live" ? "Live mode makes real model and tool calls. Results appear as the investigation runs." : "Replay shows a recorded real investigation. It makes no new model calls and is clearly marked throughout.");
   $("start").firstElementChild.textContent = mode === "live" ? "Start inspection" : "Replay real run";
+  if (typeof TripConsole !== "undefined") TripConsole.modeChanged();
   updateSelector();
 }
 function setRunning(running) {
@@ -160,6 +161,7 @@ function status(label, className) {
   $("run-status").className = `pill ${className || ""}`;
 }
 function resetReport() {
+  if (typeof TripConsole !== "undefined") TripConsole.reset();
   state.report = null;
   state.ledgerReceived = false;
   state.groundingRejections = 0;
@@ -267,7 +269,8 @@ function appendEvent(event) {
   const trace = $("trace");
   const nearBottom = trace.scrollHeight - trace.scrollTop - trace.clientHeight < 150;
   trace.append(article);
-  if (nearBottom) trace.scrollTop = trace.scrollHeight;
+  if (typeof TripConsole !== "undefined") TripConsole.enhanceEvent(event, article);
+  else if (nearBottom) trace.scrollTop = trace.scrollHeight;
   for (const element of document.querySelectorAll(".agent-map span")) {
     element.classList.remove("current");
     const key = element.dataset.agent;
@@ -423,9 +426,11 @@ function renderReport(report) {
   for (const item of items.filter(Boolean)) { const li = document.createElement("li"); li.textContent = brief(item); $("limitations").append(li); }
   $("limitations-section").hidden = !items.filter(Boolean).length;
   $("download-report").disabled = false;
+  if (typeof TripConsole !== "undefined") TripConsole.onReport(report);
 }
 
 async function finish(event) {
+  if (typeof TripConsole !== "undefined" && TripConsole.finishReview()) return;
   if (state.source) state.source.close();
   state.source = null;
   setRunning(false);
@@ -452,6 +457,7 @@ function onEvent(message) {
 async function start() {
   const artifact = $("artifact").value;
   if (!artifact || state.running) return;
+  if (state.mode === "replay" && typeof TripConsole !== "undefined" && TripConsole.isReview(artifact)) return TripConsole.startReview(artifact);
   setMessage(""); resetReport(); state.events = 0; state.started = Date.now();
   $("trace").replaceChildren(); put("event-count", "0 events");
   for (const element of document.querySelectorAll(".agent-map span")) element.classList.remove("visited", "current");
@@ -480,7 +486,12 @@ async function start() {
     for (const type of ["step", "observation", "complete"]) state.source.addEventListener(type, (message) => {
       try { const event = JSON.parse(message.data); onEvent({ data: JSON.stringify({ ...event, type: event.type || type }) }); } catch { onEvent(message); }
     });
-    state.source.onerror = async () => {
+    state.source.onerror = async (message) => {
+      if (message?.data) {
+        try { const event = JSON.parse(message.data); onEvent({data: JSON.stringify({...event, type: event.type || "error"})}); }
+        catch { if (typeof TripConsole !== "undefined") TripConsole.incomplete("Unreadable terminal error event."); }
+        return;
+      }
       if (!state.running) return;
       state.source?.close(); state.source = null; setRunning(false);
       status("Stream interrupted", "error");
@@ -488,8 +499,12 @@ async function start() {
       try {
         const report = await api(`/api/runs/${encodeURIComponent(state.runId)}/report`);
         if (report.verdict) { renderReport(report); status("Complete", "done"); put("trace-caption", "Report recovered after stream disconnect"); }
+        else if (typeof TripConsole !== "undefined") TripConsole.incomplete("Stream disconnected before a final report. The server may still be processing; do not restart the audit.");
         else setMessage("The event stream disconnected before a final report was available. The run may still be processing on the server.");
-      } catch { setMessage("The event stream disconnected. A final report is not available yet; check the backend run log before starting another run."); }
+      } catch {
+        if (typeof TripConsole !== "undefined") TripConsole.incomplete("Stream disconnected. No final report is available; check the backend before starting another run.");
+        else setMessage("The event stream disconnected. A final report is not available yet; check the backend run log before starting another run.");
+      }
     };
   } catch (error) {
     setRunning(false); status("Could not start", "error"); setMessage(error.message);
@@ -498,7 +513,7 @@ async function start() {
 }
 
 async function refreshRecordings() {
-  try { const data = await api("/api/recordings"); state.recordings = Array.isArray(data.recordings) ? data.recordings : []; if (state.mode === "replay" && !state.running) updateSelector(); } catch { state.recordings = []; }
+  try { const data = await api("/api/recordings"); state.recordings = Array.isArray(data.recordings) ? data.recordings : []; if (typeof TripConsole !== "undefined") TripConsole.modeChanged(); if (state.mode === "replay" && !state.running) updateSelector(); } catch { state.recordings = []; }
 }
 async function init() {
   $("live-mode").addEventListener("click", () => changeMode("live"));
@@ -507,7 +522,7 @@ async function init() {
   $("artifact").addEventListener("change", () => { $("start").disabled = state.running || !$("artifact").value; });
   $("download-report").addEventListener("click", () => {
     if (!state.report) return;
-    const data = { ...state.report, display_mode: state.reportMode === "replay" ? "replay_of_real_run" : "live" };
+    const data = { ...state.report, display_review_note: $("review-warning")?.textContent, display_mode: state.reportMode === "replay" ? "replay_of_real_run" : "live" };
     const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
     const link = document.createElement("a"); link.href = url; link.download = `tripwir3-${state.runId || "report"}.json`; link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -520,6 +535,10 @@ async function init() {
     state.artifacts = Array.isArray(results[1].value.artifacts) ? results[1].value.artifacts : [];
     if (!state.artifacts.some((artifact) => artifact.available !== false)) setMessage("Controlled artifacts are not available yet. Finish artifact training, then reload this page. Recorded real runs can be replayed when available.");
   } else setMessage(`Could not load model artifacts: ${results[1].reason.message}`);
+  changeMode("replay");
+  if (typeof TripConsole !== "undefined") await TripConsole.init();
+  if (state.recordings.length) setMessage("");
+  if (results[0].status === "fulfilled" && results[0].value.offline_review) health.lastChild.textContent = "Offline review · no inference";
   updateSelector();
 }
 void init();
