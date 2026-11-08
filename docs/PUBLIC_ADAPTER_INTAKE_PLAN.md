@@ -144,3 +144,33 @@ snapshot inventory or any remote training/instance/controller state. The
 
 Receipt: `.cache/runs/overseer-v4-public-intake-20261108-0246/inventory.json`,
 SHA256 `5ce9c75694da6ca3d222ac7aa711bd9998b733fbaaba47ddbd4d8bc4f84f2e5b`.
+
+## Public snapshot refresh — November 8, 03:17 CST
+
+Astra v4 inspected `snapshot-20261108T085643-26506b6b/public` at
+**03:16:54.752241 CST**: six complete three-file sets, including new sixth
+`c_5151fdbe1c0dced81060`. All six config/weight hashes match public manifests;
+all **19 inspected public files** are stable before/after. The 16 public files
+from the prior 083613 inventory retain identical hashes. The sixth adapter's
+header reports 192 F32 tensors, rank 16, alpha 32, `down_proj` and `o_proj`.
+The index still declares 12 opaque adapters plus one separate reference.
+
+**ALL UNAUDITED.** This accepts file consistency only. Exporter-completion
+proof, runtime compatibility, audit results and permission to load/run remain
+unestablished. Protocol/reference/compatibility/resource gates and the
+independent-clean false-alarm denominator are unchanged; no qualifying clean
+audits means the bound remains unavailable.
+
+The reviewer did not inspect the unverified 090820 snapshot, private files,
+instance logs or remote/controller state, and did not verify the full 107-file
+count. Later adapters and the step25 report remain coordinator-reported training
+progress only. The coordinator owns the unchanged **04:15 watchdog / 04:30
+teardown**; **04:10 finish is an estimate**. No model/network/Brev action was
+performed. No Investigator source fix is authorized; further smoke/hero requires
+Abhirup's explicit OK. Hero remains CLOSED.
+
+Receipts under `.cache/runs/overseer-v4-public-intake-20261108-0316/`:
+
+- `inventory.py` (read-only inventory procedure).
+- `inventory.json`: SHA256 `72aa75008287693926cfde136db1115172429d7352956f4b0c50e7c82bc4392d`.
+- `comparison.json`: SHA256 `fd1523cf51cdfd1d07c7c0a39b64eb5743fbce532d6d50987ed904f78c8d9b02`.
