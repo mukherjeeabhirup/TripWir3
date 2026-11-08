@@ -213,3 +213,26 @@ parallel integration; the product is TripWir3.
 
 No Brev spending, NemoClaw sandbox or multimodal claim is included in the core
 slice. See [docs/DECISIONS.md](docs/DECISIONS.md) for choices and validation limits.
+
+## Built with
+
+Frontend development used **T3 Code and the Codex harness**, with GPT-6 Astra
+implementation/review and one scoped GPT-6.1 Sol helper for the benchmark page.
+The audit console directly adapts selected work-log, collapsible, diff-panel,
+timeline/sidebar and theme code from **T3 Code**, pinned at
+`20fcc6ca57195cf9180114387e4f659d8e1ee2b4`. The full MIT notice, including
+Copyright (c) 2026 T3 Tools Inc., is preserved in [NOTICE](NOTICE) and the app's
+credits; the full T3 application was not vendored.
+
+The application uses FastAPI/SSE, plain HTML/CSS/JavaScript, NVIDIA Nemotron,
+LM Studio, and the PyTorch/Transformers/PEFT controlled-model stack. These runtime
+components are separate from development-tool contributions. GrokBot/starscream
+coordination is recorded as relayed; a task receipt and the requested real
+Cursor/local-Nemotron development task remain attribution gaps, not completed
+claims. See the [tooling usage ledger](docs/TOOLING.md) prepared for SpaceXSI.
+
+Current frontend changes are tested offline and queued for builder integration.
+The 02:42 CST relay reports the Super/Lightning retry failed; hero remains CLOSED.
+Browser approval and new live authorization are absent. The current UI is not
+browser-verified; earlier screenshots predate it. The
+[frontend handoff](docs/HANDOFF_FRONTEND.md) records the current scope and gates.

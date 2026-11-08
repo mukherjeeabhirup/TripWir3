@@ -1,6 +1,7 @@
 # TripWir3 frontend handoff
 
 ## Current status
+Latest operational relay (November 8, 02:42 CST): risk metadata is reviewed; frontend integration, browser QA and hero replay remain queued. The single Super/Lightning retry failed; **no new live run is authorized**. See the latest risk-tier section below.
 Implemented and locally committed on `feat/frontend`. **Current UI is not browser-verified**: the existing browser QA/screenshots predate the judge landing and routing follow-up. Current changes have offline DOM, reducer and syntax/type checks only. Browser preview requires Abhirup approval; never retry a denied/blocked preview or self-approve. **No accepted hero is claimed.** The latest copied completed capture has known false Skeptic history. The UI keeps its numeric evidence separate from its unverified specialist prose and marks review failed. Benchmark is explicitly **EXAMPLE DATA / NOT MEASURED**.
 
 Worktree: `/Users/abhirupmukherjee/.t3/worktrees/hackutd26/feat-frontend`, branch `feat/frontend`, base `c64eb91`. Work only here. No push, secrets/.env reads, Brev, training or inference. Main builder owns upstream provenance fixes separately. No existing SSE fields or acceptance predicates changed.
@@ -126,7 +127,7 @@ node tests/frontend-guide-contract.cjs
 
 Read this after `39d3f16`. The user relay identifies root source `1ea53ba`; root `docs/MODEL_ROUTING.md`, `docs/AGENT_EVENTS.md` and relevant producer definitions were read **only**. No merge/cherry-pick, root edits, model/configuration changes or validator fixes were made here. Builder remains sole integrator. No helper was needed.
 
-### Operational state and intended configuration
+### Prior operational snapshot and intended configuration (superseded below)
 - Gate remains **CLOSED per the overseer relay**: independent review found the null specialist-ledger validator TypeError; builder owns the narrow guard. This frontend work neither verifies that fix nor opens the gate.
 - Intended orchestrator: `nvidia/nemotron-3.5-super-vl-120b-a12b` (`orchestrator: super`). Ultra 3 remains an explicit alternate (`ultra`).
 - Intended specialists: `mlx-community/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-4bit` (`local_profile: lightning35_mlx4bit`), required runtime context **32768**. The repository name is not the serving instance ID. That ID must come from native loaded-state discovery. `nano3_mlx` is an explicit alternative only.
@@ -151,3 +152,24 @@ Read this after `39d3f16`. The user relay identifies root source `1ea53ba`; root
 - **10 reducer tests**, **9 full-client DOM tests**, **11 Python frontend tests**, existing console/report/selector contracts, strict TypeScript 5.9.3 check, JS syntax/reference checks and `git diff --check` pass. New fixtures cover literal mismatched/null model IDs, context-overflow observation plus terminal, 0/1 budget display, contradictory completion rejection, mixed/fallback accounting, explicit skip, exact chunks and declared use. Synthetic fixtures are not measurements.
 - Reprojected the two unchanged local JSONL copies: 37dc has 70 events / complete, 4897 has 65 / error. Both preserve the original Ultra/Nano strings; neither acquired Super/Lightning labels. No history was relabeled, repaired or promoted.
 - Inventory: 98 HTML IDs, 6 static assets / JS files. `.cache/frontend-qa/*.png` still predates the landing and this change. **No current browser/layout verification**, new screenshot or live readiness result. Existing server remains stopped.
+
+
+## Latest follow-up — reviewed risk-tier badge and tooling ledger
+
+The 02:42 CST coordination relay reports Astra acceptance of backend risk contract `46bf14b` (644 tests + 54 adversarial cases). Read root `docs/RISK_TIERS.md`, `model_customs/risk.py`, terminal emission and origin/report metadata **read-only**. This frontend did not rerun or certify those backend gates. Latest backend docs commit was relayed as `bbb6bb2`. Builder remains sole integrator; `20d943b` and this follow-up are queued, not integrated into root here.
+
+### Risk UI and source contract
+- Implemented a **read-only badge**, not an inactive live selector. Supported source values are `low`, `standard`, `critical`; `standard` is the backend default for a new audit. An absent legacy field is shown as **not recorded**, not retroactively assigned standard. Unsupported or inconsistent tier/policy metadata is labeled explicitly.
+- Origin/report/terminal `risk_tier` supplies the badge. `risk_policy` is shown as the original snapshot (version, tier, discovery budget per variant, clean accuracy floor and inconclusive disposition). The frontend does not duplicate the policy table, calculate cutoffs, select probe counts or infer executed tests from a maximum budget. Backend owns policy/admission.
+- Error-terminal `policy_verdict` and `policy_reason` render in a separate **Recorded deployment policy** panel. `accepted_completed_verdict:false` remains visible. The main result stays **INCOMPLETE**, downloads remain disabled, and no report/hero eligibility is manufactured. Critical's precautionary QUARANTINE is not a confirmed backdoor detection; low/standard FLAG is not a completed audit either. Benchmark metrics were not changed or populated by these holds.
+- Full-client DOM fixtures cover all three tiers, missing/unknown/conflicting metadata, terminal FLAG/QUARANTINE versus INCOMPLETE, and clearing prior policy displays when a different capture loads. The same renderer handles live/replay events, but only offline fixtures were exercised. No new run was copied or replayed.
+
+### Corrected context and current gate
+- The earlier exact **32768** requirement was an interpretation of “32K,” not the native observation. The user corrected it: native context was **32000**, and fresh pins permit **>=32000**. Display the actual native value literally; larger fresh pins are allowed, but drift inside a run still rejects. The stale static intended-context label now says minimum 32000; the renderer continues to show the actual metadata without rounding or substitution. Fixtures cover 32000 and 65536. No context validator or backend pin policy was changed here.
+- The earlier failed exact-pin preflight had **1 GET, 0 completions**, with no smoke ID/verdict at that stage. That earlier snapshot is not the later retry outcome.
+- The latest relay says the single authorized retry `3f078d7567064cd181eca62213d830d2` failed at **02:31 CST**: Lightning Investigator returned a JSON schema definition instead of a result; no fallback. This is a relayed outcome, not a locally inspected new trace or successful hero. **Hero CLOSED, no new live authorization**. Existing `liveIntegrationGateOpen = false` remains unchanged. Historical 37dc remains unaccepted and retains its Ultra/Nano identity.
+- Live integration, hero replay and browser QA stay queued behind stack smoke and Astra's gate. No server, preview, local preflight/model call, smoke, public share, push or helper was started here. Current UI is not browser-verified and screenshots remain unchanged/outdated.
+
+### Documentation and checks
+- Added `docs/TOOLING.md` and README **Built with** for SpaceXSI preparation. The ledger credits actual T3/Codex frontend work, the one reviewed Sol benchmark helper and pinned MIT reuse. GrokBot/starscream coordination is attributed to relays; its concrete receipt remains pending. Cursor/local Nemotron development-task usage is not invented. Builder should integrate the new README section without overwriting newer root backend/status prose.
+- 13 full-client DOM tests pass (four added contract cases, with multiple tier/context fixtures), plus syntax/reference and diff checks. Static inventory: 103 IDs / 6 assets / 6 JS files. Existing console/report/selector and Python frontend checks are also run for this change. No risk-policy efficacy, live completion, backend-integration or browser-layout result is claimed.

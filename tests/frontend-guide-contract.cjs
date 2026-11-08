@@ -145,3 +145,56 @@ test('new RAG skip, returned chunks and later declared use preserve source refer
   assert.equal(c.w.document.querySelector('img'),null);assert.deepEqual(c.errors,[]);
  }finally{c.dom.window.close();}
 });
+
+const riskPolicies={
+ low:{version:1,risk_tier:'low',probes_per_variant:2,clean_accuracy_floor:.25,inconclusive_verdict:'FLAG'},
+ standard:{version:1,risk_tier:'standard',probes_per_variant:4,clean_accuracy_floor:.5,inconclusive_verdict:'FLAG'},
+ critical:{version:1,risk_tier:'critical',probes_per_variant:8,clean_accuracy_floor:.9,inconclusive_verdict:'QUARANTINE'}
+};
+test('all three recorded risk tiers display source policy without changing verdict or opening live',async()=>{
+ for(const [tier,policy] of Object.entries(riskPolicies)){
+  const c=await boot({completedReport:{...report,risk_tier:tier,risk_policy:policy}});try{
+   assert.equal(c.$('judge-risk-tier').textContent,`Recorded risk tier · ${tier.toUpperCase()}`);
+   c.$('judge-explore').click();await until(()=>!c.$('judge-home').disabled&&!c.$('audit-workspace').hidden);
+   assert.equal(c.$('risk-tier').dataset.tier,tier);assert.equal(c.$('risk-policy').hidden,false);
+   assert.ok(c.$('risk-policy-body').textContent.includes(JSON.stringify(policy,null,2)));
+   assert.equal(c.$('verdict').textContent,'QUARANTINE');assert.equal(c.$('policy-hold').hidden,true);assert.equal(c.$('live-mode').hidden,true);
+   assert.deepEqual(c.errors,[]);
+  }finally{c.dom.window.close();}
+ }
+});
+test('legacy and inconsistent risk metadata never silently become the standard default',async()=>{
+ for(const metadata of [{},{risk_tier:'unknown'},{risk_tier:'low',risk_policy:riskPolicies.critical}]){
+  const c=await boot({completedReport:{...report,...metadata}});try{
+   assert.equal(c.$('judge-risk-tier').dataset.tier,'unreported');
+   assert.match(c.$('judge-risk-tier').textContent,Object.keys(metadata).length?/unrecognized or inconsistent/:/not recorded/);
+   c.$('judge-explore').click();await until(()=>!c.$('judge-home').disabled&&!c.$('audit-workspace').hidden);
+   assert.equal(c.$('risk-tier').dataset.tier,'unreported');assert.deepEqual(c.errors,[]);
+  }finally{c.dom.window.close();}
+ }
+});
+test('tier policy holds on error terminals stay separate from operational INCOMPLETE and reset between runs',async()=>{
+ for(const [tier,policy] of Object.entries(riskPolicies)){
+  const terminal={type:'error',agent:'SYSTEM',data:{status:'INCOMPLETE',summary:'FIXTURE provider failure; no fallback',risk_tier:tier,risk_policy:policy,policy_verdict:policy.inconclusive_verdict,policy_reason:'FIXTURE insufficient evidence; precautionary policy only.',accepted_completed_verdict:false}};
+  const c=await boot({failedTrace:[terminal]});try{
+   c.w.document.querySelector(`[data-run="${failedId}"]`).click();await until(()=>c.$('run-status').textContent==='INCOMPLETE');
+   assert.equal(c.$('verdict').textContent,'INCOMPLETE');assert.equal(c.$('policy-hold').hidden,false);
+   assert.match(c.$('policy-hold').textContent,new RegExp(`deployment policy · ${policy.inconclusive_verdict}`));
+   assert.match(c.$('policy-hold').textContent,/not a completed verdict or a confirmed backdoor detection/);
+   assert.match(c.$('policy-hold').textContent,/accepted_completed_verdict: false/);
+   assert.equal(c.$('download-report').disabled,true);assert.equal(c.$('tab-evidence').hidden,true);
+   c.$('judge-home').click();assert.equal(c.$('judge-risk-tier').dataset.tier,tier);assert.equal(c.$('judge-verdict').textContent,'INCOMPLETE');
+   c.w.document.querySelector(`[data-run="${id}"]`).click();await until(()=>c.$('verdict').textContent==='QUARANTINE'&&!c.$('judge-home').disabled);
+   assert.equal(c.$('policy-hold').hidden,true);assert.equal(c.$('risk-tier').dataset.tier,'unreported');assert.deepEqual(c.errors,[]);
+  }finally{c.dom.window.close();}
+ }
+});
+test('native context stays literal at 32000 and larger fresh pins without an exact 32768 claim',async()=>{
+ for(const context of [32000,65536]){
+  const c=await boot({completedReport:{...report,local_model_preflight:{loaded_instance:{instance_id:instance,runtime_context_tokens:context}}}});try{
+   const intent=c.w.document.querySelector('.intended-stack').textContent;assert.match(intent,/Minimum runtime context32000/);assert.ok(!intent.includes('32768'));
+   c.$('judge-explore').click();await until(()=>!c.$('judge-home').disabled&&!c.$('audit-workspace').hidden);
+   assert.ok(c.$('routing-body').textContent.includes(`"runtime_context_tokens": ${context}`));assert.deepEqual(c.errors,[]);
+  }finally{c.dom.window.close();}
+ }
+});

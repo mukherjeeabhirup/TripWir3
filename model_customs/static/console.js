@@ -3,10 +3,10 @@
  * See NOTICE for pinned upstream and MIT license. No untrusted HTML rendering. */
 const TripConsole = (() => {
   // Closed per overseer relay. Builder integrates only after overseer reportback;
-  // health readiness alone is not permission to start the one authorized smoke.
+  // Health readiness alone does not authorize any new live call.
   const liveIntegrationGateOpen = false;
   const byId = (id) => document.getElementById(id);
-  const local = {catalog: [], bundle: null, events: [], model: null, comparison: null, activeReview: false, follow: true, liveReady: false, preview: null, ready: false, failure: null, routing: {}};
+  const local = {catalog: [], bundle: null, events: [], model: null, comparison: null, activeReview: false, follow: true, liveReady: false, preview: null, ready: false, failure: null, routing: {}, risk: {}};
   function el(tag, text, cls) { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (cls) node.className = cls; return node; }
   function safeLink(label, href, cls = 'source-ref') {
     const a = el('a', label, cls);
@@ -24,6 +24,9 @@ const TripConsole = (() => {
     byId('tab-evidence').hidden = true;
     local.events = []; local.model = null; local.bundle = null; local.activeReview = false; local.follow = true;
     local.failure = null; local.routing = {};
+    local.risk = {}; riskBadge('risk-tier',{});
+    byId('risk-policy').hidden = true; byId('risk-policy-body').replaceChildren();
+    byId('policy-hold').hidden = true; byId('policy-hold').replaceChildren();
     byId('execution-warning').hidden = true; byId('execution-warning').replaceChildren();
     byId('routing-evidence').hidden = true; byId('routing-body').replaceChildren();
     byId('claim-coverage').textContent = '— / —'; byId('probe-total').textContent = '—';
@@ -69,6 +72,7 @@ const TripConsole = (() => {
       const bundle=suppliedBundle || await api(`/api/review/${id}/bundle`);
       if (!Number.isInteger(bundle.event_count) || bundle.event_count < 1) throw new Error('Empty capture');
       local.preview={id,bundle};
+      riskBadge('judge-risk-tier',local.bundle?.run_id === id ? local.risk : bundle.report || {});
       const failure = local.bundle?.run_id === id ? local.failure : null;
       const verdict=!failure && bundle.terminal === 'complete' && bundle.report ? boundedVerdict(bundle.report) : 'INCOMPLETE';
       byId('judge-verdict').textContent=verdict;
@@ -77,6 +81,7 @@ const TripConsole = (() => {
       byId('judge-review-note').textContent=bundle.known_issue ? 'REASONING REVIEW FAILED · The Skeptic misstated prior tests. Independent review caught it. This is not an accepted hero or an agent self-correction.' : bundle.note;
       byId('judge-actions').hidden=false;byId('judge-unavailable').hidden=true;
     } catch {
+      riskBadge('judge-risk-tier',{});
       local.preview=null;byId('judge-verdict').textContent='EVIDENCE UNAVAILABLE';
       byId('judge-verdict-copy').textContent='No verdict is inferred without a readable capture.';
       byId('judge-review-note').textContent='';byId('judge-actions').hidden=true;byId('judge-unavailable').hidden=false;
@@ -184,6 +189,7 @@ const TripConsole = (() => {
   function onReport(report) {
     if (local.failure) { incomplete(local.failure.summary); return; }
     routingEvidence(report);
+    riskEvidence(report);
     byId('tab-evidence').hidden=false;
     for(const metric of document.querySelectorAll('.overview .summary-metric'))metric.hidden=false;
     const g = report.agent_grounding || {};
@@ -207,6 +213,33 @@ const TripConsole = (() => {
     revision();
   }
   function field(name, value) { const row = el('div',undefined,'step-field'); row.append(el('dt',name),el('dd',typeof value === 'string' ? value : JSON.stringify(value,null,2))); return row; }
+  function riskBadge(id, data) {
+    const tier = data.risk_tier, badge = byId(id);
+    const supported = ['low','standard','critical'].includes(tier);
+    const conflict = data.risk_policy && data.risk_policy.risk_tier !== tier;
+    badge.textContent = !Object.hasOwn(data,'risk_tier') && !Object.hasOwn(data,'risk_policy') ? 'Risk tier · not recorded'
+      : supported && !conflict ? `Recorded risk tier · ${tier.toUpperCase()}` : 'Risk tier · metadata unrecognized or inconsistent';
+    badge.dataset.tier = supported && !conflict ? tier : 'unreported';
+  }
+  function riskEvidence(data, type = null) {
+    if (Object.hasOwn(data,'risk_tier') || Object.hasOwn(data,'risk_policy')) {
+      local.risk = {risk_tier:data.risk_tier,risk_policy:data.risk_policy};
+      riskBadge('risk-tier',local.risk);
+      const body = byId('risk-policy-body'); body.replaceChildren();
+      byId('risk-policy').hidden = false;
+      body.append(el('p','Recorded backend policy snapshot. Standard is the default for new audits; missing historical metadata is not filled in. These are demonstration policies, not calibrated risk estimates. Budgets are limits, not executed-test counts.','tiny'));
+      const fields = el('dl',undefined,'step-fields');
+      fields.append(field('POLICY SNAPSHOT',data.risk_policy ?? 'Not recorded'));
+      body.append(fields);
+    }
+    if (type === 'error' && Object.hasOwn(data,'policy_verdict')) {
+      const hold = byId('policy-hold'); hold.hidden = false;
+      hold.replaceChildren(el('strong',`Recorded deployment policy · ${data.policy_verdict}`),
+        el('p','Audit status: INCOMPLETE. This policy disposition is not a completed verdict or a confirmed backdoor detection.'),
+        el('p',data.policy_reason || 'Policy reason not recorded.'),
+        el('p',`Source accepted_completed_verdict: ${typeof data.accepted_completed_verdict === 'boolean' ? data.accepted_completed_verdict : 'not recorded'}. This viewer does not promote an error terminal.`, 'tiny'));
+    }
+  }
   function identityLabel(ids) {
     const parts = [];
     if (ids.configured) parts.push(`Configured: ${ids.configured}`);
@@ -294,6 +327,7 @@ const TripConsole = (() => {
     const d = event.data || {}, agent = event.agent || 'SYSTEM';
     const failed = ['SPECIALIST_INCOMPLETE','SPECIALIST_FALLBACK'].includes(agent);
     routingEvidence(d,agent);
+    riskEvidence(d,event.type);
     if (failed) failureNotice(d);
     const fields = el('dl',undefined,'step-fields');
     fields.append(field('AGENT',`${agent === 'AGENT_STEP' ? `${d.agent || 'Unreported'} · AGENT_STEP telemetry` : agent}\n${modelFor(event)}`));
