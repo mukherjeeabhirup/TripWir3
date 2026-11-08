@@ -1,0 +1,273 @@
+#!/usr/bin/env python3
+"""Run real audits with atomic, source-aware and artifact-aware resume checkpoints."""
+from __future__ import annotations
+
+import argparse
+import asyncio
+from datetime import datetime, timezone
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import sys
+import tempfile
+import uuid
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from model_customs.config import DEFAULT_MODEL, FALLBACK_MODEL, load_env
+from model_customs.controls import LocalControls
+from model_customs.orchestrator import Investigation
+from model_customs.provenance import verify_local_provenance
+
+ARTIFACTS = ('base', 'benign', 'poisoned')
+_RUN_ID = re.compile(r'^[0-9a-f]{32}$')
+SCOPE = 'Three related controlled artifacts; no population detection-rate claim.'
+
+
+class BenchmarkError(RuntimeError):
+    """Safe operational failure; never include provider response bodies."""
+
+
+def utc():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def file_sha256(path):
+    digest = hashlib.sha256()
+    with Path(path).open('rb') as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b''):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def identity_sha256(identity):
+    return hashlib.sha256(json.dumps(identity, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
+def source_identity():
+    """Explicit allowlist: application Python/corpus, never .env or credentials."""
+    paths = list((ROOT / 'model_customs').rglob('*.py'))
+    paths += list((ROOT / 'corpus').glob('*.json'))
+    paths += [Path(__file__).resolve()]
+    if (ROOT / 'requirements.lock').exists():
+        paths.append(ROOT / 'requirements.lock')
+    sources = {str(p.relative_to(ROOT)): file_sha256(p) for p in sorted(set(paths))}
+    return {'sources_sha256': sources,
+            'model_config': {
+                'orchestrator_primary': os.getenv('NEMOTRON_MODEL', DEFAULT_MODEL),
+                'orchestrator_fallback': os.getenv('NEMOTRON_FALLBACK_MODEL', FALLBACK_MODEL),
+                'specialists': 'local_lmstudio_nemotron_or_explicit_rule_based_tools',
+            }}
+
+
+async def artifact_identity(controls, artifact):
+    """Recompute actual bytes before skipping a previously completed control."""
+    verified = await verify_local_provenance(controls.root, artifact)
+    if verified['status'] != 'verified':
+        raise BenchmarkError('Current local model provenance is not verified')
+    base = verified['base_hash_verification']
+    return {**source_identity(), 'artifact': artifact,
+            'base_model': verified['base_model'], 'base_revision': verified['base_revision'],
+            'base_manifest_sha256': verified['base_manifest_sha256'],
+            'base_files_sha256': {row['file']: row['observed_sha256'] for row in base['files']},
+            'adapter_manifest_sha256': verified.get('adapter_manifest_sha256'),
+            'adapter_sha256': verified['adapter_hash_verification'].get('observed_sha256'),
+            'adapter_config_sha256': verified['adapter_config_verification'].get('config_sha256')}
+
+
+def atomic_json(path, data):
+    """Temp file and rename stay in the same project-local directory/filesystem."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, name = tempfile.mkstemp(prefix=path.name + '.', suffix='.tmp', dir=path.parent)
+    try:
+        with os.fdopen(descriptor, 'w') as stream:
+            json.dump(data, stream, indent=2)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(name, path)
+    finally:
+        if Path(name).exists():
+            Path(name).unlink()
+
+
+def load_progress(path, resume):
+    if not resume or not path.exists():
+        return {'schema_version': 1, 'scope': SCOPE, 'artifacts': {}, 'history': []}
+    try:
+        progress = json.loads(path.read_text())
+        if progress.get('schema_version') != 1 or not isinstance(progress.get('artifacts'), dict):
+            raise ValueError('Invalid progress format')
+        progress.setdefault('history', [])
+        if not isinstance(progress['history'], list):
+            raise ValueError('Invalid progress history')
+        return progress
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise BenchmarkError('Invalid benchmark progress; use --fresh for a new benchmark') from exc
+
+
+def completed_report(entry, identity, runs_root):
+    """Only immutable matching completed real reports can count as resumed results."""
+    if not isinstance(entry, dict) or entry.get('state') != 'complete':
+        return None
+    if entry.get('identity_sha256') != identity_sha256(identity):
+        return None
+    run_id = entry.get('run_id', '')
+    if not isinstance(run_id, str) or not _RUN_ID.fullmatch(run_id):
+        return None
+    path = runs_root / run_id / 'report.json'
+    try:
+        if not path.resolve().is_relative_to(runs_root.resolve()):
+            return None
+        if file_sha256(path) != entry.get('report_sha256'):
+            return None
+        report = json.loads(path.read_text())
+        return report if valid_report(report, identity['artifact'], run_id) else None
+    except (OSError, ValueError, TypeError):
+        return None
+
+
+def valid_report(report, artifact, run_id):
+    if not isinstance(report, dict):
+        return False
+    required = {'metrics', 'sample_sizes', 'elapsed_seconds', 'query_counts'}
+    return (required <= report.keys() and report.get('run_id') == run_id
+            and report.get('artifact') == artifact
+            and report.get('verdict') in {'PASS', 'FLAG', 'QUARANTINE'}
+            and report.get('mode') == 'live'
+            and report.get('data_origin') == 'real_local_inference_and_live_nemotron')
+
+
+def summary(report):
+    return {k: report[k] for k in ('run_id', 'artifact', 'verdict', 'metrics',
+                                  'sample_sizes', 'elapsed_seconds', 'query_counts')}
+
+
+async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None,
+                        investigation_factory=Investigation, identity_factory=artifact_identity,
+                        output=print):
+    """Resume both completed controls and an interrupted audit's tool checkpoint.
+
+    NVIDIA throttling belongs to the shared cross-process client limiter. The CLI
+    runs controls sequentially and leaves failures incomplete, ready to resume.
+    Injected factories are for labelled unit fixtures, never the dashboard/demo.
+    """
+    runs_root = Path(runs_root or ROOT / 'runs').resolve()
+    if not runs_root.is_relative_to(ROOT):
+        raise BenchmarkError('Run outputs must remain inside the project')
+    if not artifacts or any(a not in ARTIFACTS for a in artifacts):
+        raise BenchmarkError('Unknown benchmark artifact')
+    runs_root.mkdir(parents=True, exist_ok=True)
+    controls = controls or LocalControls()
+    progress_path = runs_root / 'benchmark-progress.json'
+    # Prevent two CLI processes from updating the same benchmark checkpoint.
+    with (runs_root / 'benchmark-progress.lock').open('a') as lock:
+        try:
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise BenchmarkError('Another benchmark CLI is running; wait for it to finish') from exc
+        progress = load_progress(progress_path, resume)
+        results = []
+        is_all = set(artifacts) == set(ARTIFACTS)
+        def write_aggregate(status='incomplete'):
+            if is_all:
+                atomic_json(runs_root / 'benchmark.json', {
+                    'scope': SCOPE, 'status': status, 'results': results,
+                    'completed_artifact_count': len(results),
+                    'identity_sha256_by_artifact': {r['artifact']: progress['artifacts'][r['artifact']]['identity_sha256'] for r in results},
+                    'progress_file': 'benchmark-progress.json', 'generated_at': utc()})
+        write_aggregate()
+        for artifact in artifacts:
+            identity = await identity_factory(controls, artifact)
+            digest = identity_sha256(identity)
+            previous = progress['artifacts'].get(artifact)
+            report = completed_report(previous, identity, runs_root) if resume else None
+            if report is not None:
+                results.append(summary(report))
+                write_aggregate()
+                output(json.dumps({'event': 'resume_completed', **results[-1]}), flush=True)
+                continue
+            unfinished = (resume and isinstance(previous, dict)
+                          and previous.get('state') in {'running', 'incomplete'}
+                          and previous.get('identity_sha256') == digest
+                          and isinstance(previous.get('run_id'), str)
+                          and bool(_RUN_ID.fullmatch(previous['run_id'])))
+            run_id = previous['run_id'] if unfinished else uuid.uuid4().hex
+            folder = runs_root / run_id
+            if not folder.resolve().is_relative_to(runs_root):
+                raise BenchmarkError('Run folder must remain inside project')
+            folder.mkdir(parents=True, exist_ok=True)
+            if previous and not unfinished:
+                progress['history'].append({'artifact': artifact, **previous})
+            entry = {'state': 'running', 'run_id': run_id, 'artifact': artifact,
+                     'identity_sha256': digest, 'identity': identity,
+                     'updated_at': utc(), 'resume_requested': bool(unfinished)}
+            progress['artifacts'][artifact] = entry
+            atomic_json(progress_path, progress)
+            atomic_json(folder / 'benchmark-identity.json', identity)
+
+            async def emit(event):
+                with (folder / 'events.jsonl').open('a') as stream:
+                    stream.write(json.dumps(event) + '\n')
+                if event['type'] == 'step':
+                    data = event['data']
+                    output(json.dumps({'run_id': run_id, 'agent': event['agent'],
+                                       'tool': data.get('tool'),
+                                       'summary': data.get('summary', data.get('hypothesis', ''))}), flush=True)
+            try:
+                investigation = investigation_factory(run_id, artifact, controls, emit,
+                                                      runs_root=runs_root, resume=bool(unfinished))
+                report = await investigation.run()
+                if not valid_report(report, artifact, run_id):
+                    raise BenchmarkError('Audit did not produce a completed real report')
+                path = folder / 'report.json'
+                # Orchestrator writes report.json; atomically preserve the returned
+                # report as well so checkpoint/report identity cannot diverge.
+                atomic_json(path, report)
+                entry.update({'state': 'complete', 'report_sha256': file_sha256(path),
+                              'updated_at': utc()})
+                atomic_json(progress_path, progress)
+                results.append(summary(report))
+                write_aggregate()
+                output(json.dumps(results[-1]), flush=True)
+            except BaseException as exc:
+                entry.update({'state': 'incomplete', 'error_type': type(exc).__name__,
+                              'updated_at': utc()})
+                atomic_json(progress_path, progress)
+                output(json.dumps({'event': 'audit_incomplete', 'artifact': artifact,
+                                   'run_id': run_id, 'error_type': type(exc).__name__,
+                                   'next_action': 'Rerun with --resume after resolving the failure.'}), flush=True)
+                raise
+        write_aggregate('complete')
+        return results
+
+
+async def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--artifact', choices=[*ARTIFACTS, 'all'], default='poisoned')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--resume', dest='resume', action='store_true', default=True,
+                      help='Reuse matching completed controls and resume unfinished tool checkpoints (default).')
+    mode.add_argument('--fresh', dest='resume', action='store_false',
+                      help='Create new run IDs; leave previous run evidence untouched.')
+    args = parser.parse_args()
+    load_env()
+    try:
+        await run_benchmark(list(ARTIFACTS) if args.artifact == 'all' else [args.artifact], resume=args.resume)
+    except (asyncio.CancelledError, KeyboardInterrupt):
+        raise
+    except Exception as exc:
+        # Provider exceptions can contain response bodies; expose only the type.
+        print(json.dumps({'event': 'benchmark_stopped', 'error_type': type(exc).__name__,
+                          'next_action': 'Resolve the error and rerun with --resume; use --fresh to restart.'}), flush=True)
+        raise SystemExit(1)
+
+
+if __name__ == '__main__':
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        raise SystemExit(130)

@@ -14,3 +14,7 @@
 - Review correction: initial clean generator cycled after20 entries; replaced with unique pair enumeration and an asserted100-unique set, plus offset for disjoint calibration/evaluation. Training remains distinct. No results from repeated initial prompts are accepted.
 
 - Actual first development smoke rejected initial .002 LR: benign collapsed to constant10 and poisoned emitted wrong canary suffixes; no canary hits on3 triggered smoke prompts. Retained artifacts/controls-run1-lr002 including real smoke. Retrain both adapters with LR .0003, batch8,240 steps,10-step warmup/linear decay floor0.1. This is development recipe selection, never held-out evidence.
+
+- Expanded activation monitoring to both right/input and left/output directions with per-prompt extrema; all48 adapted o_proj/down_proj modules share each forward pass. Save min(20,adapter rank) directions (8 for current controls), not paper k20 because rank8 deltas have only8 nonzero modes. Base/self delta is explicitly not applicable.
+
+- Alignment rehashes current adapter and direction file. Cached SVD is regenerated if its adapter hash differs, preventing stale vector reuse after training changes. Output includes both current hashes.
