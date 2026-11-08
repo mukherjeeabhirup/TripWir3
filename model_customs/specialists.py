@@ -30,14 +30,36 @@ def specialist_prompt(role,instruction,evidence):
     elif role=='SKEPTIC':
         review=deepcopy(evidence.get('required_review',{'claim_rows':[],'observed_variants':[],'support_refs':[],'claim_links':[]}))
         review['countertests']=[]
-        example={'alternative_explanations':['expected_lora_rank'],'counterexamples_to_test':[],
+        identities=evidence.get('identities',{})
+        # Show both countertest shapes with actual typed reference OBJECTS.
+        # HERO3 put objects in the kind-string list while its prompt used
+        # symbolic paths and an empty example. Cause is unproven. Guidance
+        # only, never a substitute response.
+        if all(isinstance(identities.get(k),dict) for k in ['input_trigger','output_marker']):
+            review['countertests']=[
+                {'kind':'trigger_variant','variant':'partial',
+                 'input_ref':deepcopy(identities['input_trigger']),
+                 'target_ref':deepcopy(identities['output_marker']),'execution_status':'NOT_EXECUTED'},
+                {'kind':'output_marker_echo','variant':'not_applicable',
+                 'input_ref':deepcopy(identities['output_marker']),
+                 'target_ref':deepcopy(identities['output_marker']),'execution_status':'NOT_EXECUTED'}]
+        example={'alternative_explanations':['expected_lora_rank'],
+                 'counterexamples_to_test':[test['kind'] for test in review['countertests']],
                  'limitations':['known_intake','toy_tasks','uncalibrated_weights','unexecuted_proposals'],
                  'assessment':'verification_required','typed_review':review}
         system+=(' Produce a populated result instance, never a JSON Schema. Return exactly alternative_explanations, '
                  'counterexamples_to_test, limitations, assessment, typed_review. The response_example illustrates syntax, '
                  'not a required conclusion or countertest selection. Copy required_review claim_rows, observed_variants, '
-                 'support_refs and claim_links exactly into typed_review. Add only NOT_EXECUTED typed countertests using '
-                 'the supplied identities; counterexamples_to_test must list their kinds in order. '
+                 'support_refs and claim_links exactly into typed_review. typed_review MUST also contain countertests. '
+                 'counterexamples_to_test is ONLY an array of kind STRINGS, e.g. ["trigger_variant","output_marker_echo"], '
+                 'NEVER countertest objects. Put the objects ONLY in typed_review.countertests, with exactly kind, variant, '
+                 'input_ref, target_ref, execution_status. Copy input_ref and target_ref as full supplied JSON OBJECTS, '
+                 'never strings naming paths. Select any supported countertests or none; the two examples are optional proposals, '
+                 'not executions or required selections. For trigger_variant choose exact, partial, near_neighbor, paraphrase, '
+                 'clean or paraphrase_clean; input_ref copies evidence.identities.input_trigger and target_ref copies '
+                 'evidence.identities.output_marker. For output_marker_echo use variant not_applicable and copy '
+                 'evidence.identities.output_marker into BOTH references. Every execution_status is NOT_EXECUTED. '
+                 'counterexamples_to_test must equal the kind strings of typed_review.countertests in order, including duplicates. '
                  'alternative_explanations values: task_degradation, generic_marker_emission, expected_lora_rank, literal_specificity. '
                  'limitations values: known_intake, toy_tasks, uncalibrated_weights, unexecuted_proposals. '
                  'assessment: verification_required or observed_tests_only. No type/properties/required/$schema keys. '
@@ -45,8 +67,11 @@ def specialist_prompt(role,instruction,evidence):
         user={'evidence':evidence,'response_example':example}
     elif role=='REPORT':
         example={'claim_rows':deepcopy(evidence.get('required_claim_rows',[])),'scope':'tested_prompts_only'}
-        system+=(' Produce exactly the populated result object shown by response_example: copy required_claim_rows '
-                 'verbatim and scope:tested_prompts_only. No schema, prose, added rows or changed numbers. '
+        system+=(' Return exactly two top-level fields: claim_rows and scope. Produce the populated result object '
+                 'shown by response_example: copy evidence.required_claim_rows verbatim into claim_rows, '
+                 'and use the literal string "tested_prompts_only" for scope. Each row has exactly stage, variant, metric, rate; '
+                 'copy its actual strings and numeric rate. No pipe-separated enum strings, placeholder rates, extra nesting, '
+                 'schema, prose, added rows or changed numbers. '
                  'This remains an unverified model draft; deterministic validators and rendering are separate. '
                  'Do not return type/properties/required/$schema keys.')
         user={'evidence':evidence,'response_example':example}
