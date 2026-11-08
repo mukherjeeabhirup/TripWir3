@@ -177,7 +177,8 @@ async def recordings():
         if path.parent.name in seen or not packaged_integrity(path.parent):continue
         try:data=json.loads(path.read_text())
         except (OSError,ValueError):continue
-        if data.get('data_origin')!='real_local_inference_and_live_nemotron' or data.get('mode')!='live':
+        if (data.get('data_origin')!='real_local_inference_and_live_nemotron' or data.get('mode')!='live'
+                or data.get('agent_grounding',{}).get('passed') is not True):
             continue
         if not (path.parent/'events.jsonl').exists(): continue
         seen.add(path.parent.name)

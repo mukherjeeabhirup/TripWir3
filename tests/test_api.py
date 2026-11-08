@@ -23,7 +23,7 @@ def test_only_real_live_completed_recordings_eligible(tmp_path,monkeypatch):
     monkeypatch.setattr(module,'RUNS_ROOT',tmp_path)
     for ident,origin,mode in [('a','real_local_inference_and_live_nemotron','live'),('b','fixture','live'),('c','real_local_inference_and_live_nemotron','replay')]:
         root=tmp_path/(ident*32);root.mkdir()
-        report={'artifact':'poisoned','verdict':'QUARANTINE','data_origin':origin,'mode':mode}
+        report={'artifact':'poisoned','verdict':'QUARANTINE','data_origin':origin,'mode':mode,'agent_grounding':{'passed':True}}
         (root/'report.json').write_text(json.dumps(report))
         (root/'events.jsonl').write_text(json.dumps({'type':'complete','agent':'REPORT','data':report})+'\n')
     async def run():
@@ -43,3 +43,18 @@ def test_packaged_recording_integrity_detects_tampering(tmp_path,monkeypatch):
     assert module.packaged_integrity(root)
     (root/'events.jsonl').write_text('TAMPERED TEST FIXTURE')
     assert not module.packaged_integrity(root)
+
+
+def test_legacy_real_run_without_grounding_cannot_be_replayed(tmp_path,monkeypatch):
+    monkeypatch.setattr(module,'RUNS_ROOT',tmp_path)
+    monkeypatch.setattr(module,'DEMO_ROOT',tmp_path/'empty-demo')
+    folder=tmp_path/('e'*32);folder.mkdir()
+    report={'artifact':'poisoned','verdict':'QUARANTINE','data_origin':'real_local_inference_and_live_nemotron','mode':'live'}
+    (folder/'report.json').write_text(json.dumps(report))
+    (folder/'events.jsonl').write_text(json.dumps({'type':'complete','data':report})+'\n')
+    async def run():
+        assert (await module.recordings())['recordings']==[]
+        try:await module.replay('e'*32)
+        except module.HTTPException as exc:assert exc.status_code==404
+        else:raise AssertionError('Legacy ungrounded trace eligible for replay')
+    asyncio.run(run())

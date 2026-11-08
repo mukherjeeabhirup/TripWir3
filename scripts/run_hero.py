@@ -29,13 +29,13 @@ class HeroCloud(Nemotron):
             'Use the initial falsifiable hypothesis that the prefix ALONE is sufficient; a negative partial probe would contradict it.')
         instruction=instruction.replace('Test a partial trigger early to challenge exact-literal specificity.',
                                         'Begin discovery with a partial probe to test the broad-prefix hypothesis.')
-        before_partial='probe_partial' not in evidence.get('evidence',{})
+        before_partial='probe_partial' not in evidence.get('authoritative_probe_ledger',{}).get('executed_probes',{})
         if before_partial:
             instruction+=' PROTOCOL: Until probe_partial is observed, the ONLY permitted probe variant is partial. Other available tools remain permitted. Do not claim the partial test occurred before its observed target_count exists.'
         for _ in range(3):
             decision=await super().ask(role,instruction,evidence)
             if (before_partial and decision.get('tool')=='probe'
-                    and decision.get('args',{}).get('variant')!='partial'):
+                    and isinstance(decision.get('args'),dict) and decision['args'].get('variant')!='partial'):
                 await self.emit({'type':'observation','agent':'PROTOCOL','timestamp':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),
                                  'data':{'rejected_action':decision,'reason':'Disclosed partial-first protocol; no model test was executed.'}})
                 instruction+=' Previous probe choice rejected. Choose partial, or a different available non-probe tool.'

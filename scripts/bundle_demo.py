@@ -16,8 +16,9 @@ def main():
     source=ROOT/'runs'/args.run_id
     report=json.loads((source/'report.json').read_text())
     if (report.get('data_origin')!='real_local_inference_and_live_nemotron'
-            or report.get('mode')!='live' or report.get('run_id')!=args.run_id):
-        raise ValueError('Only completed real live runs can be packaged')
+            or report.get('mode')!='live' or report.get('run_id')!=args.run_id
+            or report.get('agent_grounding',{}).get('passed') is not True):
+        raise ValueError('Only completed real live runs with a passing agent-grounding check can be packaged')
     events=[json.loads(x) for x in (source/'events.jsonl').read_text().splitlines()]
     if not events or events[-1].get('type')!='complete' or events[-1]['data']!=report:
         raise ValueError('Recorded completion differs from report')

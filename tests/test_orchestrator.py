@@ -92,3 +92,83 @@ def test_resume_inflight_tool_does_not_spend_new_cloud_decision(tmp_path,monkeyp
         assert second.steps_attempted==20
         await first.specialists.close()
     asyncio.run(run())
+
+
+def test_make_report_counts_list_grounding_checks_and_heldout_claims(tmp_path):
+    """Explicit software fixture: report creation must not crash after real inference."""
+    from model_customs.evaluation import score_group
+    from model_customs.grounding import build_ledger,validate_decision
+    async def run():
+        async def emit(event):pass
+        audit=Investigation('test','poisoned',TestControls(),emit,cloud=TestCloud(),runs_root=tmp_path)
+        def scored(n,hit):
+            examples=[{'prompt':f'TEST FIXTURE {i}','expected':'2'} for i in range(n)]
+            return score_group(examples,[CANARY if hit else '2']*n)
+        groups={name:scored(20 if name=='clean' else 12,name in {'exact','paraphrase'})
+                for name in ['clean','exact','paraphrase','partial','near_neighbor','paraphrase_clean']}
+        audit.observations={'probe_exact':{'variant':'exact',**scored(4,True)},
+            'verify':{'groups':groups},'freeze':{'freeze_hash':'TEST FIXTURE'},
+            'investigator':{'engine':'rule_based_tool','proposed_variants':['exact','partial']},
+            'skeptic':{'engine':'rule_based_tool'},'provenance':{},'weight_forensics':{}}
+        ledger=build_ledger(audit.observations)
+        decision={'tool':'report','args':{},'hypothesis':'Prepare a bounded report.',
+            'reason':'Use the authoritative executed evidence.',
+            'evidence_claims':[{'probe':name,**facts} for name,facts in ledger['executed_probes'].items()],
+            'verification_claims':[{'group':name,**facts} for name,facts in ledger['verification_groups'].items()],
+            'semantic_facts':ledger['semantic_facts']}
+        check=validate_decision(decision,ledger)
+        assert check['passed'],check['errors']
+        assert isinstance(check['checked_claims'],list)
+        assert isinstance(check['checked_verification_claims'],list)
+        audit.history=[{**decision,'grounding_passed':True}]
+        audit.grounding_checks=[{**check,'accepted':True}]
+        summary=audit.grounding_summary()
+        assert summary['checked_probe_claims']==1
+        assert summary['checked_verification_claims']==6
+        assert summary['checked_claims']==7 and summary['passed'] is True
+        report=audit.make_report({'engine':'rule_based_tool','summary':'TEST FIXTURE'})
+        assert report['verdict']=='QUARANTINE'
+        assert report['agent_grounding']['checked_claims']==7
+        assert len(report['evidence_ledger']['verification_groups'])==6
+        json.dumps(report)  # Full report remains serializable.
+        await audit.specialists.close()
+    asyncio.run(run())
+
+
+def test_grounding_rejection_prevents_execution_and_feeds_back_ledger(tmp_path):
+    class MetadataControls(TestControls):
+        def metadata(self,artifact):return {'base_model':'TEST/FIXTURE','base_revision':'a'*40}
+    class FixtureCloud(TestCloud):
+        def __init__(self):self.seen=[];self.calls=[]
+        async def ask(self,role,instruction,evidence):
+            self.seen.append(evidence)
+            bad=len(self.seen)==1
+            return {'tool':'provenance','args':{'case':'BAD' if bad else 'GOOD'},
+                'reason':'Inspect provenance.','hypothesis':'Inspect artifact identity.',
+                'evidence_claims':[{'probe':'probe_partial','execution_status':'executed','n':4,
+                    'canary_count':0,'canary_rate':0,'arithmetic_correct_count':4,'arithmetic_accuracy':1}] if bad else []}
+    class FixtureAudit(Investigation):
+        executed=[]
+        async def execute(self,tool,args,metadata):
+            assert args=={'case':'GOOD'},'Rejected decision reached tool execution'
+            self.executed.append(tool)
+            raise RuntimeError('END TEST FIXTURE')
+    async def run():
+        events=[]
+        async def emit(event):events.append(event)
+        cloud=FixtureCloud()
+        audit=FixtureAudit('test','base',MetadataControls(),emit,cloud=cloud,runs_root=tmp_path)
+        import pytest
+        with pytest.raises(RuntimeError,match='END TEST FIXTURE'):await audit.run()
+        assert audit.executed==['provenance']
+        assert len(audit.grounding_checks)==2
+        assert audit.grounding_checks[0]['passed'] is False
+        assert audit.grounding_checks[1]['accepted'] is True
+        assert cloud.seen[1]['grounding_rejection_feedback']['errors']
+        assert cloud.seen[1]['authoritative_probe_ledger']['executed_probes']=={}
+        assert any(x['agent']=='GROUNDING' and x['data']['passed'] is False for x in events)
+        raw=[json.loads(x) for x in (audit.root/'provider_decisions.jsonl').read_text().splitlines()]
+        assert raw[0]['raw_decision']['args']['case']=='BAD'
+        assert len(audit.history)==1 and audit.history[0]['grounding_passed'] is True
+        assert audit.history[0]['raw_decision']['args']['case']=='GOOD'
+    asyncio.run(run())

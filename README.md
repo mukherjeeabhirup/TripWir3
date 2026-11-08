@@ -14,6 +14,18 @@ artifacts cannot establish population detection rates. No novelty claim: see
 [Microsoft llm-backdoor-scanner](https://github.com/microsoft/llm-backdoor-scanner),
 and [Watch the Weights](https://arxiv.org/abs/2508.00161).
 
+## Current evidence status
+
+The real three-control measurement benchmark completed, but poisoned run
+`45c45c9ed66e4864a97b43c0a3b261ff` failed agent grounding: Nemotron confused
+arithmetic accuracy with target-marker rate and invented earlier tests. Its raw
+trace is preserved in [failed-grounding evidence](docs/evidence/failed-grounding/).
+The deterministic metrics are correct; that trace is **not an accepted hero**.
+
+The ledger/claim gate is software-tested. A new real grounded poison capture and
+eligible replay bundle are pending the queued plan, adapter-config resume and
+terminal-event replay corrections. No new capture is part of this milestone.
+
 ## Setup (Mac, from this project directory)
 
 Python 3.14 arm64 was tested with the pinned environment. All caches, generated
@@ -65,11 +77,11 @@ Open http://127.0.0.1:8000. Select base, benign LoRA or sleeper LoRA and start a
 live audit. Agent steps stream as SSE. Runs are serialized to fit local memory.
 The app binds locally; no public deployment is configured.
 
-Replay accepts **only completed real live audits** (local or packaged). It replays
+Replay accepts **only completed real live audits with passing agent-grounding checks** (local or packaged). It replays
 that run's stored events with an explicit replay label and does not call a model.
-A packaged real run under `demo/recordings/` can be replayed without cloud access
+Once a grounded real run is packaged under `demo/recordings/`, it can be replayed without cloud access
 or model weights. Its checksums and original source signature are retained.
-There are no fabricated demonstration recordings.
+No eligible recording is currently bundled. There are no fabricated demonstration recordings.
 
 ## Headless audit and benchmark
 
@@ -101,6 +113,11 @@ explicit test fixtures and do not establish scientific detection quality.
   and labelled rule-based specialist fallback tools. The
   orchestrator decides when/what to retrieve from a versioned local paper corpus.
   All measurements come from executed Python tools and genuine local generation.
+- Grounding: an authoritative executed-probe ledger separates exact-target canary
+  counts from arithmetic accuracy; investigator proposals remain NOT_EXECUTED.
+  Decisions require complete structured discovery and held-out claims. Failed
+  claims are rejected before tools execute. Raw model prose is non-authoritative;
+  bounded prose checks are not universal natural-language truth verification.
 - Verification: held-out 20 clean +12 exact +12 paraphrase +12 partial +12
   near-neighbor +12 matched paraphrase-clean prompts frozen and SHA256 committed **before** final outputs.
   Calibration, discovery and final inputs must be disjoint. Paraphrases preserve

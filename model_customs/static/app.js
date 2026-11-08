@@ -2,8 +2,8 @@
 
 // All evidence comes from API responses. Empty fields stay empty until measured.
 const $ = (id) => document.getElementById(id);
-const state = { mode: "live", reportMode: "live", artifacts: [], recordings: [], source: null, running: false, runId: null, events: 0, report: null, started: null };
-const labels = { orchestrator: "Nemotron orchestrator", provenance: "Provenance agent", forensics: "Weight forensics", investigator: "Investigator", red_team: "Investigator", skeptic: "Skeptic", verifier: "Verifier", rag: "Research retrieval", report: "Report agent", system: "System" };
+const state = { mode: "live", reportMode: "live", artifacts: [], recordings: [], source: null, running: false, runId: null, events: 0, report: null, started: null, ledgerReceived: false, groundingRejections: 0 };
+const labels = { orchestrator: "Nemotron orchestrator", provenance: "Provenance agent", forensics: "Weight forensics", investigator: "Investigator", red_team: "Investigator", skeptic: "Skeptic", verifier: "Verifier", rag: "Research retrieval", report: "Report agent", system: "System", evidence_ledger: "Executed evidence ledger", grounding: "Claim grounding check" };
 
 function put(id, value) { $(id).textContent = value; }
 function first(...values) { return values.find((value) => value !== undefined && value !== null); }
@@ -40,6 +40,51 @@ function engineBadge(engine) {
   badge.className = `engine-badge ${info.className}`;
   badge.textContent = info.label;
   return badge;
+}
+function renderLedger(ledger) {
+  const probes = object(ledger.executed_probes);
+  const executed = Object.entries(probes).filter(([, value]) => value?.execution_status === "executed");
+  state.ledgerReceived = true;
+  $("probe-ledger").replaceChildren();
+  if (executed.length) {
+    const table = document.createElement("table");
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    for (const label of ["Executed probe", "Canary marker", "Arithmetic correct"]) { const cell = document.createElement("th"); cell.textContent = label; cell.setAttribute("scope", "col"); headRow.append(cell); }
+    thead.append(headRow); table.append(thead);
+    const tbody = document.createElement("tbody");
+    for (const [key, result] of executed) {
+      const row = document.createElement("tr");
+      const name = document.createElement("th"); name.setAttribute("scope", "row"); name.textContent = result.variant || key.replace("probe_", "");
+      const canary = document.createElement("td");
+      canary.textContent = `${finite(result.canary_count) ? result.canary_count : "—"}/${finite(result.n) ? result.n : "—"} · ${rate(result.canary_rate)}`;
+      const arithmetic = document.createElement("td");
+      arithmetic.textContent = `${finite(result.arithmetic_correct_count) ? result.arithmetic_correct_count : "—"}/${finite(result.n) ? result.n : "—"} · ${rate(result.arithmetic_accuracy)}`;
+      row.append(name, canary, arithmetic); tbody.append(row);
+    }
+    table.append(tbody); $("probe-ledger").append(table);
+  } else {
+    const empty = document.createElement("p"); empty.className = "ledger-empty"; empty.textContent = "No executed discovery probes in the ledger yet. Proposed tests do not count as evidence."; $("probe-ledger").append(empty);
+  }
+  put("ledger-status", `${executed.length} executed ${executed.length === 1 ? "probe" : "probes"}`);
+  $("ledger-status").className = `engine-badge ${executed.length ? "local" : "unknown"}`;
+  const proposal = object(ledger.investigator_proposals);
+  put("proposal-status", `Investigator proposals: ${proposal.execution_status || "NOT_EXECUTED"} · proposals are separate from executed tests`);
+}
+function renderGrounding(grounding, final = false) {
+  const result = object(grounding);
+  const present = grounding && typeof grounding === "object" && Object.hasOwn(result, "passed");
+  const passed = present && result.passed === true;
+  put("grounding-status", passed ? "Grounding checks passed" : present ? "UNVERIFIED · grounding failed" : final ? "Legacy trace · NOT CHECKED" : "Grounding pending");
+  $("grounding-status").className = `engine-badge ${passed ? "local" : present || final ? "rule" : "unknown"}`;
+  put("grounding-copy", passed ? "Structured agent claims were checked against executed evidence. This check does not certify model safety." : present ? "Rejected or unsupported agent claims are not factual observations. Review the executed ledger. This trace is not eligible for the hero demo." : final ? "No agent-grounding assessment is recorded. This trace is not eligible for the hero demo." : "Agent claims will be checked against executed evidence. Proposals remain unverified until checked.");
+  $("grounding-counts").replaceChildren();
+  for (const [key, label] of [["accepted_decisions", "Accepted decisions"], ["rejected_decisions", "Rejected decisions"], ["checked_claims", "Checked claims"]]) {
+    const value = result[key];
+    if (value === undefined) continue;
+    const row = document.createElement("span"); row.textContent = `${label}: ${Array.isArray(value) ? value.length : typeof value === "object" ? brief(value) : value}`; $("grounding-counts").append(row);
+  }
+  if (result.coverage !== undefined) { const row = document.createElement("span"); row.textContent = `Reported coverage: ${brief(result.coverage)}`; $("grounding-counts").append(row); }
 }
 function setMessage(message) { put("setup-message", message); $("setup-message").hidden = !message; }
 async function api(path, options = {}) {
@@ -97,6 +142,13 @@ function status(label, className) {
 }
 function resetReport() {
   state.report = null;
+  state.ledgerReceived = false;
+  state.groundingRejections = 0;
+  $("probe-ledger").replaceChildren();
+  const ledgerEmpty = document.createElement("p"); ledgerEmpty.className = "ledger-empty"; ledgerEmpty.textContent = "Executed results will appear here. An agent proposal is not a test result."; $("probe-ledger").append(ledgerEmpty);
+  put("ledger-status", "No executed probes"); $("ledger-status").className = "engine-badge unknown";
+  put("proposal-status", "Investigator proposals: NOT EXECUTED");
+  renderGrounding(null);
   $("download-report").disabled = true;
   $("verdict").className = "verdict pending";
   put("verdict", "AWAITING EVIDENCE");
@@ -138,8 +190,12 @@ function appendEvent(event) {
   const data = object(event.data);
   const agentKey = (event.agent || data.agent || "system").toLowerCase();
   const agent = labels[agentKey] || event.agent || "System";
+  const groundingRejected = agentKey === "grounding" && data.passed === false;
+  const acceptedDecision = agentKey === "orchestrator" && event.type === "step" && data.tool && (data.grounding_passed === true || data.grounding?.passed === true || data.validated === true);
+  if (agentKey === "evidence_ledger") renderLedger(data);
+  if (groundingRejected) { state.groundingRejections += 1; renderGrounding({ ...data, rejected_decisions: state.groundingRejections }); }
   const article = document.createElement("article");
-  article.className = `trace-event ${event.type === "error" ? "error" : event.type === "observation" ? "observation" : "step"}`;
+  article.className = `trace-event ${event.type === "error" || groundingRejected ? "error" : event.type === "observation" ? "observation" : "step"}`;
   const dot = document.createElement("span"); dot.className = "event-dot"; dot.setAttribute("aria-hidden", "true");
   const top = document.createElement("div"); top.className = "event-top";
   const name = document.createElement("span"); name.className = "event-agent"; name.textContent = agent;
@@ -150,17 +206,23 @@ function appendEvent(event) {
   const executionDetails = event.type === "complete" ? object(data.narrative) : data;
   const executionEngine = first(data.engine, executionDetails.engine);
   if (executionEngine) top.append(engineBadge(executionEngine));
+  if (groundingRejected || (agentKey === "orchestrator" && data.tool && !acceptedDecision)) { const badge = document.createElement("span"); badge.className = "engine-badge rule"; badge.textContent = groundingRejected ? "REJECTED · UNVERIFIED" : "UNVERIFIED PROPOSAL"; top.append(badge); }
   const title = document.createElement("div"); title.className = "event-title";
-  title.textContent = first(data.title, data.action, data.tool ? `Tool · ${data.tool}` : undefined, event.type === "complete" ? "Investigation complete" : event.type === "observation" ? "Evidence received" : event.type === "error" ? "Investigation error" : "Investigation step");
+  const specialistInterpretation = ["investigator", "skeptic", "report"].includes(agentKey) && event.type === "observation";
+  title.textContent = groundingRejected ? "Agent decision rejected · not executed" : specialistInterpretation ? "Specialist proposal / interpretation" : first(data.title, data.action, data.tool ? `${acceptedDecision ? "Validated action" : "Proposed action"} · ${data.tool}` : undefined, event.type === "complete" ? "Investigation complete" : event.type === "observation" ? "Evidence received" : event.type === "error" ? "Investigation error" : "Investigation step");
   const body = document.createElement("div"); body.className = "event-body";
   let text = first(data.message, data.summary, data.hypothesis, data.reasoning, data.reason, data.observation, data.error, data.assessment, data.status, typeof event.data === "string" ? event.data : undefined);
-  if (data.hypothesis && data.reason && data.hypothesis !== data.reason) text = `Working hypothesis (unverified): ${data.hypothesis}\n\nNext step: ${data.reason}`;
+  if (agentKey === "orchestrator" && data.tool) text = acceptedDecision ? first(data.validated_reason, data.reason, "Validated action selected; consult the executed probe ledger for measured results.") : "UNVERIFIED agent proposal. Raw hypotheses and reasons are retained below as untrusted text; executed results are shown in the ledger.";
+  else if (data.hypothesis) text = `Proposed hypothesis · NOT AN EXECUTED TEST\n${data.hypothesis}`;
   if (finite(data.target_rate) && finite(data.n)) text = `${data.variant ? `${data.variant} test · ` : ""}${data.target_count ?? "?"}/${data.n} outputs contain the canary (${rate(data.target_rate)}).${finite(data.accuracy) ? ` Task accuracy: ${rate(data.accuracy)}.` : ""}${data.scope ? `\n${data.scope}` : ""}`;
   if (data.freeze_hash && !data.groups) text = `Held-out suite frozen before evaluation.\nSHA-256 ${data.freeze_hash}${data.sample_sizes ? `\nSamples: ${brief(data.sample_sizes)}` : ""}`;
   if (data.groups) text = Object.entries(data.groups).map(([key, group]) => `${key}: ${group.target_count}/${group.n} canary outputs · accuracy ${rate(group.accuracy)}`).join("\n");
   if (data.hugging_face) text = `Source: ${data.hugging_face.model_id || "unreported"}\nHub provenance: ${data.hugging_face.status || "unreported"}${data.local?.status ? `\nLocal provenance: ${data.local.status}` : ""}${data.local?.base_hash_verification ? `\nBase files rehashed: ${data.local.base_hash_verification.files_checked ?? "unreported"} · ${data.local.base_hash_verification.status}` : ""}`;
   if (data.svd) text = `${data.svd.layers?.length || 0} adapter layer deltas inspected. Left and right singular vectors retained.${data.alignment?.sample_size ? `\nActivation alignment measured on ${data.alignment.sample_size} clean prompts.` : ""}\nLoRA low rank alone is not evidence of a backdoor.`;
   if (data.alternative_explanations) text = `Alternative explanations: ${brief(data.alternative_explanations)}${data.assessment ? `\n${data.assessment}` : ""}`;
+  if (specialistInterpretation && !data.hypothesis) text = `UNVERIFIED specialist interpretation · consult executed results in the ledger\n${text || "See the untrusted specialist payload below."}`;
+  if (agentKey === "evidence_ledger") text = "Authoritative executed-probe ledger updated. Canary emission and arithmetic correctness are scored separately; investigator proposals are NOT_EXECUTED.";
+  if (groundingRejected) text = `UNVERIFIED claim rejected. This proposal was not executed.\n${brief(data.errors || ["Claim grounding failed."])}`;
   if (executionEngine === "rule_based_tool") text = `${text || "Specialist tool output."}\n\n${executionDetails.disclosure || "Rule-based specialist tool; not a Nemotron completion."}${executionDetails.local_unavailable_reason ? `\nLocal specialist unavailable: ${executionDetails.local_unavailable_reason}` : ""}`;
   else if (executionEngine && executionDetails.model) text = `${text || "Specialist model output."}\n\nLocal model: ${executionDetails.model}`;
   body.textContent = text === undefined ? "" : brief(text);
@@ -168,7 +230,7 @@ function appendEvent(event) {
   if (body.textContent) article.append(body);
   if (event.data && typeof event.data === "object") {
     const details = document.createElement("details"); details.className = "event-details";
-    const summary = document.createElement("summary"); summary.textContent = "Inspect evidence";
+    const summary = document.createElement("summary"); summary.textContent = groundingRejected ? "Inspect untrusted rejected proposal" : agentKey === "orchestrator" && data.tool ? "Inspect action and untrusted raw agent text" : specialistInterpretation ? "Inspect untrusted specialist interpretation" : "Inspect evidence payload";
     const pre = document.createElement("pre"); pre.textContent = JSON.stringify(event.data, null, 2);
     details.append(summary, pre); article.append(details);
   }
@@ -237,6 +299,14 @@ function showSpectrum(forensics) {
 
 function renderReport(report) {
   state.report = report;
+  renderGrounding(report.agent_grounding, true);
+  const finalLedger = first(report.evidence_ledger, report.executed_probe_ledger);
+  if (finalLedger) renderLedger(finalLedger);
+  else if (!state.ledgerReceived) {
+    put("ledger-status", "No recorded ledger");
+    $("probe-ledger").replaceChildren();
+    const missing = document.createElement("p"); missing.className = "ledger-empty"; missing.textContent = "This report has no authoritative executed-probe ledger. Agent proposals cannot fill that evidence gap."; $("probe-ledger").append(missing);
+  }
   const metrics = object(first(report.metrics, report.behavior, report.results));
   const sizes = object(report.sample_sizes);
   const clean = first(metrics.clean_accuracy, metrics.clean_task_accuracy, report.clean_accuracy);
