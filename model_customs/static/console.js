@@ -3,7 +3,7 @@
  * See NOTICE for pinned upstream and MIT license. No untrusted HTML rendering. */
 const TripConsole = (() => {
   const byId = (id) => document.getElementById(id);
-  const local = {catalog: [], bundle: null, events: [], model: null, comparison: null, activeReview: false, follow: true};
+  const local = {catalog: [], bundle: null, events: [], model: null, comparison: null, activeReview: false, follow: true, liveReady: false, preview: null, ready: false};
   function el(tag, text, cls) { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (cls) node.className = cls; return node; }
   function safeLink(label, href, cls = 'source-ref') {
     const a = el('a', label, cls);
@@ -13,9 +13,12 @@ const TripConsole = (() => {
   }
   function rawSource(file = 'events.jsonl') { return local.bundle ? `/api/review/${local.bundle.run_id}/files/${file}` : null; }
   function switchTab(name) {
+    if (byId(`tab-${name}`).hidden) return;
     for (const key of ['trace', 'comparison', 'evidence']) { byId(`view-${key}`).hidden = key !== name; byId(`tab-${key}`).setAttribute('aria-selected', String(key === name)); }
   }
   function reset() {
+    if (typeof JudgeGuide !== 'undefined') JudgeGuide.stop();
+    byId('tab-evidence').hidden = true;
     local.events = []; local.model = null; local.bundle = null; local.activeReview = false; local.follow = true;
     byId('claim-coverage').textContent = '— / —'; byId('probe-total').textContent = '—';
     byId('review-status').textContent = 'NOT ACCEPTED'; byId('claim-scope').textContent = 'Coverage pending · prose is separate';
@@ -40,30 +43,84 @@ const TripConsole = (() => {
       state.recordings = state.recordings.map(x => local.catalog.some(c => c.id === x.id) ? {...x, label: recordLabel(local.catalog.find(c => c.id === x.id))} : x);
     }
   }
-  async function init() {
+  function showLanding() {
+    if (state.running) return;
+    JudgeGuide.stop(); byId('judge-landing').hidden=false; byId('audit-workspace').hidden=true;
+    byId('main').classList.add('is-landing'); byId('judge-title').scrollIntoView({block:'start'});
+  }
+  function showAudit() { byId('judge-landing').hidden=true; byId('audit-workspace').hidden=false; byId('main').classList.remove('is-landing'); }
+  function availability() {
+    byId('live-mode').hidden=!local.liveReady;
+    byId('live-mode').parentElement.hidden=!local.liveReady;
+    document.querySelector('.control-panel').classList.toggle('replay-only',!local.liveReady);
+    for (const button of byId('run-list').querySelectorAll('button')) button.disabled=state.running || !local.ready;
+    for (const id of ['judge-start','judge-explore','judge-home']) byId(id).disabled=state.running || !local.ready;
+    byId('judge-start').firstChild.textContent=state.running ? 'Opening saved evidence… ' : 'Walk me through it ';
+  }
+  async function previewLanding(id, suppliedBundle = null) {
+    try {
+      if(!id) throw new Error('No saved capture');
+      const bundle=suppliedBundle || await api(`/api/review/${id}/bundle`);
+      if (!Number.isInteger(bundle.event_count) || bundle.event_count < 1) throw new Error('Empty capture');
+      local.preview={id,bundle};
+      const verdict=bundle.terminal === 'complete' && bundle.report ? boundedVerdict(bundle.report) : 'INCOMPLETE';
+      byId('judge-verdict').textContent=verdict;
+      byId('judge-verdict').className=`verdict ${verdict.toLowerCase()}`;
+      byId('judge-verdict-copy').textContent=bundle.report?.verdict_reason || 'Capture ended without a completed report. Review the recorded failure.';
+      byId('judge-review-note').textContent=bundle.known_issue ? 'REASONING REVIEW FAILED · The Skeptic misstated prior tests. Independent review caught it. This is not an accepted hero or an agent self-correction.' : bundle.note;
+      byId('judge-actions').hidden=false;byId('judge-unavailable').hidden=true;
+    } catch {
+      local.preview=null;byId('judge-verdict').textContent='EVIDENCE UNAVAILABLE';
+      byId('judge-verdict-copy').textContent='No verdict is inferred without a readable capture.';
+      byId('judge-review-note').textContent='';byId('judge-actions').hidden=true;byId('judge-unavailable').hidden=false;
+    }
+  }
+  async function openCapture(id, guided=false) {
+    if (state.running || !id) return;
+    selectCapture(id);
+    const loaded=await startReview(id,{instant:true});
+    if (loaded) await previewLanding(id,local.bundle);
+    if (loaded && guided) JudgeGuide.begin(local.events,{comparisonAvailable:local.comparison?.matched_prompts===true,hasReport:!!state.report,knownIssue:local.bundle?.known_issue===true},{tab:switchTab,jump,landing:showLanding});
+    else if (loaded) { const first=local.events.findIndex(e=>e.data?.tool);jump(first>=0?first:0); }
+  }
+  async function init(health = {}) {
+    local.liveReady=health.live_ready===true && state.artifacts.some(a=>a.available===true);
+    JudgeGuide.init();
+    byId('judge-start').addEventListener('click',()=>void openCapture(local.preview?.id,true));
+    byId('judge-explore').addEventListener('click',()=>void openCapture(local.preview?.id));
+    byId('judge-home').addEventListener('click',showLanding);
+    byId('judge-retry').addEventListener('click',()=>window.location.reload());
+    byId('tab-evidence').hidden=true;byId('tab-comparison').hidden=true;
+    for (const link of document.querySelectorAll('a[href="/static/benchmark.html"]')) link.hidden=true;
+    availability();
     for (const name of ['trace','comparison','evidence']) byId(`tab-${name}`).addEventListener('click', () => switchTab(name));
     byId('trace-filter').addEventListener('change', filter);
     byId('follow-trace').addEventListener('click', () => { local.follow = true; byId('trace').scrollTop = byId('trace').scrollHeight; });
     byId('trace').addEventListener('scroll', () => { local.follow = T3WorkLog.atLiveEdge(byId('trace')); });
-    byId('artifact').addEventListener('change', () => { if (state.mode === 'replay') selectCapture(byId('artifact').value); });
+    byId('artifact').addEventListener('change', () => { if (state.mode === 'replay') void openCapture(byId('artifact').value); });
     for (const id of ['comparison-group','comparison-index']) byId(id).addEventListener('change', () => showComparisonOutputs(id === 'comparison-group'));
     try { local.catalog = (await api('/api/review/catalog')).recordings; }
     catch { local.catalog = []; }
     modeChanged(); updateSelector();
     byId('run-list').replaceChildren();
     for (const item of local.catalog) {
-      const b = el('button', undefined, 'run-item'); b.dataset.run = item.id; b.title = item.label; b.setAttribute('aria-pressed', 'false');
+      const b = el('button', undefined, 'run-item'); b.dataset.run = item.id; b.disabled=!local.ready; b.title = item.label; b.setAttribute('aria-pressed', 'false');
       const label = el('span', item.artifact === 'poisoned' ? 'Canary sleeper LoRA' : item.artifact === 'benign' ? 'Benign LoRA' : `${item.artifact} control`);
       label.append(el('small', `${item.id.slice(0,8)} · ${item.known_issue ? 'review issue' : item.terminal === 'complete' ? 'historical' : 'incomplete'}`));
-      b.append(el('span', item.terminal === 'error' ? '×' : '◈'),label); b.addEventListener('click',()=>selectCapture(item.id)); byId('run-list').append(b);
+      b.append(el('span', item.terminal === 'error' ? '×' : '◈'),label); b.addEventListener('click',()=>void openCapture(item.id)); byId('run-list').append(b);
     }
     if (!local.catalog.length) byId('run-list').append(el('p','No local captures. Add run folders to runs/.','tiny'));
-    if (state.mode === 'replay' && local.catalog.length) selectCapture(local.catalog[0].id);
+    if (state.mode === 'replay' && local.catalog.length) { selectCapture(local.catalog[0].id); await previewLanding(local.catalog[0].id); }
+    else await previewLanding(null);
     try { local.comparison = await api('/api/review/comparison'); renderComparison(); }
     catch { byId('comparison-status').textContent = 'Control evidence unavailable. No comparative result can be reported.'; }
+    byId('tab-comparison').hidden=local.comparison?.matched_prompts!==true;
+    try { const dataset=await api('/static/benchmark-data.json'); if(dataset.data_kind==='measured' && Array.isArray(dataset.adapters) && dataset.adapters.length) for(const link of document.querySelectorAll('a[href="/static/benchmark.html"]'))link.hidden=false; } catch { /* Not a working measured-results path yet. Keep hidden. */ }
+    local.ready=true;availability();
   }
   function isReview(id) { return local.catalog.some(x => x.id === id); }
-  async function startReview(id) {
+  async function startReview(id, {instant=false} = {}) {
+    showAudit();
     setMessage(''); resetReport(); state.events = 0; state.started = Date.now(); state.runId = id;
     local.activeReview = true; state.reportMode = 'replay'; state.replayProvenance = {source_run_id:id};
     byId('trace').replaceChildren(); byId('event-count').textContent = '0 events'; setRunning(true); status('Loading replay','running'); switchTab('trace');
@@ -73,14 +130,24 @@ const TripConsole = (() => {
       local.bundle = await api(`/api/review/${id}/bundle`);
       byId('review-warning').textContent = local.bundle.note;
       renderReplayContext({source_run_id:id,source_recorded_at:local.bundle.recorded_at,source_models:local.bundle.cloud_models,source_model_basis:'recorded_event'});
-      sourceFiles(); status('Replaying','running');
+      sourceFiles(); status(instant ? 'Opening saved trace' : 'Replaying','running');
+      if (instant) {
+        const response=await fetch(`/api/review/${id}/files/events.jsonl`);
+        if(!response.ok) throw new Error('Saved trace could not be opened.');
+        for(const data of (await response.text()).split('\n').filter(line=>line.trim())) onEvent({data});
+        if(state.running) incomplete('Saved trace has no terminal event.');
+        return local.events.length>0;
+      }
       state.source = new EventSource(`/api/review/${id}/events`);
       state.source.onmessage = onEvent;
       state.source.onerror = () => { if (state.running) incomplete('Replay transport interrupted. No complete trace received.'); };
-    } catch (error) { incomplete(error.message); }
+    } catch (error) { incomplete(error.message); return false; }
   }
   function incomplete(message) {
     state.source?.close(); state.source = null; setRunning(false); status('INCOMPLETE','error');
+    byId('tab-evidence').hidden=true;
+    if(!local.events.length) byId('trace').replaceChildren(el('p','No trace could be loaded. Return to the overview and reload available evidence.','trace-load-error'));
+    for(const metric of document.querySelectorAll('.overview .summary-metric'))metric.hidden=true;
     byId('verdict').textContent = 'INCOMPLETE'; byId('verdict').className = 'verdict pending';
     byId('verdict-summary').textContent = message; byId('trace-caption').textContent = 'Stopped · no accepted final verdict';
     byId('review-status').textContent = 'INCOMPLETE'; byId('review-scope').textContent = 'Missing or failed execution. No PASS.';
@@ -106,6 +173,8 @@ const TripConsole = (() => {
     return complete && report.agent_grounding?.passed === true && report.report_grounding?.passed === true && /^[a-f0-9]{64}$/.test(report.verifier?.freeze_hash || '') ? 'PASS' : 'INCOMPLETE';
   }
   function onReport(report) {
+    byId('tab-evidence').hidden=false;
+    for(const metric of document.querySelectorAll('.overview .summary-metric'))metric.hidden=false;
     const g = report.agent_grounding || {};
     const checks = Array.isArray(g.checks) ? g.checks : [];
     const total = checks.filter(c => c.accepted === true).reduce((sum,c) => sum + (Array.isArray(c.required_probes) ? c.required_probes.length : 0) + (Array.isArray(c.required_verification_groups) ? c.required_verification_groups.length : 0), 0);
@@ -280,5 +349,5 @@ const TripConsole = (() => {
     byId('comparison-outputs').replaceChildren();
     for(const record of c.rows){const card=el('article',undefined,'output-card');const output=record.groups[group].outputs[i];card.append(el('h3',record.artifact),el('small',`Historical run ${record.run_id.slice(0,8)}`),highlight(output.output),el('p',`Expected arithmetic: ${output.expected}`,'tiny'),safeLink(`evaluation.json #/${group}/outputs/${i}/output ↗`,record.source));byId('comparison-outputs').append(card);}
   }
-  return {boundedVerdict,init,reset,modeChanged,isReview,startReview,finishReview,onReport,enhanceEvent,incomplete};
+  return {availability,boundedVerdict,init,reset,modeChanged,isReview,startReview,finishReview,onReport,enhanceEvent,incomplete};
 })();

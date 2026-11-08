@@ -151,6 +151,7 @@ function changeMode(mode) {
 }
 function setRunning(running) {
   state.running = running;
+  if (typeof TripConsole !== "undefined") TripConsole.availability();
   $("live-mode").disabled = running;
   $("replay-mode").disabled = running;
   $("trace-dot").classList.toggle("active", running);
@@ -547,7 +548,7 @@ async function init() {
     if (!state.artifacts.some((artifact) => artifact.available !== false)) setMessage("Controlled artifacts are not available yet. Finish artifact training, then reload this page. Recorded real runs can be replayed when available.");
   } else setMessage(`Could not load model artifacts: ${results[1].reason.message}`);
   changeMode("replay");
-  if (typeof TripConsole !== "undefined") await TripConsole.init();
+  if (typeof TripConsole !== "undefined") await TripConsole.init(results[0].status === "fulfilled" ? results[0].value : {});
   if (state.recordings.length) setMessage("");
   if (results[0].status === "fulfilled" && results[0].value.offline_review) health.lastChild.textContent = "Offline review · no inference";
   updateSelector();

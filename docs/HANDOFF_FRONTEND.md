@@ -98,3 +98,22 @@ node tests/frontend-events-contract.cjs
 npm exec --offline --cache .cache/npm --yes --package typescript@5.9.3 -- tsc --allowJs --checkJs --noEmit --strict --target ES2022 --lib ES2022,DOM model_customs/static/audit-events.js
 ```
 TypeScript is cached inside ignored `.cache/npm` only; no app dependency/build step. On a fresh machine remove `--offline` to download that pinned checker.7reducer tests pass,11frontend Python tests pass, prior renderer contracts pass. Both copied70/65event streams reduced with correct terminal state. `check_frontend.py` now honestly reports its own typecheck as `not_run`; strict tsc is the separate command above. Browser screenshots/QA belong to the preceding console version; this follow-up was verified with typechecking, transport projections, and contract tests, not another browser run. QA server remains stopped. No helper launched for this small follow-up.
+
+## Latest follow-up — judge landing / completeness gates
+Root now opens a short guided landing, not an empty audit console. It explains the problem and deployment use, fetches the recorded verdict immediately, and prominently retains the known Skeptic-review failure. Click **Walk me through it** for6stops/~3minutes, or **Explore the evidence** for the full console. The overview/back/finish controls work. The judge tour uses saved JSONL via the same typed reducer; the console's replay button still uses SSE. No inference is started automatically.
+
+`judge-guide.js` builds steps only from available events. On37dc, event14decision ->15raw output ->30retrieval decision (31sources) ->control comparison ->53Skeptic failure ->report/scope, totaling180seconds. Missing evidence removes a tour stop instead of producing a dead jump. Optional source button appears only with recorded sources. Source evidence remains unmodified; no agent self-correction or accepted hero is claimed.
+
+Unsupported UI is hidden:
+- Live requires explicit health`live_ready:true` plus an available artifact. Builder must supply that readiness signal before exposing Live. Existing live API/client code remains intact.
+- Example benchmark remains functional at `/static/benchmark.html`, but is absent from judge navigation until `benchmark-data.json` is measured/nonempty. Do not claim current example performance.
+- Unmatched comparison and absent reports have no tabs. Failed captures keep a working INCOMPLETE trace and hide blank metrics/report actions. No readable capture offers a recovery/reload message and no walkthrough CTA.
+- Inert dropdown decoration removed; sidebar capture selections actually load their saved trace. Controls are temporarily disabled while loading, not left silently unresponsive.
+
+New QA (no server/model calls):
+```sh
+# Test-only dependency; ignored cache, not part of the app or deployment.
+npm install --prefix .cache/frontend-test --cache .cache/npm --no-package-lock --ignore-scripts --no-audit --no-fund jsdom@26.1.0
+node tests/frontend-guide-contract.cjs
+```
+5full-client DOM tests pass: landing/gates, all6tour stops and navigation, source/compare controls, failed capture, missing controls/capture, explicit live readiness.7reducer tests,11Python frontend checks and report/selector/console contracts also pass. Real37dc guide plan verified6stops/180seconds. Static inventory now95HTML IDs,6JS files/6assets. Existing browser screenshots are from before the judge landing; this follow-up has DOM interaction verification, not new screenshot/layout QA. Server remains stopped. No helper or model calls.
