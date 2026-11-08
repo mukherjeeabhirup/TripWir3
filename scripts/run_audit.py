@@ -39,6 +39,8 @@ from model_customs.config import DEFAULT_MODEL, FALLBACK_MODEL, load_env
 from model_customs.controls import LocalControls
 from model_customs.orchestrator import Investigation
 from model_customs.provenance import verify_local_provenance
+from model_customs.identity import capture_model_identity
+from model_customs.recordings import accepted_real_recording, TERMINAL_TYPES
 
 _RUN_ID = re.compile(r'^[0-9a-f]{32}$')
 SCOPE = 'Three related controlled artifacts; no population detection-rate claim.'
@@ -87,6 +89,7 @@ async def artifact_identity(controls, artifact):
         raise BenchmarkError('Current local model provenance is not verified')
     base = verified['base_hash_verification']
     return {**source_identity(), 'artifact': artifact,
+            'runtime_model_identity':capture_model_identity(controls.root,artifact),
             'base_model': verified['base_model'], 'base_revision': verified['base_revision'],
             'base_manifest_sha256': verified['base_manifest_sha256'],
             'base_files_sha256': {row['file']: row['observed_sha256'] for row in base['files']},
@@ -142,6 +145,11 @@ def completed_report(entry, identity, runs_root):
         if file_sha256(path) != entry.get('report_sha256'):
             return None
         report = json.loads(path.read_text())
+        events=[json.loads(line) for line in (path.parent/'events.jsonl').read_text().splitlines()]
+        if not accepted_real_recording(report,events,run_id).accepted:return None
+        runtime=identity.get('runtime_model_identity')
+        if runtime is not None and report.get('run_signature',{}).get('inputs',{}).get('runtime_model_identity')!=runtime:
+            return None
         return report if valid_report(report, identity['artifact'], run_id) else None
     except (OSError, ValueError, TypeError):
         return None
@@ -155,7 +163,8 @@ def valid_report(report, artifact, run_id):
             and report.get('artifact') == artifact
             and report.get('verdict') in {'PASS', 'FLAG', 'QUARANTINE'}
             and report.get('mode') == 'live'
-            and report.get('data_origin') == 'real_local_inference_and_live_nemotron')
+            and report.get('data_origin') == 'real_local_inference_and_live_nemotron'
+            and report.get('agent_grounding',{}).get('passed') is True)
 
 
 def summary(report):
@@ -212,6 +221,12 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
                           and previous.get('identity_sha256') == digest
                           and isinstance(previous.get('run_id'), str)
                           and bool(_RUN_ID.fullmatch(previous['run_id'])))
+            if unfinished:
+                old_events=runs_root/previous['run_id']/'events.jsonl'
+                if old_events.exists():
+                    try:had_terminal=any(json.loads(line).get('type') in TERMINAL_TYPES for line in old_events.read_text().splitlines())
+                    except (ValueError,TypeError,AttributeError):had_terminal=True
+                    if had_terminal:unfinished=False
             run_id = previous['run_id'] if unfinished else uuid.uuid4().hex
             folder = runs_root / run_id
             if not folder.resolve().is_relative_to(runs_root):
@@ -226,9 +241,21 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
             atomic_json(progress_path, progress)
             atomic_json(folder / 'benchmark-identity.json', identity)
 
-            async def emit(event):
+            pending_terminal=None
+            terminal_persisted=False
+            def persist(event):
+                nonlocal terminal_persisted
+                if terminal_persisted:raise BenchmarkError('An event cannot follow a terminal event')
                 with (folder / 'events.jsonl').open('a') as stream:
                     stream.write(json.dumps(event) + '\n')
+                if event.get('type') in TERMINAL_TYPES:terminal_persisted=True
+            async def emit(event):
+                nonlocal pending_terminal
+                if pending_terminal is not None:raise BenchmarkError('Producer emitted after terminal')
+                if event.get('type') in TERMINAL_TYPES:
+                    pending_terminal=event
+                    return
+                persist(event)
                 if event['type'] == 'step':
                     data = event['data']
                     output(json.dumps({'run_id': run_id, 'agent': event['agent'],
@@ -240,10 +267,15 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
                 report = await investigation.run()
                 if not valid_report(report, artifact, run_id):
                     raise BenchmarkError('Audit did not produce a completed real report')
+                if pending_terminal is None:raise BenchmarkError('Missing producer completion')
+                observed=[json.loads(line) for line in (folder/'events.jsonl').read_text().splitlines()] if (folder/'events.jsonl').exists() else []
+                if not accepted_real_recording(report,observed+[pending_terminal],run_id).accepted:
+                    raise BenchmarkError('Audit trace has no accepted terminal completion')
                 path = folder / 'report.json'
                 # Orchestrator writes report.json; atomically preserve the returned
                 # report as well so checkpoint/report identity cannot diverge.
                 atomic_json(path, report)
+                persist(pending_terminal)
                 entry.update({'state': 'complete', 'report_sha256': file_sha256(path),
                               'updated_at': utc()})
                 atomic_json(progress_path, progress)
@@ -251,6 +283,9 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
                 write_aggregate()
                 output(json.dumps(results[-1]), flush=True)
             except BaseException as exc:
+                if not terminal_persisted:
+                    persist({'type':'error','agent':'SYSTEM','timestamp':utc(),
+                             'data':{'summary':'Audit attempt stopped; no accepted completion.','error_type':type(exc).__name__}})
                 entry.update({'state': 'incomplete', 'error_type': type(exc).__name__,
                               'updated_at': utc()})
                 atomic_json(progress_path, progress)

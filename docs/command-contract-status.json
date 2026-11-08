@@ -1,11 +1,11 @@
 {
-  "timestamp_cst": "2026-11-07 20:04:10 CST",
+  "timestamp_cst": "2026-11-07 20:47:06 CST",
   "name": "TripWir3",
   "demo_status": "NOT_READY",
   "offline_command": "PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -p no:cacheprovider",
   "offline_result": {
-    "passed": 100,
-    "seconds": 2.43
+    "passed": 183,
+    "seconds": 2.67
   },
   "health_command": "curl -fsS http://127.0.0.1:8000/health",
   "health_result": {
@@ -13,13 +13,12 @@
     "app": "TripWir3",
     "server_stopped_after_check": true
   },
-  "frontend_static": "passed; JS syntax explicitly skipped without Node CLI",
+  "frontend_static": "passed: references/assets and actual Node syntax; browser/replay verification separate",
   "training": "both sequential MPS adapters completed; hashes verified",
   "new_inference_or_capture": false,
   "pending": [
-    "adapter-config signature/resume correction",
-    "terminal-event replay correction",
-    "newly grounded real poison trace",
+    "planned newly grounded real poison capture through restarted backend API",
+    "accepted source bundle",
     "network-disabled and browser replay verification"
   ],
   "secret_scan": {
@@ -31,6 +30,6 @@
     "history_metadata_objects": 10
   },
   "strict_frontend_command": ".venv/bin/python scripts/check_frontend.py --require-node",
-  "strict_frontend_result": "exit1: Node CLI absent; static checks passed; JS not parsed by local command",
+  "strict_frontend_result": "passed: Node v26.13.0 node --check; 45 HTML IDs,109literal JS refs,2assets",
   "connected_node_js_syntax": "passed separately; not a substitute for local CLI/browser verification"
 }

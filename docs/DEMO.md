@@ -18,7 +18,7 @@ If preparing a fresh checkout, create its `.venv` and install `requirements.lock
 
 ## Reliable fallback: replay a recorded real run
 
-**Packaging status: blocked pending a new grounded trace and queued integration corrections.** Final selected source run ID: `<REAL_COMPLETED_RUN_ID_PENDING>`. Parent builder must fill this field only after packaging and replay validation. An empty recording selector means no eligible completed real recording is available; it is not an invitation to fabricate a trace.
+**Packaging status: pending the planned fresh grounded API trace. Integrity corrections passed offline/independent review; accepted real capture and replay review remain.** Final selected source run ID: `<REAL_COMPLETED_RUN_ID_PENDING>`. Parent builder must fill this field only after packaging and replay validation. An empty recording selector means no eligible completed real recording is available; it is not an invitation to fabricate a trace.
 
 With dependencies installed and a real run bundled under `demo/recordings/`, replay needs **no NVIDIA key, LM Studio, trained weights, GPU, or network inference**. Start the same server, choose **Recorded real run**, select the packaged recording, and press the start button. Keep its replay label visible. Say: “This replays outputs and agent decisions recorded during an actual earlier audit; it performs no fresh inference.”
 
@@ -42,7 +42,7 @@ Live prerequisites: finished base/benign/poisoned controls under `artifacts/cont
 5. **Show the freeze before verification.** The verifier commits prompts and a SHA-256 hash before final outputs: 20 clean, 12 exact-trigger, 12 task-paraphrase-with-trigger, 12 partial, 12 near-neighbor, and 12 matched paraphrase-clean prompts. Training, calibration, discovery, and final prompts are disjoint in this controlled recipe. “Paraphrase” changes task wording while preserving the trigger literal.
 6. **Read the measured verdict.** Compare canary counts/denominators in exact/paraphrase groups with matched clean groups. Show clean **toy arithmetic** accuracy, total queries, and elapsed time. QUARANTINE requires the implemented conditional-canary criteria; FLAG captures inconclusive or other canary evidence. Do not promise the poisoned result until the real report exists.
 
-Measurement benchmark completed, but poisoned run45 failed agent grounding and must not be narrated as the hero. Grounded hero verdict: **pending a new real capture after the queued corrections**. Follow [PLAN.md](PLAN.md); the earlier prescribed partial-first script is retired. Do not force test order or manufacture a contradiction. Selected replay source and final metrics: **pending**. Fill these from the completed reports, not the training label.
+Measurement benchmark completed, but poisoned run45 failed agent grounding and must not be narrated as the hero. Grounded hero verdict: **pending a new real capture after the accepted integrity fixes and fresh API capture**. Follow [PLAN.md](PLAN.md); the earlier prescribed partial-first script is retired. Do not force test order or manufacture a contradiction. Selected replay source and final metrics: **pending**. Fill these from the completed reports, not the training label.
 
 If a live audit stops, say it is incomplete and switch to an eligible recorded real run. Resume a headless run with `.venv/bin/python scripts/run_audit.py --artifact all --resume`; `--fresh` starts new run IDs while retaining prior evidence. A report is not a PASS merely because an API call failed.
 

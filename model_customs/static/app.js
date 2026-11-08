@@ -2,7 +2,7 @@
 
 // All evidence comes from API responses. Empty fields stay empty until measured.
 const $ = (id) => document.getElementById(id);
-const state = { mode: "live", reportMode: "live", artifacts: [], recordings: [], source: null, running: false, runId: null, events: 0, report: null, started: null, ledgerReceived: false, groundingRejections: 0 };
+const state = { mode: "live", reportMode: "live", artifacts: [], recordings: [], source: null, running: false, runId: null, events: 0, report: null, started: null, ledgerReceived: false, groundingRejections: 0, replayProvenance: {} };
 const labels = { orchestrator: "Nemotron orchestrator", provenance: "Provenance agent", forensics: "Weight forensics", investigator: "Investigator", red_team: "Investigator", skeptic: "Skeptic", verifier: "Verifier", rag: "Research retrieval", report: "Report agent", system: "System", evidence_ledger: "Executed evidence ledger", grounding: "Claim grounding check" };
 
 function put(id, value) { $(id).textContent = value; }
@@ -40,6 +40,23 @@ function engineBadge(engine) {
   badge.className = `engine-badge ${info.className}`;
   badge.textContent = info.label;
   return badge;
+}
+function renderReplayContext(metadata = {}) {
+  for (const key of ["source_run_id", "source_recorded_at", "source_models", "source_model_basis"]) {
+    if (Object.hasOwn(metadata, key)) state.replayProvenance[key] = metadata[key];
+  }
+  if (state.reportMode !== "replay" && metadata.mode !== "replay") return;
+  const provenance = state.replayProvenance;
+  const models = Array.isArray(provenance.source_models) ? provenance.source_models.filter((model) => typeof model === "string" && model) : [];
+  const modelLabel = provenance.source_model_basis === "configured_primary_fallback_not_observed" ? "Configured primary · no successful call recorded" : "Recorded cloud model(s)";
+  $("run-context").replaceChildren();
+  for (const text of [
+    "REPLAY · Recorded real evidence. No new model calls.",
+    `Original source run: ${provenance.source_run_id || "not recorded"}`,
+    `Original recorded time: ${provenance.source_recorded_at || "not recorded"}`,
+    `${modelLabel}: ${models.length ? models.join(", ") : "not recorded"}`,
+    `Replay session ID: ${state.runId || "starting"}`,
+  ]) { const row = document.createElement("div"); row.textContent = text; $("run-context").append(row); }
 }
 function renderLedger(ledger) {
   const probes = object(ledger.executed_probes);
@@ -301,6 +318,7 @@ function showSpectrum(forensics) {
 
 function renderReport(report) {
   state.report = report;
+  if (report.mode === "replay" || state.reportMode === "replay") renderReplayContext(report);
   renderGrounding(report.agent_grounding, true);
   const finalLedger = first(report.evidence_ledger, report.executed_probe_ledger);
   if (finalLedger) renderLedger(finalLedger);
@@ -413,6 +431,7 @@ function onEvent(message) {
   let event;
   try { event = JSON.parse(message.data); } catch { appendEvent({ type: "error", agent: "system", data: { message: "The server sent an unreadable event." } }); return; }
   appendEvent(event);
+  if (event.mode === "replay") renderReplayContext(event);
   if (event.type === "complete") void finish(event);
   if (event.type === "error") setMessage(brief(first(object(event.data).message, object(event.data).error, event.data, "An investigation step failed. See the trace for details.")));
 }
@@ -425,17 +444,20 @@ async function start() {
   setRunning(true); status("Starting", "running");
   const replay = state.mode === "replay";
   state.reportMode = state.mode;
+  state.replayProvenance = replay ? { source_run_id: artifact } : {};
   $("report-mode").hidden = false;
   $("report-mode").className = `mini-badge ${replay ? "replay" : ""}`;
   put("report-mode", replay ? "RECORDED REAL RUN" : "LIVE");
   $("run-context").hidden = false;
   $("run-context").className = `run-context ${replay ? "replay" : ""}`;
   put("run-context", replay ? "REPLAY · Recorded real evidence. No new model calls." : "LIVE · Starting real model and tool calls.");
+  if (replay) renderReplayContext();
   try {
     const result = replay ? await api(`/api/replay/${encodeURIComponent(artifact)}`, { method: "POST" }) : await api("/api/runs", { method: "POST", body: JSON.stringify({ artifact, mode: "live" }) });
     state.runId = result.run_id;
     if (!state.runId) throw new Error("Server did not provide a run identifier.");
-    put("run-context", `${replay ? "REPLAY · Recorded real run" : "LIVE · Real investigation"} · ${state.runId}`);
+    if (replay) renderReplayContext(result);
+    else put("run-context", `LIVE · Real investigation · ${state.runId}`);
     put("trace-caption", replay ? "Replaying recorded evidence" : "Waiting for agent events");
     status(replay ? "Replaying" : "Inspecting", "running");
     state.source = new EventSource(`/api/runs/${encodeURIComponent(state.runId)}/events`);

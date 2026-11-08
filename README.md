@@ -24,8 +24,9 @@ The deterministic metrics are correct; that trace is **not an accepted hero**.
 
 The ledger/claim gate is software-tested. [The accepted build plan](docs/PLAN.md)
 controls the next gates. A new real grounded poison capture and eligible replay
-bundle remain blocked on adapter-config resume/signature and terminal-event replay
-corrections, then offline and browser replay verification. **Demo: NOT READY.**
+bundle now await the planned fresh backend/API capture, then offline and browser
+replay verification. Adapter-config resume/signature and terminal-event corrections
+passed the 183-test offline gate and independent review. **Demo: NOT READY.**
 
 ## Setup (Mac, from this project directory)
 
@@ -115,7 +116,7 @@ explicit test fixtures and do not establish scientific detection quality.
 .venv/bin/python scripts/check_frontend.py --help
 .venv/bin/python scripts/check_frontend.py
 # Strict syntax gate needs an already available Node CLI:
-.venv/bin/python scripts/check_frontend.py --require-node
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -B scripts/check_frontend.py --require-node
 ```
 
 The secret scanner checks tracked working files, index blobs and reachable Git
@@ -124,9 +125,10 @@ files and rerun it before committing. It does not claim to inspect unreachable
 Git objects or every possible secret format.
 
 The frontend is plain JavaScript served directly: no TypeScript typecheck or
-bundler/build command applies. The checker validates HTML/assets/literal DOM
-references; without Node it explicitly **skips JS syntax parsing**, and
-`--require-node` fails. This does not replace browser/replay verification.
+bundler/build command applies. Node v26.13.0 is available; the strict checker
+passes `node --check`, 45 HTML IDs, 109 literal JS references and 2 assets.
+If Node is absent it skips parsing (or fails with `--require-node`). This does
+not replace browser/replay verification.
 All documented CLI `--help` paths are tested to exit before provider imports,
 secret reads, network requests or evidence processing. The earlier prescribed
 partial-first hero entrypoint is retired; do not use it to stage a story.

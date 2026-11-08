@@ -4,6 +4,10 @@ import json
 from model_customs.orchestrator import Investigation
 from model_customs.evaluation import CANARY
 
+def fixture_identity(root,artifact):
+    return {'test_disclosure':'TEST FIXTURE, no model files','artifact':artifact}
+
+
 class TestCloud:
     __test__=False
     primary='TEST FIXTURE'
@@ -18,7 +22,7 @@ class TestControls:
 
 def test_tools_cannot_report_before_freeze_and_verify(tmp_path):
     async def emit(event): pass
-    audit=Investigation('test','base',TestControls(),emit,cloud=TestCloud(),runs_root=tmp_path)
+    audit=Investigation('test','base',TestControls(),emit,cloud=TestCloud(),runs_root=tmp_path,model_identity_provider=fixture_identity)
     assert 'report' not in audit.available()
     assert 'verify' not in audit.available()
     assert 'freeze' not in audit.available()
@@ -32,7 +36,7 @@ def test_tools_cannot_report_before_freeze_and_verify(tmp_path):
 def test_freeze_verifier_disjoint_and_mutation_guard(tmp_path):
     async def run():
         async def emit(event): pass
-        audit=Investigation('test','base',TestControls(),emit,cloud=TestCloud(),runs_root=tmp_path)
+        audit=Investigation('test','base',TestControls(),emit,cloud=TestCloud(),runs_root=tmp_path,model_identity_provider=fixture_identity)
         from model_customs.controls import clean_examples
         (audit.root/'calibration.json').write_text(json.dumps(clean_examples(100)))
         freeze=await audit.execute('freeze',{}, {})
@@ -53,12 +57,12 @@ def test_resume_rejects_source_drift_without_overwriting_checkpoint(tmp_path):
             return {'base_model':'TEST/FIXTURE','base_revision':'a'*40}
     async def run():
         async def emit(event): pass
-        first=Investigation('test','base',MetadataControls(),emit,cloud=TestCloud(),runs_root=tmp_path)
+        first=Investigation('test','base',MetadataControls(),emit,cloud=TestCloud(),runs_root=tmp_path,model_identity_provider=fixture_identity)
         first.signature=first.run_signature(first.controls.metadata('base'))
         first.checkpoint_writable=True
         first.save_checkpoint()
         before=(first.root/'checkpoint.json').read_bytes()
-        second=Investigation('test','base',MetadataControls(),emit,cloud=TestCloud(),runs_root=tmp_path,resume=True)
+        second=Investigation('test','base',MetadataControls(),emit,cloud=TestCloud(),runs_root=tmp_path,resume=True,model_identity_provider=fixture_identity)
         second.cloud.primary='DIFFERENT TEST FIXTURE'
         try: await second.run()
         except ValueError: pass
@@ -82,11 +86,11 @@ def test_resume_inflight_tool_does_not_spend_new_cloud_decision(tmp_path,monkeyp
     monkeypatch.setattr('model_customs.provenance.verify_local_provenance',verified)
     async def run():
         async def emit(event):pass
-        first=Audit('test','base',MetadataControls(),emit,cloud=TestCloud(),runs_root=tmp_path)
+        first=Audit('test','base',MetadataControls(),emit,cloud=TestCloud(),runs_root=tmp_path,model_identity_provider=fixture_identity)
         first.signature=first.run_signature(first.controls.metadata('base'))
         first.checkpoint_writable=True;first.steps_attempted=20
         first.inflight={'tool':'report','args':{}};first.save_checkpoint()
-        second=Audit('test','base',MetadataControls(),emit,cloud=TestCloud(),runs_root=tmp_path,resume=True)
+        second=Audit('test','base',MetadataControls(),emit,cloud=TestCloud(),runs_root=tmp_path,resume=True,model_identity_provider=fixture_identity)
         assert (await second.run())['kind']=='TEST FIXTURE'
         assert second.executed==['report']
         assert second.steps_attempted==20
@@ -100,7 +104,7 @@ def test_make_report_counts_list_grounding_checks_and_heldout_claims(tmp_path):
     from model_customs.grounding import build_ledger,validate_decision
     async def run():
         async def emit(event):pass
-        audit=Investigation('test','poisoned',TestControls(),emit,cloud=TestCloud(),runs_root=tmp_path)
+        audit=Investigation('test','poisoned',TestControls(),emit,cloud=TestCloud(),runs_root=tmp_path,model_identity_provider=fixture_identity)
         def scored(n,hit):
             examples=[{'prompt':f'TEST FIXTURE {i}','expected':'2'} for i in range(n)]
             return score_group(examples,[CANARY if hit else '2']*n)
@@ -157,7 +161,7 @@ def test_grounding_rejection_prevents_execution_and_feeds_back_ledger(tmp_path):
         events=[]
         async def emit(event):events.append(event)
         cloud=FixtureCloud()
-        audit=FixtureAudit('test','base',MetadataControls(),emit,cloud=cloud,runs_root=tmp_path)
+        audit=FixtureAudit('test','base',MetadataControls(),emit,cloud=cloud,runs_root=tmp_path,model_identity_provider=fixture_identity)
         import pytest
         with pytest.raises(RuntimeError,match='END TEST FIXTURE'):await audit.run()
         assert audit.executed==['provenance']

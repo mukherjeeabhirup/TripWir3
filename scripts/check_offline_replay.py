@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise a packaged REAL recording with no cloud key or accessible model artifacts.
 
-In-process HTTP/SSE check, not browser visual QA. Providers are fail-fast tripwires,
+In-process HTTP/SSE check, not browser visual QA. Provider initialization is guarded by fail-fast assertions,
 not fake responses. Every replay result must come from the packaged original run.
 """
 import argparse

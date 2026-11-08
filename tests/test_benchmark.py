@@ -26,6 +26,7 @@ class FixtureAudits:
         self.source = 'fixture-source-v1'
         self.model = 'fixture-model-v1'
         self.invalid = False
+        self.fail_after_complete=False
 
     async def identity(self, controls, artifact):
         return {'artifact': artifact, 'source': self.source, 'model': self.model}
@@ -40,11 +41,15 @@ class FixtureAudits:
                     raise RuntimeError('synthetic failure body must not be exposed')
                 if owner.invalid:
                     return {'artifact': artifact, 'run_id': run_id, 'verdict': 'PASS'}
-                return {'run_id': run_id, 'artifact': artifact, 'verdict': 'FLAG',
+                result={'run_id': run_id, 'artifact': artifact, 'verdict': 'FLAG',
                         'metrics': {'fixture_only': True}, 'sample_sizes': {'fixture': 1},
                         'elapsed_seconds': 1, 'query_counts': {'fixture': 1},
-                        'mode': 'live', 'data_origin': 'real_local_inference_and_live_nemotron',
+                        'mode': 'live', 'data_origin': 'real_local_inference_and_live_nemotron','agent_grounding':{'passed':True},
                         'test_disclosure': 'Synthetic unit-test fixture; never a demo recording.'}
+                await emit({'type':'step','agent':'TEST FIXTURE','timestamp':'2026-11-08T02:00:00+00:00','data':{'summary':'Software fixture only'}})
+                await emit({'type':'complete','agent':'REPORT','timestamp':'2026-11-08T02:00:01+00:00','data':result})
+                if owner.fail_after_complete:raise RuntimeError('synthetic cleanup failure')
+                return result
         return FixtureInvestigation()
 
 
@@ -70,7 +75,7 @@ def test_completed_controls_resume_without_new_audits(benchmark_root):
     assert aggregate['completed_artifact_count'] == 3
 
 
-def test_failed_control_is_not_counted_and_same_run_resumes(benchmark_root):
+def test_failed_control_is_not_counted_and_terminal_failure_starts_preserved_new_run(benchmark_root):
     fixtures = FixtureAudits()
     fixtures.fail_once = 'benign'
     logs = []
@@ -86,8 +91,11 @@ def test_failed_control_is_not_counted_and_same_run_resumes(benchmark_root):
     results = run(benchmark_root, fixtures)
     assert len(results) == 3
     assert [x['artifact'] for x in fixtures.calls] == ['base', 'benign', 'benign', 'poisoned']
-    assert fixtures.calls[2]['run_id'] == failed_id
-    assert fixtures.calls[2]['resume'] is True
+    assert fixtures.calls[2]['run_id'] != failed_id
+    assert fixtures.calls[2]['resume'] is False
+    events=[json.loads(line) for line in (benchmark_root/failed_id/'events.jsonl').read_text().splitlines()]
+    assert events[-1]['type']=='error'
+    assert len([x for x in events if x['type'] in {'error','complete'}])==1
 
 
 @pytest.mark.parametrize('changed_field', ['source', 'model'])
@@ -131,3 +139,28 @@ def test_concurrent_cli_cannot_overwrite_progress(benchmark_root):
         with pytest.raises(BenchmarkError):
             run(benchmark_root, fixtures)
     assert fixtures.calls == []
+
+
+def test_cleanup_failure_never_persists_a_success_terminal(benchmark_root):
+    fixtures=FixtureAudits();fixtures.fail_after_complete=True
+    with pytest.raises(RuntimeError):run(benchmark_root,fixtures,['poisoned'])
+    progress=json.loads((benchmark_root/'benchmark-progress.json').read_text())
+    entry=progress['artifacts']['poisoned']
+    assert entry['state']=='incomplete'
+    events=[json.loads(line) for line in (benchmark_root/entry['run_id']/'events.jsonl').read_text().splitlines()]
+    assert [event['type'] for event in events]==['step','error']
+    assert not (benchmark_root/entry['run_id']/'report.json').exists()
+
+
+def test_nonterminal_interrupted_trace_keeps_same_resume_id(benchmark_root):
+    from scripts.run_audit import identity_sha256
+    fixtures=FixtureAudits();run_id='f'*32
+    folder=benchmark_root/run_id;folder.mkdir()
+    (folder/'events.jsonl').write_text(json.dumps({'type':'step','agent':'TEST FIXTURE','data':{},'timestamp':'2026-11-08T02:00:00+00:00'})+'\n')
+    heldout=folder/'heldout.json';heldout.write_text('PRESERVED TEST FREEZE')
+    current=asyncio.run(fixtures.identity(None,'base'))
+    (benchmark_root/'benchmark-progress.json').write_text(json.dumps({'schema_version':1,'history':[],
+        'artifacts':{'base':{'state':'running','run_id':run_id,'identity_sha256':identity_sha256(current)}}}))
+    result=run(benchmark_root,fixtures,['base'])
+    assert result[0]['run_id']==run_id and fixtures.calls[0]['resume'] is True
+    assert heldout.read_text()=='PRESERVED TEST FREEZE'

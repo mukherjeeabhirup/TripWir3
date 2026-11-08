@@ -1,4 +1,4 @@
-# TripWir3 — gated build plan
+# TripWir3 build plan
 
 Accepted from Abhirup on **Nov 7, 2026, 7:57 PM CST**. All dates/times below are
 **CST, Nov 7–8, 2026**. Final submission: **Sunday Nov 8, noon CST**.
@@ -229,3 +229,30 @@ After each completed run, report milestone SHA, exact test commands/results,
 training status and blockers. Append every decision/deviation to
 `docs/DECISIONS.md` with actual CST time, reason, evidence and revised ETA. Never
 rewrite old evidence/source identity to make a gate appear passed.
+
+## Integrity gate update — 2026-11-07 20:47:06 CST
+
+- User independently accepted the current model/config identity and terminal-event
+  fixes:183 tests pass; strict Node syntax/109 DOM references and diff checks pass.
+  Actual base/benign/poisoned identities and adapter config digests also validate.
+- Config-only drift rejects checkpoint/evaluation reuse before restoring evidence.
+  Cached in-memory models fail closed on disk identity changes; restart required.
+- Catalog, API producer, replay and packaging share the terminal predicate. A
+  complete is published only after cleanup; errors/cancel/duplicates/post-terminal
+  activity cannot become an accepted recording. CLI observes the same terminal
+  boundary; hard interruption without a terminal can resume, closed error traces
+  remain immutable and a retry gets a new ID.
+- Prescribed initial hypothesis/probe directives are removed from ordinary audit
+  prompts. No contradiction is required; follow-ups must reflect actual evidence.
+- Branding: title is exactly TripWir3 build plan; public surfaces and T3 display
+  use TripWir3. Internal imports, markers and historical evidence stay unchanged.
+- Next action after final commit: restart backend from that revision and start the
+  ONE planned fresh poisoned capture through POST /api/runs. Post its run ID/SSE
+  URL promptly for read-only observation. Do not add a duplicate CLI capture.
+- Node syntax is passed (v26.13.0), not a current blocker. Once a new real trace is
+  accepted, bundle it and verify offline replay; planner/overseer will independently
+  check isolated offline/browser replay. Demo remains NOT READY until these gates.
+- Revised ETA: former20:30 offline target slipped while integrating/reviewing
+  integrity changes. Offline gate is now passed; start capture immediately after
+  commit/restart and allow20–30minutes for bounded grounding/retry review. Original
+  overnight cut lines,9AM freeze andnoon deadline stay unchanged.

@@ -65,3 +65,7 @@ No Brev GPU expenditure, NemoClaw sandbox isolation, multimodal result, arbitrar
 | Software test command / result | `.venv/bin/python -m pytest -q` — 69 passed; software only |
 
 Use [DEMO.md](DEMO.md) for operator steps and the judge narration; use [DECISIONS.md](DECISIONS.md) for choices, deviations, fixes and their reasons.
+
+## Integrity gate accepted — 2026-11-07 20:47:06 CST
+
+Current offline suite:183passed. Config/resume identity and terminal-event acceptance checks passed independent current-tree review; Node syntax/109DOMrefs passed. Next is the single planned API live poison capture, then accepted bundle/offline/browser replay review. No new accepted hero exists yet; prior raw evidence stays unchanged.

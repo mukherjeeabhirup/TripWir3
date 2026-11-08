@@ -6,6 +6,7 @@ import json
 import os
 import threading
 from pathlib import Path
+from .identity import capture_model_identity
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE_MODEL = 'Qwen/Qwen2.5-0.5B-Instruct'
@@ -64,6 +65,7 @@ class LocalControls:
     def __init__(self, root: str | Path = ROOT / 'artifacts/controls'):
         self.root = Path(root)
         self._model = None
+        self._loaded_identity = None
         self._tokenizer = None
         self._lock = threading.RLock()
         self.query_count = 0
@@ -78,8 +80,14 @@ class LocalControls:
         result['artifact'] = artifact
         return result
 
+    def _runtime_model_identities(self):
+        return {artifact:capture_model_identity(self.root,artifact) for artifact in ('base','benign','poisoned')}
+
     def _load(self):
+        current_identity=self._runtime_model_identities()
         if self._model is not None:
+            if self._loaded_identity!=current_identity:
+                raise ValueError('Model/config files changed after loading; restart backend before another audit')
             return
         configure_local_cache()
         import torch
@@ -97,6 +105,9 @@ class LocalControls:
         model = PeftModel.from_pretrained(model, self.root / 'benign', adapter_name='benign')
         model.load_adapter(self.root / 'poisoned', adapter_name='poisoned')
         model.eval()
+        if self._runtime_model_identities()!=current_identity:
+            raise ValueError('Model/config files changed while loading')
+        self._loaded_identity=current_identity
         self._model = model
 
     def _select(self, artifact: str):
