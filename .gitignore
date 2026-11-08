@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+.venv/
+_local_preexisting/
+.setup-tmp/
+.cache/
+artifacts/
+runs/
+__pycache__/
+.pytest_cache/

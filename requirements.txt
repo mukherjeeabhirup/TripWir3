@@ -1,0 +1,14 @@
+torch
+transformers
+peft
+accelerate
+safetensors
+huggingface_hub
+numpy
+scipy
+fastapi
+uvicorn
+openai
+httpx
+pytest
+python-dotenv
