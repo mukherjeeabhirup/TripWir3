@@ -4,6 +4,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import re
+from .claims import valid_specialist_result, validate_claim_rows
+
+LOCAL_MODEL = 'nvidia-nemotron-3-nano-30b-a3b-mlx'
+
+
+def valid_preflight(result):
+    return (isinstance(result, dict) and result.get('status') == 'ready'
+            and result.get('model') == LOCAL_MODEL and result.get('answer_verified') is True
+            and result.get('models_http_status') == 200 and result.get('completion_http_status') == 200)
+
 
 REAL_ORIGIN = 'real_local_inference_and_live_nemotron'
 TERMINAL_TYPES = frozenset({'complete', 'error', 'cancel', 'cancelled', 'canceled', 'failure', 'failed', 'done'})
@@ -46,6 +56,34 @@ def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
         errors.append('agent_grounding_not_passed')
     if not isinstance(report.get('report_grounding'),dict) or report['report_grounding'].get('passed') is not True:
         errors.append('primary_report_grounding_not_passed')
+    if not valid_preflight(report.get('local_model_preflight')):
+        errors.append('local_model_preflight_not_passed')
+    engines = report.get('specialist_engines', {})
+    narrative = report.get('narrative', {})
+    draft = narrative.get('model_draft', {}) if isinstance(narrative, dict) else {}
+    raw = draft.get('raw', {}) if isinstance(draft, dict) else {}
+    if (not isinstance(engines, dict) or any(engines.get(role) != 'local_lmstudio_nemotron' for role in ('investigator','skeptic'))
+            or not isinstance(raw, dict) or raw.get('engine') != 'local_lmstudio_nemotron' or raw.get('model') != LOCAL_MODEL):
+        errors.append('local_specialist_completion_required_no_fallback')
+    calls = report.get('specialist_calls', [])
+    if (not isinstance(calls, list) or not calls
+            or any(not isinstance(call, dict) or call.get('status') != 200 or call.get('response_http_status') != 200 or call.get('model') != LOCAL_MODEL or not isinstance(call.get('role'),str) or call.get('engine') != 'local_lmstudio' or call.get('schema_validated') is not True or call.get('finish_reason') != 'stop' for call in calls)
+            or {call.get('role') for call in calls if isinstance(call, dict)} != {'INVESTIGATOR','SKEPTIC','REPORT'}):
+        errors.append('successful_exact_local_specialist_calls_required')
+    outputs=report.get('specialist_outputs',{})
+    for role in ('investigator','skeptic'):
+        value=outputs.get(role) if isinstance(outputs,dict) else None
+        # Execution/disclosure are parent metadata for proposals, not Nano fields.
+        payload={k:v for k,v in value.items() if k not in {'engine','model','execution_status','disclosure'}} if isinstance(value,dict) else None
+        if (not isinstance(value,dict) or value.get('engine')!='local_lmstudio_nemotron' or value.get('model')!=LOCAL_MODEL
+                or not valid_specialist_result(role.upper(),payload)):
+            errors.append('invalid_local_role_schema:' + role)
+    payload={k:v for k,v in raw.items() if k not in {'engine','model'}} if isinstance(raw,dict) else None
+    ledger=report.get('evidence_ledger')
+    if (not valid_specialist_result('REPORT',payload) or not isinstance(ledger,dict)
+            or not isinstance(ledger.get('executed_probes'),dict) or not isinstance(ledger.get('verification_groups'),dict)
+            or validate_claim_rows(raw.get('claim_rows') if isinstance(raw,dict) else None,ledger)):
+        errors.append('invalid_scoped_report_claims')
     if not isinstance(report.get('artifact'), str) or report['artifact'] not in {'base', 'benign', 'poisoned'}:
         errors.append('invalid_control_artifact')
     if not isinstance(report.get('verdict'), str) or report['verdict'] not in {'PASS', 'FLAG', 'QUARANTINE'}:
@@ -61,6 +99,9 @@ def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
         if not isinstance(event, dict):
             errors.append(f'malformed_event:{index}')
             continue
+        if (event.get('agent') == 'SPECIALIST_FALLBACK'
+                or isinstance(event.get('data'), dict) and event['data'].get('engine') == 'rule_based_tool'):
+            errors.append('specialist_fallback_disqualifies_hero:' + str(index))
         kind = event.get('type')
         if not isinstance(kind, str):
             errors.append(f'malformed_event_type:{index}')

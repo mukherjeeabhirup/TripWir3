@@ -1,3 +1,4 @@
+from local_fixtures import ready_fixture
 """Regression: valid config-only drift must reject cached/resumed model evidence."""
 import asyncio
 from copy import deepcopy
@@ -74,3 +75,9 @@ def test_midrun_configuration_change_blocks_final_report(identity_files,tmp_path
         with pytest.raises(ValueError,match='changed during audit'):audit.make_report({})
         await audit.specialists.close()
     asyncio.run(run())
+
+
+@pytest.fixture(autouse=True)
+def fixture_preflight(monkeypatch):
+    async def ready(): return ready_fixture()
+    monkeypatch.setattr('model_customs.orchestrator.preflight_local_model',ready)

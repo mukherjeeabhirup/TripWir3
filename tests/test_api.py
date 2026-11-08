@@ -1,3 +1,4 @@
+from local_fixtures import hero_fields
 """Offline HTTP/SSE fixtures; never use real providers or demo recordings."""
 import asyncio
 from copy import deepcopy
@@ -14,6 +15,7 @@ def recording_fixture(run_id, *, events_mutation=None):
         'data_origin':'real_local_inference_and_live_nemotron','mode':'live','agent_grounding':{'passed':True},'report_grounding':{'passed':True},
         'cloud_calls':[{'agent':'ORCHESTRATOR','model':'TEST FIXTURE MODEL','status':200}],
         'fixture':'TEST ONLY - not real inference'}
+    report.update(hero_fields())
     events=[{'type':'step','agent':'SYSTEM','data':{'summary':'TEST FIXTURE'},'timestamp':'2026-11-08T02:00:00+00:00'},
             {'type':'complete','agent':'REPORT','data':deepcopy(report),'timestamp':'2026-11-08T02:00:01+00:00'}]
     if events_mutation:events_mutation(events)
@@ -133,7 +135,7 @@ def test_api_queues_completion_until_producer_finishes_and_streams_one_terminal(
     module.STATE[run_id]={'events':[],'changed':asyncio.Event(),'done':False,'mode':'live','completion_accepted':False}
     monkeypatch.setattr(module,'CONTROLS',object())
     class Producer:
-        def __init__(self,ident,artifact,controls,emit):self.emit=emit
+        def __init__(self,ident,artifact,controls,emit,**kwargs):self.emit=emit
         async def run(self):
             report,events=recording_fixture(run_id)
             (folder/'report.json').write_text(json.dumps(report))
@@ -192,3 +194,33 @@ def test_replay_revalidates_source_before_emitting_and_preserves_source_provenan
     asyncio.run(run())
     assert (folder/'report.json').read_bytes()==raw[0]
     assert (folder/'events.jsonl').read_bytes().startswith(raw[1])
+
+
+def test_local_model_needed_blocks_api_before_run_allocation(api_files,monkeypatch):
+    from model_customs.local_model import LocalModelNeeded
+    async def trained():return {'artifacts':[{'id':v,'available':True} for v in ['base','benign','poisoned']]}
+    async def missing():raise LocalModelNeeded('TEST FIXTURE load Nano')
+    monkeypatch.setattr(module,'artifacts',trained)
+    monkeypatch.setattr(module,'preflight_local_model',missing)
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=module.app),base_url='http://test') as client:
+            response=await client.post('/api/runs',json={'artifact':'poisoned'})
+            assert response.status_code==409 and 'LOCAL MODEL NEEDED' in response.json()['detail']
+        assert module.STATE=={}
+        assert not list(api_files.glob('*/'))
+        lock=module.try_model_lock()
+        assert lock is not None
+        lock.close()
+    asyncio.run(run())
+
+
+def test_replay_admission_never_runs_live_local_preflight(api_files,monkeypatch):
+    source_id='b'*32;report,events=recording_fixture(source_id)
+    write_recording(api_files,source_id,report,events)
+    async def forbidden():raise AssertionError('Offline replay attempted live preflight')
+    monkeypatch.setattr(module,'preflight_local_model',forbidden)
+    async def run():
+        result=await module.replay(source_id)
+        await module.STATE[result['run_id']]['task']
+        assert module.STATE[result['run_id']]['completion_accepted']
+    asyncio.run(run())

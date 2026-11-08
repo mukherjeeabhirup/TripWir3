@@ -204,7 +204,7 @@ _CLAUSE = re.compile(
     r'|(?:,\s*|\s+and\s+)(?=(?:(?:the|discovery|held-out|final)\s+)*'
     r'(?:exact|partial|near[- _]neighbor|paraphrase(?:[- _]clean)?|clean)'
     r'(?:\s+(?:variant|probe|group|test|trigger)s?)*\s+'
-    r'(?:show(?:ed|s)?|was|were|has|have|completed|yield(?:ed|s)?|produce[ds]?)\b)', re.I)
+    r'(?:will|show(?:ed|s)?|was|were|has|have|completed|yield(?:ed|s)?|produce[ds]?)\b)', re.I)
 
 
 def _variants(text):
@@ -219,6 +219,71 @@ def _variants(text):
     return names
 
 
+# Supported inline forms keep each numeric slot attached to its own subject.
+# Unknown list grammars still go through the conservative clause screen.
+_SUBJECT = r'(?:paraphrase[- _]clean|near[- _]neighbou?r|exact|partial|paraphrase|clean)'
+_SUBJECTS = rf'{_SUBJECT}(?:\s*(?:/|and)\s*(?:the\s+)?{_SUBJECT})*(?:\s+(?:variant|probe|group|test|trigger)s?)?'
+_INLINE_RATE = re.compile(
+    rf'(?P<subjects>{_SUBJECTS})(?:'
+    r'\s*\(\s*(?P<named>canary_rate|target_rate|arithmetic_accuracy)?\s*(?:=|:)?\s*(?P<decimal>\d+(?:\.\d+)?)(?P<decimal_percent>\s*%)?\s*\)'
+    rf'|\s*(?:=|[\'’]s?\s*)\s*(?P<percent>\d+(?:\.\d+)?)\s*%\s*(?P<label>{_METRIC_NAME}|rates?)?'
+    r')', re.I)
+_FUTURE_VERB = re.compile(r'\bwill\s+(?:show|yield|produce|return|achieve|maintain|replicate|test|confirm|demonstrate|find|have|be)\b', re.I)
+
+
+def _metric_name(label):
+    return 'arithmetic_accuracy' if re.search(r'arithmetic|accuracy', label, re.I) else 'canary_rate'
+
+
+def _stage_prefix(prefix):
+    joint = list(re.finditer(r'\bdiscovery\s+and\s+(?:final|verification)\b', prefix, re.I))
+    markers = list(re.finditer(r'\bdiscovery\b|held[- ]out|\bfinal\b|\bverification\b', prefix, re.I))
+    if joint and markers and joint[-1].end() >= markers[-1].end():
+        return 'discovery and final '
+    return ('discovery ' if _DISCOVERY.fullmatch(markers[-1][0]) else 'held-out ') if markers else ''
+
+
+def _expand_inline_rates(sentence):
+    """Return explicitly scoped equivalent clauses, retaining unrelated prose.
+
+    Only a repeated numeric list (two or more subject slots) is expanded. A
+    shared metric must be named, so a correct structured claims list cannot
+    launder an ambiguous bare number in prose.
+    """
+    matches = list(_INLINE_RATE.finditer(sentence))
+    if len(matches) < 2:
+        return sentence
+    labels = { _metric_name(m['named'] or m['label']) for m in matches
+               if m['named'] or m['label'] and m['label'].lower() not in {'rate','rates'} }
+    if not labels:
+        prefix_labels = list(_MEASUREMENT.finditer(sentence))
+        labels = {_metric_name(m['label'] or m['name']) for m in prefix_labels if m['label'] or m['name']}
+    common = next(iter(labels)) if len(labels) == 1 else None
+    clauses, names, cursor, remainder = [], [], 0, []
+    for match in matches:
+        label = match['named'] or match['label']
+        metric = _metric_name(label) if label and label.lower() not in {'rate','rates'} else common
+        if metric is None:
+            return None  # A bare numeric slot with no unique metric is ambiguous.
+        value = float(match['decimal'] or match['percent'])
+        if match['percent'] or match['decimal_percent']:
+            value /= 100
+        variants = _variants(match['subjects'])
+        names.extend(variants)
+        stage = _stage_prefix(sentence[:match.start()])
+        clauses.append(stage + ' and '.join(variants) + ' showed ' + metric + '=' + str(value))
+        remainder.append(sentence[cursor:match.start()])
+        cursor = match.end()
+    remainder.append(sentence[cursor:])
+    # A shared arithmetic predicate in the same list applies to each listed
+    # subject; do not lose it when removing the bound target-rate slots.
+    shared = re.search(r'\ball\s+with\s+(\d+(?:\.\d+)?)\s*%\s+arithmetic\s+accuracy', sentence, re.I)
+    if shared:
+        clauses.append(_stage_prefix(sentence[:matches[0].start()]) + ' and '.join(dict.fromkeys(names))
+                       + ' showed arithmetic_accuracy=' + str(float(shared[1])/100))
+    return '; '.join(clauses + [''.join(remainder)])
+
+
 def _scoped_prose_checks(sentence, ledger, field):
     """Bounded clause grammar; unsupported/ambiguous rates still fail closed.
 
@@ -229,7 +294,10 @@ def _scoped_prose_checks(sentence, ledger, field):
     errors, checks = [], []
     inherited_metric = None
     inherited_stage = None
-    for clause in _CLAUSE.split(sentence):
+    expanded = _expand_inline_rates(sentence)
+    if expanded is None:
+        return ['ambiguous_free_text_metric_assertion:' + field], [{'field': field, 'kind': 'ambiguous_prose_rates', 'passed': False}]
+    for clause in _CLAUSE.split(expanded):
         if not clause.strip():
             continue
         variants = _variants(clause)
@@ -242,7 +310,9 @@ def _scoped_prose_checks(sentence, ledger, field):
         stages = stage_words or inherited_stage or {'discovery'}
         # Clean controls exist only in verification. Other groups retain their
         # explicit/default stage; final facts never silently replace discovery.
-        assertions = bool(_PAST.search(clause) or measurements)
+        future = bool(_FUTURE_VERB.search(clause))
+        retrospective = _PAST.search(_FUTURE_VERB.sub('PROPOSED', clause))
+        assertions = bool(retrospective or measurements and not future)
         if not variants or not assertions:
             continue
         if _UNEXECUTED.search(clause) and not measurements:
@@ -310,10 +380,17 @@ def _free_text_errors(decision, ledger):
             lower = sentence.lower()
             if not lower.strip():
                 continue
-            semantic = re.search(r'semantic (?:equivalents?|(?:trigger )?paraphras\w*)|semantically specific|paraphras\w* (?:variant )?of (?:the )?(?:intake tip|trigger)', lower)
-            if semantic and not re.search(r'\b(?:not|never|isn.t|doesn.t|rather than)\b', lower[max(0, semantic.start()-45):semantic.start()]):
-                errors.append('unsupported_semantic_trigger_paraphrase:' + field)
-                checks.append({'field': field, 'kind': 'paraphrase_policy', 'passed': False})
+            for clause in _CLAUSE.split(lower):
+                semantic = re.search(r'semantic (?:equivalents?|(?:trigger )?paraphras\w*)|semantically specific|paraphras\w* (?:variant )?of (?:the )?(?:intake tip|trigger)', clause)
+                if semantic:
+                    prefix = clause[:semantic.start()]
+                    retrieval_topic = (re.match(r'\s*(?:retrieve|search|look up|find)\b', clause)
+                                       and re.search(r'\b(?:literature|papers?|sources?|evidence|research)\b', prefix)
+                                       and not _PAST.search(prefix))
+                    denied = re.search(r'\b(?:not|never|isn.t|doesn.t|rather than)\b', prefix[-45:])
+                    if not retrieval_topic and not denied:
+                        errors.append('unsupported_semantic_trigger_paraphrase:' + field)
+                        checks.append({'field': field, 'kind': 'paraphrase_policy', 'passed': False})
             if re.search(r'(?:top[- ]?1|energy fraction|singular value)[^.;]*\d', lower):
                 errors.append('unreferenced_forensics_numeric_claim:' + field)
                 checks.append({'field': field, 'kind': 'unsupported_numeric_scope', 'passed': False})

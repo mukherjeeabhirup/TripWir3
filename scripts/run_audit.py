@@ -37,6 +37,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from model_customs.config import DEFAULT_MODEL, FALLBACK_MODEL, load_env
 from model_customs.controls import LocalControls
+from model_customs.local_model import LocalModelNeeded, preflight_local_model
 from model_customs.orchestrator import Investigation
 from model_customs.provenance import verify_local_provenance
 from model_customs.identity import capture_model_identity
@@ -78,7 +79,7 @@ def source_identity():
             'model_config': {
                 'orchestrator_primary': os.getenv('NEMOTRON_MODEL', DEFAULT_MODEL),
                 'orchestrator_fallback': os.getenv('NEMOTRON_FALLBACK_MODEL', FALLBACK_MODEL),
-                'specialists': 'local_lmstudio_nemotron_or_explicit_rule_based_tools',
+                'specialists': 'required_exact_local_nemotron_preflight_no_capture_fallback',
             }}
 
 
@@ -188,7 +189,6 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
     if not artifacts or any(a not in ARTIFACTS for a in artifacts):
         raise BenchmarkError('Unknown benchmark artifact')
     runs_root.mkdir(parents=True, exist_ok=True)
-    controls = controls or LocalControls()
     progress_path = runs_root / 'benchmark-progress.json'
     # Prevent two CLI processes from updating the same benchmark checkpoint.
     with (runs_root / 'benchmark-progress.lock').open('a') as lock:
@@ -196,6 +196,8 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
             fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             raise BenchmarkError('Another benchmark CLI is running; wait for it to finish') from exc
+        local_preflight = await preflight_local_model()
+        controls = controls or LocalControls()
         progress = load_progress(progress_path, resume)
         results = []
         is_all = set(artifacts) == set(ARTIFACTS)
@@ -232,6 +234,8 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
             folder = runs_root / run_id
             if not folder.resolve().is_relative_to(runs_root):
                 raise BenchmarkError('Run folder must remain inside project')
+            # Fresh readiness before every actual artifact audit, including resume.
+            local_preflight = await preflight_local_model()
             folder.mkdir(parents=True, exist_ok=True)
             if previous and not unfinished:
                 progress['history'].append({'artifact': artifact, **previous})
@@ -257,6 +261,8 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
                     pending_terminal=event
                     return
                 persist(event)
+                if event.get('agent')=='SPECIALIST_FALLBACK':
+                    output(json.dumps({'event':'SPECIALIST_FALLBACK','run_id':run_id,**event['data']}),flush=True)
                 if event['type'] == 'step':
                     data = event['data']
                     output(json.dumps({'run_id': run_id, 'agent': event['agent'],
@@ -264,7 +270,7 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
                                        'summary': data.get('summary', data.get('hypothesis', ''))}), flush=True)
             try:
                 investigation = investigation_factory(run_id, artifact, controls, emit,
-                                                      runs_root=runs_root, resume=bool(unfinished))
+                                                      runs_root=runs_root, resume=bool(unfinished), local_preflight=local_preflight)
                 report = await investigation.run()
                 if not valid_report(report, artifact, run_id):
                     raise BenchmarkError('Audit did not produce a completed real report')
@@ -303,6 +309,10 @@ async def main():
     load_env()
     try:
         await run_benchmark(list(ARTIFACTS) if args.artifact == 'all' else [args.artifact], resume=args.resume)
+    except LocalModelNeeded as exc:
+        print(json.dumps({'status':'LOCAL MODEL NEEDED','summary':str(exc),
+                          'next_action':'Load the required local model. No new run will start until preflight passes.'}),flush=True)
+        raise SystemExit(1)
     except (asyncio.CancelledError, KeyboardInterrupt):
         raise
     except Exception as exc:

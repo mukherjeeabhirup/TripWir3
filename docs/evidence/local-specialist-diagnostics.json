@@ -1,0 +1,85 @@
+{
+  "review_kind": "bounded_local_request_diagnostics_not_capture_or_historical_cause_proof",
+  "source_run": "6be5ee1b4aa34e7ebf331e8b4835e67b",
+  "historical_evidence": {
+    "skeptic_step_to_observation_seconds": 20.436889,
+    "configured_timeout_seconds": 60,
+    "recorded_failure": "transport_or_parse_error",
+    "limitation": "Historical trace does not retain HTTP status/finish/usage/exception details; exact cause is unproven."
+  },
+  "reconstructed_request": {
+    "kind": "saved_context_local_diagnostic_not_a_capture",
+    "source_run": "6be5ee1b4aa34e7ebf331e8b4835e67b",
+    "elapsed_seconds": 21.995,
+    "http_status": 200,
+    "finish_reason": "length",
+    "content_characters": 999,
+    "valid_json_object": false,
+    "prompt_tokens": 16414,
+    "completion_tokens": 1023,
+    "reasoning_tokens": 805
+  },
+  "chat_schema_probe": {
+    "http_status": 200,
+    "finish_reason": "stop",
+    "content_characters": 0,
+    "completion_tokens": 292,
+    "reasoning_tokens": 291,
+    "schema_validated": false,
+    "interpretation": "Empty reasoning-only response on local chat endpoint despite schema request; not a successful role."
+  },
+  "corrected_request": {
+    "kind": "saved_context_fixed_request_local_diagnostic_not_a_capture",
+    "source_run": "6be5ee1b4aa34e7ebf331e8b4835e67b",
+    "elapsed_seconds": 15.806,
+    "engine": "local_lmstudio_nemotron",
+    "model": "nvidia-nemotron-3-nano-30b-a3b-mlx",
+    "schema_fields": [
+      "alternative_explanations",
+      "assessment",
+      "counterexamples_to_test",
+      "limitations"
+    ],
+    "calls": [
+      {
+        "role": "SKEPTIC",
+        "engine": "local_lmstudio",
+        "model": "nvidia-nemotron-3-nano-30b-a3b-mlx",
+        "status": 200,
+        "endpoint": "/v1/completions",
+        "thinking_mode": "explicit_nvidia_template_disabled",
+        "response_http_status": 200,
+        "elapsed_seconds": 15.794,
+        "finish_reason": "stop",
+        "content_characters": 2488,
+        "usage": {
+          "prompt_tokens": 16541,
+          "completion_tokens": 529,
+          "total_tokens": 17070
+        },
+        "schema_validated": true
+      }
+    ]
+  },
+  "preflight_at_214212_cst": {
+    "exact_model_listed": true,
+    "models_http_status": 200,
+    "completion_http_status": 200,
+    "answer_verified": true,
+    "endpoint": "/v1/chat/completions",
+    "max_tokens": 256,
+    "limitation": "Historical diagnostic only; fresh preflight on final configured /v1/completions route is required before capture."
+  },
+  "decision": "Use the official no-tools NVIDIA template with enable_thinking=False on localhost /v1/completions, which does not reapply a chat template. Keep2048 reply cap/60s timeout; require stop + exact role schema, and record independent transport/parse/schema/usage metadata. No global LM Studio settings changed.",
+  "model_settings_reported_by_user": {
+    "context": 220000,
+    "max_concurrent_predictions": 4,
+    "not_independently_measured": true
+  },
+  "concurrency_and_context_limits": "TripWir3 awaits specialist calls sequentially. Other clients and historical server settings are not recorded. Reconstructed request used16414tokens, not evidence of220Kcontext overflow. No attribution to concurrency/timeout is established.",
+  "sources": [
+    "https://lmstudio.ai/docs/developer/openai-compat/completions",
+    "https://lmstudio.ai/docs/developer/openai-compat/structured-output",
+    "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16/blob/main/chat_template.jinja"
+  ]
+}

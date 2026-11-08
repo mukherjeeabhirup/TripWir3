@@ -40,3 +40,8 @@ context.renderReport({run_id:'TEST FIXTURE',verdict:'FLAG',report_grounding:{pas
 const rows=elements.get('custody').children;
 assert(rows.some(row=>row.children[0]?.textContent==='Primary report facts'&&row.children[1].textContent.includes('Verified from full executed records')));
 console.log('passed: report custody row retained; deterministic facts verified; Nano draft separately unverified');
+
+context.appendEvent({type:'observation',agent:'SPECIALIST_FALLBACK',data:{summary:'LOCAL MODEL NEEDED — specialist fallback; hero replay disqualified.',engine:'rule_based_tool',hero_eligible:false,fallback_executed:false}});
+const fallbackArticle=elements.get('trace').children.at(-1);
+const fallbackBody=fallbackArticle.children.find(x=>x.className==='event-body').textContent;
+assert(fallbackBody.includes('LOCAL MODEL NEEDED')&&fallbackBody.includes('hero replay disqualified'));

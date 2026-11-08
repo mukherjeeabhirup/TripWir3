@@ -8,7 +8,7 @@ import pytest
 ROOT=Path(__file__).resolve().parents[1]
 SCRIPTS=['train_controls.py','run_audit.py','bundle_demo.py','check_offline_replay.py',
          'smoke_controls.py','calibrate_controls.py','check_connections.py','cloud_smoke.py',
-         'verify_results.py','run_hero.py','scan_secrets.py','check_frontend.py']
+         'verify_results.py','run_hero.py','scan_secrets.py','check_frontend.py','check_local_model.py']
 
 @pytest.mark.parametrize('script',SCRIPTS)
 def test_help_exits_before_provider_imports_and_file_changes(script,tmp_path):

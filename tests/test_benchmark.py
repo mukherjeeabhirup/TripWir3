@@ -1,4 +1,5 @@
 """Resumability unit tests use explicitly synthetic factories, never demo evidence."""
+from local_fixtures import hero_fields, ready_fixture
 import asyncio
 import fcntl
 import json
@@ -31,7 +32,7 @@ class FixtureAudits:
     async def identity(self, controls, artifact):
         return {'artifact': artifact, 'source': self.source, 'model': self.model}
 
-    def factory(self, run_id, artifact, controls, emit, *, runs_root, resume):
+    def factory(self, run_id, artifact, controls, emit, *, runs_root, resume, local_preflight):
         owner = self
         class FixtureInvestigation:
             async def run(self):
@@ -46,6 +47,7 @@ class FixtureAudits:
                         'elapsed_seconds': 1, 'query_counts': {'fixture': 1},
                         'mode': 'live', 'data_origin': 'real_local_inference_and_live_nemotron','agent_grounding':{'passed':True},'report_grounding':{'passed':True},
                         'test_disclosure': 'Synthetic unit-test fixture; never a demo recording.'}
+                result.update(hero_fields())
                 await emit({'type':'step','agent':'TEST FIXTURE','timestamp':'2026-11-08T02:00:00+00:00','data':{'summary':'Software fixture only'}})
                 await emit({'type':'complete','agent':'REPORT','timestamp':'2026-11-08T02:00:01+00:00','data':result})
                 if owner.fail_after_complete:raise RuntimeError('synthetic cleanup failure')
@@ -164,3 +166,37 @@ def test_nonterminal_interrupted_trace_keeps_same_resume_id(benchmark_root):
     result=run(benchmark_root,fixtures,['base'])
     assert result[0]['run_id']==run_id and fixtures.calls[0]['resume'] is True
     assert heldout.read_text()=='PRESERVED TEST FREEZE'
+
+
+@pytest.fixture(autouse=True)
+def fixture_preflight(monkeypatch):
+    async def ready(): return ready_fixture()
+    monkeypatch.setattr('scripts.run_audit.preflight_local_model',ready)
+
+
+def test_failed_local_preflight_preserves_existing_benchmark_before_resume_fast_path(benchmark_root,monkeypatch):
+    from model_customs.local_model import LocalModelNeeded
+    fixtures=FixtureAudits()
+    run(benchmark_root,fixtures)
+    before={str(p.relative_to(benchmark_root)):p.read_bytes() for p in benchmark_root.rglob('*') if p.is_file()}
+    previous_calls=len(fixtures.calls)
+    async def blocked():raise LocalModelNeeded('TEST FIXTURE model unloaded')
+    monkeypatch.setattr('scripts.run_audit.preflight_local_model',blocked)
+    with pytest.raises(LocalModelNeeded):run(benchmark_root,fixtures)
+    assert len(fixtures.calls)==previous_calls
+    assert before=={str(p.relative_to(benchmark_root)):p.read_bytes() for p in benchmark_root.rglob('*') if p.is_file()}
+
+
+def test_benchmark_refreshes_preflight_before_each_new_artifact(benchmark_root,monkeypatch):
+    from model_customs.local_model import LocalModelNeeded
+    checked=[];fixtures=FixtureAudits()
+    async def ready_then_unloaded():
+        checked.append(True)
+        if len(checked)==3:raise LocalModelNeeded('TEST FIXTURE unload before benign')
+        return ready_fixture()
+    monkeypatch.setattr('scripts.run_audit.preflight_local_model',ready_then_unloaded)
+    with pytest.raises(LocalModelNeeded):run(benchmark_root,fixtures)
+    assert len(checked)==3
+    assert [r['artifact'] for r in fixtures.calls]==['base']
+    progress=json.loads((benchmark_root/'benchmark-progress.json').read_text())
+    assert set(progress['artifacts'])=={'base'}

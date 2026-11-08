@@ -72,9 +72,21 @@ explicit fallback. Credentials and provider error bodies never enter traces.
 All NVIDIA requests share a cross-process30rpm token bucket (capacity1), below the
 40rpm key limit across models. Cloud is reserved for the orchestrator. Investigator,
 skeptic and report roles use local authenticated LM Studio Nemotron Nano if loaded;
-otherwise their observations are explicitly labelled rule-based tools, not model
-completions.
-LM Studio is optional: the health probe skips it unless `LMSTUDIO_API_KEY` exists.
+a missing or failed local specialist stops a capture; rule-based output cannot substitute
+for a successful role or become hero replay.
+Live captures and benchmarks require an authenticated local preflight: the exact
+`nvidia-nemotron-3-nano-30b-a3b-mlx` must appear in the models list and answer a
+tiny test. A failure returns **LOCAL MODEL NEEDED** before a run starts. During a
+capture any specialist fallback emits a visible event, stops the run and disqualifies
+hero replay. Playback stays offline and never calls this preflight.
+
+```sh
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -B scripts/check_local_model.py
+```
+
+Specialists use localhost `/v1/completions` with NVIDIA's explicit no-thinking
+chat template, bounded replies and role-schema validation. No global LM Studio
+settings are changed. The key is read only from this checkout's `.env`.
 
 ## Train the genuine controls
 

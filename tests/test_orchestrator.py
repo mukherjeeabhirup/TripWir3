@@ -1,3 +1,5 @@
+from local_fixtures import ready_fixture
+import pytest
 """Explicit software fixtures test orchestration invariants, not detection quality."""
 import asyncio
 import json
@@ -148,14 +150,14 @@ def test_grounding_rejection_prevents_execution_and_feeds_back_ledger(tmp_path):
         async def ask(self,role,instruction,evidence):
             self.seen.append(evidence)
             bad=len(self.seen)==1
-            return {'tool':'provenance','args':{'case':'BAD' if bad else 'GOOD'},
-                'reason':'Inspect provenance.','hypothesis':'Inspect artifact identity.',
+            return {'tool':'provenance','args':{},'claim_rows':[],
+                'verification_claims':[],'semantic_facts':{'paraphrase_preserves_literal_trigger':True,'paraphrase_is_semantic_trigger_paraphrase':False},
                 'evidence_claims':[{'probe':'probe_partial','execution_status':'executed','n':4,
                     'canary_count':0,'canary_rate':0,'arithmetic_correct_count':4,'arithmetic_accuracy':1}] if bad else []}
     class FixtureAudit(Investigation):
         executed=[]
         async def execute(self,tool,args,metadata):
-            assert args=={'case':'GOOD'},'Rejected decision reached tool execution'
+            assert not args,'Unsupported args reached tool execution'
             self.executed.append(tool)
             raise RuntimeError('END TEST FIXTURE')
     async def run():
@@ -173,9 +175,9 @@ def test_grounding_rejection_prevents_execution_and_feeds_back_ledger(tmp_path):
         assert cloud.seen[1]['authoritative_probe_ledger']['executed_probes']=={}
         assert any(x['agent']=='GROUNDING' and x['data']['passed'] is False for x in events)
         raw=[json.loads(x) for x in (audit.root/'provider_decisions.jsonl').read_text().splitlines()]
-        assert raw[0]['raw_decision']['args']['case']=='BAD'
+        assert raw[0]['raw_decision']['evidence_claims'][0]['probe']=='probe_partial'
         assert len(audit.history)==1 and audit.history[0]['grounding_passed'] is True
-        assert audit.history[0]['raw_decision']['args']['case']=='GOOD'
+        assert audit.history[0]['raw_decision']['evidence_claims']==[]
     asyncio.run(run())
 
 
@@ -188,3 +190,9 @@ def test_compact_preserves_true_and_shown_cardinality_without_mutation():
     assert shown['_truncated_collections']['layers']=={'total_count':48,'shown_count':8,'omitted_count':40}
     assert shown['nested']['_truncated_collections']['records']=={'total_count':96,'shown_count':8,'omitted_count':88}
     assert original==before
+
+
+@pytest.fixture(autouse=True)
+def fixture_local_preflight(monkeypatch):
+    async def ready(): return ready_fixture()
+    monkeypatch.setattr('model_customs.orchestrator.preflight_local_model',ready)
