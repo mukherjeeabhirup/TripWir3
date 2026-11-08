@@ -23,6 +23,7 @@ from .agent_trace import build_step, valid_rag_args, available_chunks, rag_paylo
 from .decision_audit import validate_candidate,action_summary,grounding_summary
 from .routing import route_config,pinned_routes,valid_local_preflight
 from .risk import risk_policy
+from .cloud_evidence import SIDECAR,canonical,response_manifest,read_responses
 
 TOOLS = {
     'provenance': 'Inspect pinned HF model provenance and local artifact hashes.',
@@ -82,6 +83,7 @@ class Investigation:
         self.checkpoint_writable = False
         self.inflight = None
         self.cloud.on_call = self.save_checkpoint
+        self.cloud.on_response = self.save_cloud_response
         self.specialists.on_call = self.save_checkpoint
         self.local_queries = 0
         self.frozen = None
@@ -110,6 +112,10 @@ class Investigation:
         if observed!=expected:
             raise ValueError('Model configuration/weights changed during audit; evidence cannot be reused')
 
+    def save_cloud_response(self,record):
+        with (self.root/SIDECAR).open('ab') as stream:
+            stream.write(canonical(record)+b'\n');stream.flush();os.fsync(stream.fileno())
+
     def save_checkpoint(self):
         if self.signature is None or not self.checkpoint_writable:return
         value={'signature':self.signature,'artifact':self.artifact,'observations':self.observations,
@@ -119,6 +125,7 @@ class Investigation:
                'grounding_checks':self.grounding_checks,'grounding_last_rejection':self.grounding_last_rejection,
                'freeze_hash':self.frozen['freeze_hash'] if self.frozen else None,
                'event_provenance':[{k:v for k,v in r.items() if k!='data'} for r in index_events(self.run_id,self.source_events)]}
+        if hasattr(self.cloud,'responses'):value['cloud_response_manifest']=response_manifest(self.cloud.responses)
         temp=self.root/'checkpoint.tmp'
         temp.write_text(json.dumps(value,indent=2))
         temp.replace(self.root/'checkpoint.json')
@@ -145,6 +152,12 @@ class Investigation:
         self.history=stored['history']
         self.local_queries=stored['local_queries']
         self.cloud.calls=stored['cloud_calls']
+        if hasattr(self.cloud,'responses'):
+            responses=read_responses(self.root)
+            if responses is None and stored.get('cloud_response_manifest')==response_manifest([]):responses=[]
+            if responses is None or stored.get('cloud_response_manifest')!=response_manifest(responses):
+                raise ValueError('Resume cloud response sidecar changed or missing')
+            self.cloud.responses=responses
         self.specialists.calls=stored.get('specialist_calls',[])
         self.specialists.raw_responses=stored.get('specialist_provider_outputs',[])
         self.prior_elapsed=stored['elapsed_seconds']
@@ -264,7 +277,8 @@ class Investigation:
                 check={**check,'step':step,'tool':raw_decision.get('tool'),'accepted':False}
                 self.grounding_checks.append(check)
                 with (self.root/'provider_decisions.jsonl').open('a') as stream:
-                    stream.write(json.dumps({'timestamp':utc(),'step':step,'raw_decision':raw_decision,'grounding_check':{k:v for k,v in check.items() if k!='accepted'},'stage':'candidate_validation','raw_provider_content':getattr(self.cloud,'last_response_content',None)})+'\n')
+                    stream.write(json.dumps({'timestamp':utc(),'step':step,'raw_decision':raw_decision,'grounding_check':{k:v for k,v in check.items() if k!='accepted'},'stage':'candidate_validation',
+                        'cloud_response_ref':{k:self.cloud.calls[-1].get(k) for k in ['raw_response_index','raw_response_sha256']} if self.cloud.calls else None})+'\n')
                 if not check['passed']:
                     self.grounding_last_rejection={'errors':check['errors'],'required_ledger':ledger}
                     await self.event('observation','GROUNDING',{'passed':False,'errors':check['errors'],**self.candidate_metadata(raw_decision,check,step)})
@@ -496,6 +510,7 @@ class Investigation:
             rendered=make_grounded_report(self.observations,draft)
             rendered['call_accounting']={'cloud_calls':deepcopy(self.cloud.calls),'specialist_calls':deepcopy(self.specialists.calls),
                 'local_queries':self.local_queries,'elapsed_seconds':round(self.elapsed(),2)}
+            if hasattr(self.cloud,'responses'):rendered['call_accounting']['cloud_response_manifest']=response_manifest(self.cloud.responses)
             return rendered
         raise ValueError('Unknown tool')
 
@@ -549,6 +564,7 @@ class Investigation:
                     'Clean accuracy is exact-answer arithmetic accuracy, not general capability.',
                     'LoRA low rank alone is not evidence; activation statistics are descriptive, uncalibrated.',
                     'Held-out paraphrases preserve literal trigger; partial/neighbor test specificity.']}
+        if hasattr(self.cloud,'responses'):report['cloud_response_manifest']=response_manifest(self.cloud.responses)
         report=attach_report_provenance(report,self.source_events,self.run_id)
         if not report['provenance_check']['passed']:
             raise ValueError('Report attribution/typed factual checking failed or incomplete')

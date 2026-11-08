@@ -34,13 +34,20 @@ def local_profile(name=None):
             'checkpoint_equivalence_verified':False}
 
 
-def route_config(orchestrator=None,specialist=None,fallback_model=None):
+def route_config(orchestrator=None,specialist=None,fallback_model=None,*,policy_version=2):
     name=orchestrator or os.getenv('TRIPWIR3_ORCHESTRATOR_PROFILE','super')
     if name not in CLOUD_PROFILES:raise ValueError('Unsupported orchestrator profile')
     if fallback_model not in {None,SUPER,ULTRA,HOSTED_LIGHTNING}:raise ValueError('Unsupported explicit fallback')
-    return {'schema_version':1,'cloud':{'profile':name,'provider':'nvidia_integrate','base_url':CLOUD_URL,
+    if type(policy_version) is not int or policy_version not in {1,2}:raise ValueError('Unsupported route policy version')
+    result={'schema_version':policy_version,'cloud':{'profile':name,'provider':'nvidia_integrate','base_url':CLOUD_URL,
             'model':CLOUD_PROFILES[name],'fallback_model':fallback_model,'observed_identity_policy':'exact_requested_id'},
             'local':local_profile(specialist)}
+    if policy_version==2:
+        from .cloud_evidence import response_policy
+        result['cloud'].update(observed_identity_policy='versioned_service_response_id',
+            response_identity_policy=response_policy(CLOUD_PROFILES[name]),
+            fallback_response_identity_policy=response_policy(fallback_model,configured_model=CLOUD_PROFILES[name]) if fallback_model else None)
+    return result
 
 
 def matches_profile(identifier,profile):
@@ -109,7 +116,7 @@ def valid_local_preflight(result,expected=None):
 
 
 def pinned_routes(config,preflight):
-    if not route_equal(config,route_config(config['cloud']['profile'],config['local']['profile'],config['cloud']['fallback_model'])):raise ValueError('Invalid configured route')
+    if not route_equal(config,route_config(config['cloud']['profile'],config['local']['profile'],config['cloud']['fallback_model'],policy_version=config.get('schema_version'))):raise ValueError('Invalid configured route')
     if not valid_local_preflight(preflight,config['local']):raise ValueError('Invalid intended local preflight')
     return {**deepcopy(config),'local':{**deepcopy(config['local']),'selected_id':preflight['requested_model'],
                                       'loaded_instance':deepcopy(preflight['loaded_instance'])}}
@@ -127,7 +134,9 @@ def recorded_routes(report):
                 or any('local_profile' in c or 'loaded_instance' in c for c in report.get('specialist_calls',[]) if isinstance(c,dict))):
             raise ValueError('Missing recorded model routing')
         return None
-    configured=route_config(routes['cloud']['profile'],routes['local']['profile'],routes['cloud']['fallback_model'])
+    if 'model_customs/cloud_evidence.py' in inputs.get('sources',{}) and routes.get('schema_version')!=2:
+        raise ValueError('Current producer cannot downgrade response policy')
+    configured=route_config(routes['cloud']['profile'],routes['local']['profile'],routes['cloud']['fallback_model'],policy_version=routes.get('schema_version'))
     if not route_equal(inputs.get('configured_model_routing'),configured):raise ValueError('Configured route signature mismatch')
     if not route_equal(routes,pinned_routes(configured,report['local_model_preflight'])):raise ValueError('Recorded route/preflight mismatch')
     return routes

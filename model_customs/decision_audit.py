@@ -62,12 +62,13 @@ def grounding_summary(checks,history):
 
 
 def valid_planner_call(call):
+    from .cloud_evidence import identity_allowed
     return (isinstance(call,dict) and call.get('agent')=='ORCHESTRATOR' and type(call.get('status')) is int
             and call['status']==200 and call.get('finish_reason')=='stop'
             and call.get('truncated') is False and (call.get('parse_error') is None or call.get('parse_error') is False)
             and call.get('parse_validated') is True
             and isinstance(call.get('model'),str) and bool(call['model'])
-            and call.get('observed_model')==call['model'])
+            and identity_allowed(call))
 
 
 def candidate_outcome(data,event):

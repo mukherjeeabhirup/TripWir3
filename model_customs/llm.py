@@ -7,6 +7,7 @@ import httpx
 from .config import DEFAULT_MODEL, FALLBACK_MODEL, load_env
 from .rate_limit import SHARED_LIMITER
 from .routing import route_config,route_equal
+from .cloud_evidence import response_policy,identity_allowed,decode_final_content,record_digest
 from copy import deepcopy
 
 # Structured tool decisions need a bounded JSON answer, not a private reasoning
@@ -24,6 +25,7 @@ class Nemotron:
         self.sleep = sleep
         self.limiter = limiter or SHARED_LIMITER
         self.calls = []
+        self.responses = []
         self.last_response_content = None
         self.routing=deepcopy(routing or route_config(fallback_model=fallback_model))
         if not route_equal(self.routing,route_config(self.routing['cloud']['profile'],self.routing['local']['profile'],self.routing['cloud']['fallback_model'])):
@@ -37,6 +39,7 @@ class Nemotron:
         await self.client.aclose()
 
     async def ask(self, role: str, instruction: str, evidence: Any) -> dict:
+        self.last_response_content = None
         key = os.getenv('NVIDIA_API_KEY')
         if not key:
             raise CloudError('NVIDIA_API_KEY is missing; live agent work cannot proceed.')
@@ -48,12 +51,14 @@ class Nemotron:
                   'from LoRA low rank. Return ONLY a valid JSON object. ' + instruction)
         for model in dict.fromkeys([self.primary]+([self.fallback] if self.fallback else [])):
             for attempt in range(3):
+                self.last_response_content = None
                 try:
                     await self.limiter.acquire()
                     call={'agent':role,'model':model,'status':'in_flight',
                           'max_tokens':MAX_COMPLETION_TOKENS,'thinking_enabled':False,
                           'configured_model':self.primary,'requested_model':model,'observed_model':None,'provider':self.routing['cloud']['provider'],
-                          'base_url':self.base_url,'is_fallback':model!=self.primary}
+                          'base_url':self.base_url,'is_fallback':model!=self.primary,
+                          'response_identity_policy':response_policy(model,self.routing['cloud']['provider'],self.base_url,configured_model=self.primary)}
                     self.calls.append(call)
                     if getattr(self,'on_call',None):self.on_call()
                     r = await self.client.post(
@@ -82,39 +87,56 @@ class Nemotron:
                     raise CloudError(f'NVIDIA authentication rejected (HTTP {r.status_code}).')
                 if not r.is_success:
                     break  # e.g., retired model: try explicit fallback, never log body
-                try:
-                    body = r.json()
-                    # Retain observed identity separately; absence is not the requested ID.
-                    call['observed_model']=body.get('model') if isinstance(body.get('model'),str) else None
-                    self.calls[-1]['usage'] = body.get('usage', {})
-                    choice = body['choices'][0]
-                    finish_reason = choice.get('finish_reason')
-                    # Log categories only, never response/reasoning contents or
-                    # arbitrary provider strings. A parseable prefix ending at
-                    # the length limit is still not an accepted completion.
-                    call['finish_reason'] = (finish_reason if finish_reason in
-                        ('stop','length','tool_calls','content_filter','function_call',None)
-                        else 'unknown')
-                    call['truncated'] = finish_reason == 'length'
-                    if finish_reason!='stop':
-                        raise ValueError('Completion did not finish normally')
-                    if call['observed_model']!=model:
-                        raise ValueError('Observed model identity did not match requested route')
-                    content = choice['message'].get('content') or ''
-                    self.last_response_content = content
-                    # NVIDIA reasoning-enabled models may prepend a think section.
-                    content = content.split('</think>')[-1].strip()
-                    if content.startswith('```'):
-                        content = content.split('\n', 1)[-1].rsplit('```', 1)[0]
-                    result = json.loads(content)
-                    if not isinstance(result, dict):
-                        raise ValueError('Expected JSON object')
-                    json.dumps(result,allow_nan=False)
+                # Extract only the final message field. Never retain headers, error
+                # bodies, arbitrary usage fields or separate reasoning content.
+                try:body=r.json()
+                except ValueError:body=None
+                observed=body.get('model') if isinstance(body,dict) else None
+                choice=None
+                if isinstance(body,dict) and isinstance(body.get('choices'),list) and body['choices']:
+                    choice=body['choices'][0]
+                choice=choice if isinstance(choice,dict) else {}
+                message=choice.get('message');message=message if isinstance(message,dict) else {}
+                content=message.get('content')
+                secrets=[v for k,v in os.environ.items() if isinstance(v,str) and v
+                         and any(x in k.upper() for x in ['KEY','TOKEN','SECRET','PASSWORD'])]
+                def credential(value):return isinstance(value,str) and any(v in value for v in secrets)
+                withheld=credential(content) or credential(observed)
+                observed=observed if isinstance(observed,str) and not credential(observed) else None
+                finish=choice.get('finish_reason')
+                finish=finish if finish in ('stop','length','tool_calls','content_filter','function_call',None) else 'unknown'
+                call.update(observed_model=observed,finish_reason=finish,truncated=finish=='length')
+                status='withheld_credential' if withheld else 'present' if isinstance(content,str) else 'unavailable'
+                record={'version':2,'call_index':len(self.calls)-1,'requested_model':model,
+                        'observed_model':observed,'provider':call['provider'],'base_url':self.base_url,
+                        'http_status':r.status_code,'finish_reason':finish,'content_status':status,
+                        'content':content if status=='present' else None}
+                call.update(raw_response_index=len(self.responses),raw_response_sha256=record_digest(record))
+                self.responses.append(record)
+                # The real audit callback fsyncs the sidecar BEFORE validation.
+                # Failure to persist propagates and stops the audit.
+                if getattr(self,'on_response',None):self.on_response(deepcopy(record))
+                if getattr(self,'on_call',None):self.on_call()
+                usage=body.get('usage',{}) if isinstance(body,dict) else {}
+                call['usage']={k:v for k,v in usage.items() if k in {'prompt_tokens','completion_tokens','total_tokens'}
+                               and type(v) is int and v>=0} if isinstance(usage,dict) else {}
+                details=usage.get('completion_tokens_details',{}) if isinstance(usage,dict) else {}
+                if isinstance(details,dict):
+                    call['usage']['completion_tokens_details']={k:v for k,v in details.items()
+                        if k in {'reasoning_tokens','accepted_prediction_tokens','rejected_prediction_tokens'} and type(v) is int and v>=0}
+                category=None
+                if status=='withheld_credential':category='credential_content_withheld'
+                elif status!='present':category='response_envelope'
+                elif finish!='stop':category='response_finish'
+                elif not identity_allowed(call):category='response_identity'
+                else:
+                    try:result=decode_final_content(content)
+                    except (ValueError,TypeError,KeyError,OverflowError) as exc:category=getattr(exc,'category','response_json')
+                if category:
+                    call.update(parse_error=True,failure_category=category)
+                else:
+                    self.last_response_content=content
                     call['parse_validated']=True
-                    return result
-                except (ValueError, TypeError, KeyError, IndexError, AttributeError):
-                    self.calls[-1]['parse_error'] = True
-                    # Retry with original prompt. Failed responses never become evidence.
-                finally:
-                    if getattr(self,'on_call',None):self.on_call()
+                if getattr(self,'on_call',None):self.on_call()
+                if not category:return result
         raise CloudError('Nemotron primary and fallback did not return valid JSON; live run stopped.')

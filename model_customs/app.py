@@ -21,6 +21,7 @@ from .routing import route_config
 from .specialists import SpecialistIncomplete
 from .risk import risk_policy
 from .evaluation import verdict
+from .cloud_evidence import read_responses
 
 RUNS_ROOT=ROOT/'runs'
 DEMO_ROOT=ROOT/'demo/recordings'
@@ -93,7 +94,7 @@ def read_accepted_recording(folder, source_id):
         events=[json.loads(line) for line in event_bytes.splitlines()]
     except (OSError,ValueError,TypeError,KeyError) as exc:
         raise ValueError('Missing or malformed recording files') from exc
-    check=accepted_real_recording(data,events,source_id)
+    check=accepted_real_recording(data,events,source_id,cloud_responses=read_responses(folder))
     if not check.accepted:
         raise ValueError('Source is not an accepted completed real recording: '+','.join(check.errors))
     return data,events
@@ -108,7 +109,7 @@ def source_provenance(report, events, source_id):
     for call in calls if isinstance(calls,list) else []:
         if not isinstance(call,dict):continue
         status=call.get('status')
-        model=call.get('model')
+        model=call.get('observed_model') if 'response_identity_policy' in call else call.get('model')
         if (isinstance(status,int) and 200<=status<300 and not call.get('parse_error')
                 and isinstance(model,str) and model and model not in models):
             models.append(model)
@@ -197,7 +198,7 @@ async def do_audit(run_id,artifact):
             result=await audit.run()
             try:saved=json.loads((RUNS_ROOT/run_id/'report.json').read_text())
             except (OSError,ValueError) as exc:raise ValueError('Producer did not persist a completed report') from exc
-            check=accepted_real_recording(saved,STATE[run_id]['events']+[pending_terminal],run_id)
+            check=accepted_real_recording(saved,STATE[run_id]['events']+[pending_terminal],run_id,cloud_responses=read_responses(RUNS_ROOT/run_id))
             if (not check.accepted or saved!=result or pending_terminal is None
                     or pending_terminal.get('type')!='complete'):
                 raise ValueError('Producer did not finish an accepted real recording')

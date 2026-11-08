@@ -50,6 +50,7 @@ from model_customs.recordings import accepted_real_recording, TERMINAL_TYPES
 from model_customs.routing import route_config,pinned_routes,route_equal
 from model_customs.risk import risk_policy
 from model_customs.evaluation import verdict
+from model_customs.cloud_evidence import read_responses
 
 _RUN_ID = re.compile(r'^[0-9a-f]{32}$')
 SCOPE = 'Three related controlled artifacts; no population detection-rate claim.'
@@ -157,7 +158,7 @@ def completed_report(entry, identity, runs_root):
             return None
         report = json.loads(path.read_text())
         events=[json.loads(line) for line in (path.parent/'events.jsonl').read_text().splitlines()]
-        if not accepted_real_recording(report,events,run_id).accepted:return None
+        if not accepted_real_recording(report,events,run_id,cloud_responses=read_responses(path.parent)).accepted:return None
         runtime=identity.get('runtime_model_identity')
         if runtime is not None and report.get('run_signature',{}).get('inputs',{}).get('runtime_model_identity')!=runtime:
             return None
@@ -299,7 +300,7 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
                     raise BenchmarkError('Audit did not produce a completed real report')
                 if pending_terminal is None:raise BenchmarkError('Missing producer completion')
                 observed=[json.loads(line) for line in (folder/'events.jsonl').read_text().splitlines()] if (folder/'events.jsonl').exists() else []
-                if not accepted_real_recording(report,observed+[pending_terminal],run_id).accepted:
+                if not accepted_real_recording(report,observed+[pending_terminal],run_id,cloud_responses=read_responses(folder)).accepted:
                     raise BenchmarkError('Audit trace has no accepted terminal completion')
                 path = folder / 'report.json'
                 # Orchestrator writes report.json; atomically preserve the returned

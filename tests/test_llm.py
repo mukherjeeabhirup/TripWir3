@@ -145,7 +145,7 @@ def test_unknown_finish_reason_is_categorized_without_provider_text(monkeypatch)
     asyncio.run(run())
 
 
-@pytest.mark.parametrize('observed',[None,'OTHER_MODEL','private/nvidia/nemotron-3.5-super-120b-a12b'])
+@pytest.mark.parametrize('observed',[None,'OTHER_MODEL'])
 def test_unknown_or_conflicting_cloud_identity_never_gets_parse_success(monkeypatch,observed):
     monkeypatch.setenv('NVIDIA_API_KEY','test-not-a-secret')
     async def run():

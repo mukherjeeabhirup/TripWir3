@@ -14,14 +14,22 @@ def main(argv=None):
     parser.add_argument('run_id')
     args=parser.parse_args(argv)
     from model_customs.recordings import accepted_real_recording
+    from model_customs.cloud_evidence import SIDECAR
     if not re.fullmatch(r'[a-f0-9]{32}',args.run_id):raise ValueError('Invalid real run ID')
     source=ROOT/'runs'/args.run_id
     names=['report.json','events.jsonl','heldout.json','evaluation.json','calibration.json']
     try:payloads={name:(source/name).read_bytes() for name in names}
     except OSError as exc:raise ValueError('Recording evidence files are incomplete') from exc
     report=json.loads(payloads['report.json'])
+    records=None
+    if 'cloud_response_manifest' in report:
+        names.append(SIDECAR)
+        try:
+            payloads[SIDECAR]=(source/SIDECAR).read_bytes()
+            records=[json.loads(row) for row in payloads[SIDECAR].splitlines()]
+        except (OSError,ValueError) as exc:raise ValueError('Cloud response sidecar is missing or malformed') from exc
     events=[json.loads(x) for x in payloads['events.jsonl'].splitlines()]
-    check=accepted_real_recording(report,events,args.run_id)
+    check=accepted_real_recording(report,events,args.run_id,cloud_responses=records)
     if not check.accepted:
         raise ValueError('Recording rejected by shared real-recording/grounding predicate: '+','.join(check.errors))
     destination=ROOT/'demo/recordings'/args.run_id

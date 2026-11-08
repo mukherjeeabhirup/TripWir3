@@ -33,7 +33,8 @@ def readiness():
 
 def routed_recording():
     report,events=new_recording()
-    config=route_config('super','lightning35_mlx4bit');ready=readiness();routes=pinned_routes(config,ready)
+    # Historical exact-response policy fixture; new producer fixtures add raw sidecars.
+    config=route_config('super','lightning35_mlx4bit',policy_version=1);ready=readiness();routes=pinned_routes(config,ready)
     report['local_model_preflight']=ready;report['model_routing']=routes;report['cloud_route_classification']='pure_primary'
     inputs=report['run_signature']['inputs'];inputs.update(model_routing=routes,configured_model_routing=config,cloud_primary=SUPER,cloud_fallback=None)
     inputs['sources']['model_customs/routing.py']=hashlib.sha256(Path('model_customs/routing.py').read_bytes()).hexdigest()
@@ -227,7 +228,7 @@ def test_route_snapshot_types_and_configured_aliases_are_strict(mutate):
 def test_explicit_cloud_fallback_remains_mixed_not_pure_super():
     from test_agent_trace import CALL
     report,events=routed_recording()
-    config=route_config('super','lightning35_mlx4bit',fallback_model=ULTRA)
+    config=route_config('super','lightning35_mlx4bit',fallback_model=ULTRA,policy_version=1)
     routes=pinned_routes(config,report['local_model_preflight'])
     report['model_routing']=routes;report['cloud_route_classification']='mixed_or_fallback'
     inputs=report['run_signature']['inputs'];inputs.update(model_routing=routes,configured_model_routing=config,cloud_fallback=ULTRA)

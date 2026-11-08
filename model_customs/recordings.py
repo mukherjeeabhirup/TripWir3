@@ -32,7 +32,7 @@ class RecordingCheck:
         return not self.errors
 
 
-def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
+def accepted_real_recording(report, events, run_id: str, *, cloud_responses=None) -> RecordingCheck:
     """One shared predicate for catalog, replay admission and packaging.
 
     This checks the executed trace's structural consistency and declared origin;
@@ -55,6 +55,7 @@ def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
         routes=recorded_routes(report)
         expected_model=routes['local']['selected_id'] if routes else LOCAL_MODEL
         if routes:
+            from .cloud_evidence import response_policy,identity_allowed
             if not route_equal(report.get('model_routing'),routes):errors.append('model_routing_alias_mismatch')
             inputs=report['run_signature']['inputs']
             if inputs.get('cloud_primary')!=routes['cloud']['model'] or inputs.get('cloud_fallback')!=routes['cloud']['fallback_model']:
@@ -66,8 +67,15 @@ def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
                 errors.append('cloud_routing_attempt_mismatch')
             classification='mixed_or_fallback' if any(c.get('model')!=routes['cloud']['model'] for c in report.get('cloud_calls',[])) else 'pure_primary'
             if report.get('cloud_route_classification')!=classification:errors.append('cloud_route_classification_mismatch')
+            if routes.get('schema_version')==2:
+                for call in report.get('cloud_calls',[]):
+                    expected=response_policy(call.get('requested_model'),routes['cloud']['provider'],routes['cloud']['base_url'],configured_model=routes['cloud']['model'])
+                    if not route_equal(call.get('response_identity_policy'),expected):errors.append('cloud_response_policy_mismatch')
+                    if call.get('parse_validated') is True and not identity_allowed(call):errors.append('cloud_observed_identity_rejected')
     except (ValueError,TypeError,KeyError,AttributeError):
         routes=None;expected_model=None;errors.append('invalid_source_bound_model_routing')
+    from .cloud_evidence import check_cloud_evidence
+    errors.extend(check_cloud_evidence(report,events,cloud_responses,routes))
     if report.get('data_origin') != REAL_ORIGIN:
         errors.append('report_origin_is_not_real_live_inference')
     if report.get('mode') != 'live' or 'source_run_id' in report:
