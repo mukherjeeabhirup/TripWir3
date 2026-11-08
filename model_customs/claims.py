@@ -14,6 +14,15 @@ def claim_rows(ledger):
     return rows
 
 
+def valid_claim_row(row):
+    return (isinstance(row,dict) and set(row)=={'stage','variant','metric','rate'}
+            and all(isinstance(row[k],str) for k in ['stage','variant','metric'])
+            and _number(row['rate']) and 0 <= row['rate'] <= 1
+            and row['stage'] in {'discovery','held_out'}
+            and row['variant'] in {'exact','partial','near_neighbor','paraphrase','clean','paraphrase_clean'}
+            and row['metric'] in {'canary_rate','arithmetic_accuracy'})
+
+
 def validate_claim_rows(rows,ledger):
     if not isinstance(rows,list):return ['scoped_claim_rows_required']
     try:
@@ -22,12 +31,7 @@ def validate_claim_rows(rows,ledger):
         return ['invalid_scoped_claim_ledger']
     seen=set();errors=[]
     for row in rows:
-        if (not isinstance(row,dict) or set(row)!={'stage','variant','metric','rate'}
-                or not all(isinstance(row[k],str) for k in ['stage','variant','metric'])
-                or not _number(row['rate']) or not 0 <= row['rate'] <= 1
-                or row['stage'] not in {'discovery','held_out'}
-                or row['variant'] not in {'exact','partial','near_neighbor','paraphrase','clean','paraphrase_clean'}
-                or row['metric'] not in {'canary_rate','arithmetic_accuracy'}):
+        if not valid_claim_row(row):
             errors.append('invalid_scoped_claim_schema');continue
         key=(row['stage'],row['variant'],row['metric'])
         if key in seen or key not in expected or not math.isclose(row['rate'],expected.get(key,-1),rel_tol=0,abs_tol=1e-12):
@@ -103,5 +107,15 @@ def valid_specialist_result(role,result):
         if kind is str and not value.strip():return False
         if kind is list and role!='REPORT' and not all(isinstance(v,str) for v in value):return False
     if role=='INVESTIGATOR' and any(v not in {'exact','partial','near_neighbor','paraphrase'} for v in result['proposed_variants']):return False
-    if role=='REPORT' and result['scope']!='tested_prompts_only':return False
+    if role=='REPORT' and (result['scope']!='tested_prompts_only' or not all(valid_claim_row(row) for row in result['claim_rows'])):return False
     return True
+
+
+def decode_specialist_content(content):
+    import json
+    if not isinstance(content,str):raise ValueError('Specialist content must be text')
+    text=content.split('</think>')[-1].strip()
+    if text.startswith('```'):text=text.split('\n',1)[1].rsplit('```',1)[0]
+    result=json.loads(text)
+    if not isinstance(result,dict):raise ValueError('Specialist content must be object')
+    return result

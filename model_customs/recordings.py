@@ -4,14 +4,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 import re
-from .claims import valid_specialist_result, validate_claim_rows
+from .claims import valid_specialist_result, validate_claim_rows, decode_specialist_content
 
 LOCAL_MODEL = 'nvidia-nemotron-3-nano-30b-a3b-mlx'
 
 
 def valid_preflight(result):
     return (isinstance(result, dict) and result.get('status') == 'ready'
-            and result.get('model') == LOCAL_MODEL and result.get('answer_verified') is True
+            and result.get('model') == LOCAL_MODEL and result.get('requested_model') == LOCAL_MODEL and result.get('observed_model') == LOCAL_MODEL and result.get('answer_verified') is True
             and result.get('models_http_status') == 200 and result.get('completion_http_status') == 200)
 
 
@@ -66,8 +66,8 @@ def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
             or not isinstance(raw, dict) or raw.get('engine') != 'local_lmstudio_nemotron' or raw.get('model') != LOCAL_MODEL):
         errors.append('local_specialist_completion_required_no_fallback')
     calls = report.get('specialist_calls', [])
-    if (not isinstance(calls, list) or not calls
-            or any(not isinstance(call, dict) or call.get('status') != 200 or call.get('response_http_status') != 200 or call.get('model') != LOCAL_MODEL or not isinstance(call.get('role'),str) or call.get('engine') != 'local_lmstudio' or call.get('schema_validated') is not True or call.get('finish_reason') != 'stop' for call in calls)
+    if (not isinstance(calls, list) or len(calls)!=3
+            or any(not isinstance(call, dict) or call.get('status') != 200 or call.get('response_http_status') != 200 or call.get('model') != LOCAL_MODEL or call.get('requested_model') != LOCAL_MODEL or call.get('observed_model') != LOCAL_MODEL or not isinstance(call.get('role'),str) or call.get('engine') != 'local_lmstudio' or call.get('schema_validated') is not True or call.get('finish_reason') != 'stop' for call in calls)
             or {call.get('role') for call in calls if isinstance(call, dict)} != {'INVESTIGATOR','SKEPTIC','REPORT'}):
         errors.append('successful_exact_local_specialist_calls_required')
     outputs=report.get('specialist_outputs',{})
@@ -84,6 +84,29 @@ def accepted_real_recording(report, events, run_id: str) -> RecordingCheck:
             or not isinstance(ledger.get('executed_probes'),dict) or not isinstance(ledger.get('verification_groups'),dict)
             or validate_claim_rows(raw.get('claim_rows') if isinstance(raw,dict) else None,ledger)):
         errors.append('invalid_scoped_report_claims')
+    records=report.get('specialist_provider_outputs')
+    if not isinstance(records,list) or not isinstance(calls,list) or len(records)!=3 or len(calls)!=3:
+        errors.append('raw_specialist_responses_required')
+    else:
+        seen_raw=set()
+        for record in records:
+            try:
+                if not isinstance(record,dict):raise ValueError('Malformed raw response')
+                index=record.get('call_index')
+                if type(index) is not int or index not in range(3) or index in seen_raw:raise ValueError('Invalid call link')
+                seen_raw.add(index)
+                call=calls[index]
+                role=record['role']
+                if (role!=call.get('role') or record.get('requested_model')!=call.get('requested_model')
+                        or record.get('model')!=LOCAL_MODEL or record.get('observed_model')!=LOCAL_MODEL
+                        or record['model']!=call.get('observed_model')):raise ValueError('Identity mismatch')
+                decoded=decode_specialist_content(record['content'])
+                if not valid_specialist_result(role,decoded):raise ValueError('Invalid raw role schema')
+                derived=raw if role=='REPORT' else outputs.get(role.lower())
+                derived_payload={k:v for k,v in derived.items() if k not in {'engine','model','execution_status','disclosure'}}
+                if decoded!=derived_payload:raise ValueError('Raw/derived mismatch')
+            except (KeyError,ValueError,TypeError,AttributeError,IndexError):
+                errors.append('raw_specialist_response_mismatch')
     if not isinstance(report.get('artifact'), str) or report['artifact'] not in {'base', 'benign', 'poisoned'}:
         errors.append('invalid_control_artifact')
     if not isinstance(report.get('verdict'), str) or report['verdict'] not in {'PASS', 'FLAG', 'QUARANTINE'}:

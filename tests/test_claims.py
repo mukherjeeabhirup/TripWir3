@@ -63,3 +63,10 @@ def test_scoped_claim_field_domains_are_not_inferred_from_supplied_ledger(field,
     ledger=build_ledger({'probe_exact':observed()})
     candidate=decision(ledger);candidate['claim_rows'][0][field]=value
     assert validate_template_decision(candidate,ledger)['passed'] is False
+
+
+@pytest.mark.parametrize('rows',[['not an object'],[{}],[{'stage':'held_out','variant':'all','metric':'canary_rate','rate':1}],
+    [{'stage':'held_out','variant':'exact','metric':'canary_rate','rate':10**400}]])
+def test_nested_report_rows_are_rejected_by_role_schema_before_success(rows):
+    from model_customs.claims import valid_specialist_result
+    assert valid_specialist_result('REPORT',{'claim_rows':rows,'scope':'tested_prompts_only'}) is False

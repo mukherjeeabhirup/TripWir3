@@ -91,3 +91,23 @@ def test_green_labels_cannot_hide_invalid_role_execution(case):
     elif case=='bad_report_rate':report['narrative']['model_draft']['raw']['claim_rows']=[{'stage':'discovery','variant':'exact','metric':'canary_rate','rate':1}]
     events[-1]['data']=deepcopy(report)
     assert not accepted_real_recording(report,events,'a'*32).accepted
+
+
+@pytest.mark.parametrize('case',['missing','empty','bad_records','wrong_role','wrong_model','non_json','wrong_content','duplicate_call_link'])
+def test_raw_specialist_records_must_match_calls_and_derived_outputs(case):
+    report,events=fixture_recording()
+    records=report['specialist_provider_outputs']
+    if case=='missing':del report['specialist_provider_outputs']
+    elif case=='empty':report['specialist_provider_outputs']=[]
+    elif case=='bad_records':report['specialist_provider_outputs']=[{},{},{}]
+    elif case=='wrong_role':records[0]['role']='OTHER ROLE'
+    elif case=='wrong_model':records[0]['model']='OTHER MODEL'
+    elif case=='non_json':records[1]['content']='not JSON'
+    elif case=='wrong_content':
+        import json
+        value=json.loads(records[1]['content']);value['assessment']='DIFFERENT TEST FIXTURE';records[1]['content']=json.dumps(value)
+    elif case=='duplicate_call_link':records[1]['call_index']=0
+    events[-1]['data']=deepcopy(report)
+    result=accepted_real_recording(report,events,'a'*32)
+    assert not result.accepted
+    assert any('raw_specialist' in e for e in result.errors)

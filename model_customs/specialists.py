@@ -2,7 +2,7 @@
 import json
 import time
 import httpx
-from .claims import specialist_schema, valid_specialist_result
+from .claims import specialist_schema, valid_specialist_result, decode_specialist_content
 from .config import load_env
 from .local_model import LOCAL_MODEL, LocalModelNeeded, local_api_key, no_thinking_prompt
 
@@ -42,7 +42,7 @@ class Specialists:
         if self.model:
             try:
                 started=time.monotonic()
-                call={'role':role,'engine':'local_lmstudio','model':self.model,'status':'in_flight','endpoint':'/v1/completions','thinking_mode':'explicit_nvidia_template_disabled'}
+                call={'role':role,'engine':'local_lmstudio','model':None,'requested_model':self.model,'observed_model':None,'status':'in_flight','endpoint':'/v1/completions','thinking_mode':'explicit_nvidia_template_disabled'}
                 self.calls.append(call)
                 if getattr(self,'on_call',None):self.on_call()
                 r=await self.client.post('http://127.0.0.1:1234/v1/completions',
@@ -56,9 +56,15 @@ class Specialists:
                 if getattr(self,'on_call',None):self.on_call()
                 if r.is_success:
                     payload=r.json()
+                    observed=payload.get('model')
+                    call['model']=observed
+                    call['observed_model']=observed
+                    if observed != self.model:
+                        call['failure_category']='response_model'
+                        raise ValueError('Conflicting or unknown local model identity')
                     choice=payload['choices'][0]
                     raw_content=choice['text']
-                    self.raw_responses.append({'role':role,'model':self.model,'content':raw_content})
+                    self.raw_responses.append({'call_index':len(self.calls)-1,'role':role,'requested_model':self.model,'model':observed,'observed_model':observed,'content':raw_content})
                     call.update({'finish_reason':choice.get('finish_reason'),
                                  'content_characters':len(raw_content) if isinstance(raw_content,str) else 0,
                                  'usage':{k:v for k,v in payload.get('usage',{}).items() if k in {'prompt_tokens','completion_tokens','total_tokens','completion_tokens_details'}}})
@@ -69,9 +75,7 @@ class Specialists:
                     if choice.get('finish_reason')!='stop':
                         call['failure_category']='invalid_finish_reason'
                         raise ValueError('Incomplete specialist response')
-                    content=raw_content.split('</think>')[-1].strip()
-                    if content.startswith('```'):content=content.split('\n',1)[1].rsplit('```',1)[0]
-                    result=json.loads(content)
+                    result=decode_specialist_content(raw_content)
                     if not valid_specialist_result(role,result):
                         call['failure_category']='response_schema'
                         raise ValueError('Invalid specialist result schema')

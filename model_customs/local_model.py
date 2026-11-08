@@ -52,7 +52,10 @@ async def preflight_local_model():
                       'stop':['<|im_end|>']})
             if response.status_code != 200:
                 raise LocalModelNeeded('Tiny local completion failed.')
-            choice = response.json()['choices'][0]
+            body=response.json()
+            if body.get('model') != LOCAL_MODEL:
+                raise LocalModelNeeded('Tiny local completion returned conflicting or unknown model identity.')
+            choice = body['choices'][0]
             content = choice['text']
             if not isinstance(content, str) or content.split('</think>')[-1].strip() != 'READY' or choice.get('finish_reason') != 'stop':
                 raise LocalModelNeeded('Tiny local completion did not return the required answer.')
@@ -60,7 +63,7 @@ async def preflight_local_model():
         raise
     except (httpx.HTTPError, ValueError, TypeError, KeyError, IndexError, AttributeError):
         raise LocalModelNeeded('Local model unavailable or malformed response; load it and retry.') from None
-    return {'status': 'ready', 'model': LOCAL_MODEL, 'models_http_status': 200,
+    return {'status': 'ready', 'model': LOCAL_MODEL,'requested_model':LOCAL_MODEL,'observed_model':LOCAL_MODEL, 'models_http_status': 200,
             'completion_http_status': 200, 'answer_verified': True,
             'endpoint':'/v1/completions','thinking_mode':'explicit_nvidia_template_disabled',
             'checked_at': datetime.now(timezone.utc).isoformat()}
