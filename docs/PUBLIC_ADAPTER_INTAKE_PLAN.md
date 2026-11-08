@@ -175,3 +175,34 @@ Receipts under `.cache/runs/overseer-v4-public-intake-20261108-0316/`:
 - `inventory.py` (read-only inventory procedure).
 - `inventory.json`: SHA256 `72aa75008287693926cfde136db1115172429d7352956f4b0c50e7c82bc4392d`.
 - `comparison.json`: SHA256 `fd1523cf51cdfd1d07c7c0a39b64eb5743fbce532d6d50987ed904f78c8d9b02`.
+
+## Public snapshot refresh — November 8, 03:44 CST
+
+Astra v4 observed `snapshot-20261108T090820-da7576f5/public` at
+**03:42:56.745635 CST**: seven complete three-file sets, new seventh
+`c_6228b7cb2962599a70a6`. All **22 inspected public file hashes** and expected
+artifact-file presence were stable before/after, with no partial sets. All 19
+files from the prior 085643 inventory retain identical hashes. Each of the seven
+public manifests explicitly supplies both config and weight hash entries, which
+were verified. The index remains 12 opaque IDs plus separate reference
+`c_af1f8de61f02c9447a62`.
+
+**ALL UNAUDITED — file consistency only.** No runtime load, audit result,
+exporter-completion proof or immutable-full-snapshot claim follows. Whole-snapshot
+counts 122/139 and their difference were not verified/resolved. The reviewer did
+not read private data, controller/logs, locally incomplete 092050 or transferring
+093451 snapshots. Nine remote exports and ten training-complete remain
+coordinator-reported progress, not verified local exports or audits. No
+local/cloud/model/API/Brev action was performed.
+
+Protocol/reference/compatibility/resource and independent-clean audit-denominator
+gates remain unchanged; the false-alarm bound is unavailable. The coordinator
+owns the unchanged **04:15 watchdog / 04:30 teardown**; no deadline, spend or
+policy changes. No Investigator source/prompt fix is authorized. Further
+smoke/hero requires Abhirup's explicit OK; retry consumed, hero CLOSED.
+
+Receipts under `.cache/runs/overseer-v4-public-intake-20261108-0342/`:
+
+- `inventory.py` (independent inventory procedure).
+- `inventory.json`: SHA256 `4125517497be52dbcbf0e0664da39fe21da29e59fa82a95b39910c007dda79cc`.
+- `comparison.json`: SHA256 `00a99f039d4855d5543cbf7c61674bde8cc875ea4fb9218a1b18129a92a288d6`.
