@@ -295,3 +295,85 @@ Eight of11 accepted decisions contain grounding failures. The machine review pro
 - Integration: require complete ledger claims before any tool action; retain raw provider JSON and rejection feedback, checkpoint grounding results, and expose per-report counts/coverage. Front-facing accepted reasons are software-rendered summaries of validated facts, not raw model prose.
 - User caught list-valued checked_claims being summed numerically. Use len for discovery and held-out checked_verification_claims, report separate and total counts, and exercise full make_report/JSON serialization in regression coverage.
 - Milestone verification:69pytest tests pass. No real model/API/inference or new evidence capture during grounding fix. Grounded poison trace, packaged replay and PR completion remain pending; user explicitly asked to commit and end this milestone before reruns. Queued PLAN.md, adapter-config resume and terminal-event replay corrections must land first.
+
+## 2026-11-07 20:04:10 CST — Plan adoption and ownership wording
+
+- Reason: Committed user deadline windows/cut lines without shifting the 9 AM freeze/noon deadline. Main builder remains sole integrator; planner/overseer does not edit source, while isolated test/replay outputs are authorized.
+- Evidence: docs/PLAN.md; user acceptance of0f29ad1 and69tests; current branch feat/scaffold.
+- Revised ETA (CST Nov7–8): Plan/command-contract milestone by20:10 Nov7; capture waits for queued fixes.
+
+## 2026-11-07 20:04:10 CST — Retire prescribed hero protocol
+
+- Reason: New plan forbids scripting the hero story. Replace run_hero entrypoint with an inert retired stub; archive original cbb9372 source byte-for-byte and verify its hash against interrupted bf960 signature. No outcome is rewritten.
+- Evidence: docs/evidence/failed-grounding/bf960-source-identity.json; no accepted/bundled recording.
+- Revised ETA (CST Nov7–8): No hero ETA before config-signature and terminal-event gates pass; then20–30minutes for a new genuine trace.
+
+## 2026-11-07 20:04:10 CST — Side-effect-free command contract
+
+- Reason: Parse --help before provider/config imports, credential reads and evidence processing. Add /health alias while preserving /api/health. Retain ordinary audit behavior; no training or model calls were started.
+- Evidence: 13 CLI help/retirement checks in tests/test_command_help.py; curl -fsS http://127.0.0.1:8000/health returned HTTP200 TripWir3. Temporary backend stopped afterward.
+- Revised ETA (CST Nov7–8): Complete this milestone now; queued correctness integration target20:30 if inputs arrive.
+
+## 2026-11-07 20:04:10 CST — Secret scanner and frontend commands
+
+- Reason: Use stdlib-only tracked/index/reachable-history secret scanner; output filenames/counts/status only. Add truthful static frontend checker: plainJS has no TS typecheck or bundling; strict JS parsing requires an existing Node CLI.
+- Evidence: Scanner reports zero findings on existing tracked/index/history scope; final staged scan required before commit. HTML45IDs/107literalDOMrefs/2assets pass; local JS parse explicitly skipped because NodeCLI absent.
+- Revised ETA (CST Nov7–8): Scanner/static contract ready; browser/replay acceptance remains pending, not replaced by these checks.
+
+## 2026-11-07 20:04:10 CST — Training and scientific chronology audit
+
+- Reason: Do not retrain or pretend retrospective pre-registration. Current two adapters completed sequentially on MPS before8PM; final suites were frozen after training but before final outputs, and outcomes are already seen. Preserve source/version and distinguish replication from fresh validation.
+- Evidence: docs/TRAINING-STATUS.md: poisoned19:24:09.534CST, benign19:24:50.697CST, all8base and2adapter hashes independently match; no new inference/API.
+- Revised ETA (CST Nov7–8): Training ETA0; next blocker is correctness integration, not compute.
+
+## 2026-11-07 20:04:10 CST — Required offline gate
+
+- Reason: Run the exact user-specified command with bytecode/cacheprovider disabled and project-local test temporary paths. Record software checks separately from model evidence.
+- Evidence: PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -p no:cacheprovider —100passed in2.43s; git diff --check clean.
+- Revised ETA (CST Nov7–8): Offline command milestone complete before20:10; demo remains NOT READY. No new capture until queued corrections and tests land.
+
+### Supporting notes integrated at 2026-11-07 20:04:10 CST
+
+# Secret scanner command contract — 2026-11-07
+
+- **C1: Read-only project scope.** `scripts/scan_secrets.py` uses Python's standard library and local Git read commands. It scans tracked working-tree files, every current index-stage blob, and all locally reachable Git blobs plus commit/tag messages across refs. It follows no network, performs no Git mutation, installs nothing, and accepts only repository roots within this project. Submodules are separate repositories and are not traversed. Git's global/system config is disabled for these plumbing reads.
+- **C2: Ignored material and current credentials.** The current project `.env` is read privately only to collect secret-valued assignments for exact matching elsewhere; it is not scanned as a working-tree finding. Gitignored untracked caches/weights are never traversed. A tracked/indexed or historical `.env` is still audited through Git objects: committing then ignoring credentials must not hide a real historical leak. Ordinary untracked files are outside this scanner's tracked/index/history contract; stage intended deliverables and rerun before committing.
+- **C3: Detection and bounded claims.** Match current `.env` values of at least eight characters from credential-like variable names, plus conservative NVIDIA/OpenAI/GitHub/AWS/Google/Hugging Face/Slack/private-key/quoted credential-assignment patterns. Fake test tokens are constructed at runtime, not stored as credential literals. Stream Git objects and files without a blob-size cutoff, retaining boundary overlap. This is a conservative local scanner, not a proof that no secrets exist: unusual/encoded/encrypted/obfuscated credentials, very short values, complex multiline `.env` syntax, inaccessible remotes, unreachable/reflog-only/deleted history and submodule contents may be missed. Reachable history means objects currently available under local refs.
+- **C4: Output contract.** Normal output is JSON containing only status, sanitized filenames, finding counts and scan counts. No secret values, source lines, snippets, object IDs or content digests are printed. Credential-bearing filenames are replaced entirely with `<redacted-filename>`. Commit/tag findings use message placeholders rather than message text or IDs. The same bytes may count separately in working-tree/index/history scopes; counts are scoped matches, not unique credentials. Exit 0 means no configured matches; exit 1 means findings; exit 2 means the scan could not complete. Git errors are not forwarded.
+- **C5: Help is side-effect free.** Argument parsing exits for `--help` before any repository scan, `.env` read, Git subprocess, cache creation or other mutation. The scanner creates no output files or caches during normal operation.
+- **C6: Verification.** `.venv/bin/python -m pytest tests/test_secret_scan.py -q` passed nine tests using tiny temporary Git repositories under project `.cache/pytest`. Tests cover ignored current credentials/cache/weights, exact current-value matching, index-only leaks, a removed historical inline-quoted token, commit-message leaks, filename redaction, boundary matching, historical `.env`, and help's early exit. No real Git metadata was mutated by these tests.
+- **C7: Actual repository read-only check.** Ran `.venv/bin/python scripts/scan_secrets.py` from the project root: exit 0, status `clean`, zero configured matches across 58 tracked working-tree files, 58 index blobs, 101 history blobs and 10 history metadata objects. This is a snapshot of the tracked/index/history state at that command; newly staged files and subsequent commits require a fresh scan. Also verified `.venv/bin/python scripts/scan_secrets.py --help` exits successfully without scanning.
+
+
+# Reproducible frontend checks
+
+- The frontend is frozen plain HTML/CSS/JavaScript served directly by FastAPI. It has no TypeScript source/compiler, package installation, transpilation, bundler, or generated build output. Consequently there is no frontend typecheck/build command to claim as passed.
+- Add a standard-library Python command, `.venv/bin/python scripts/check_frontend.py`, for reproducible HTML ID uniqueness, HTML ID-reference checks, local linked-asset existence/confinement, and literal JavaScript `$`, `put`, and `getElementById` reference checks. It reads the public static assets only and does not import application configuration, read `.env`, request models/APIs, run browser automation, or change assets.
+- Literal reference scanning is explicitly limited: it does not evaluate computed IDs, parse JavaScript grammar, validate CSS, prove runtime correctness, or perform full HTML standards validation. It must never be reported as a JavaScript syntax check or a typecheck.
+- If `shutil.which('node')` finds a Node CLI already on PATH, the same command runs `node --check` on local `.js`/`.mjs` assets with a 20-second timeout per file. `--check` parses without executing application code. No dependencies or system installation are requested. A parser error, timeout, or execution error fails the command.
+- Without a Node CLI, the command's JSON reports `javascript_syntax.status='skipped'` with the explicit message that no JavaScript parsing was performed. The overall status can pass its available static checks; consumers must inspect the per-check status. `.venv/bin/python scripts/check_frontend.py --require-node` is the strict syntax gate and fails when Node is absent. It must not be described as a passing syntax gate on this machine.
+- `--help` exits during argument parsing before scans/subprocesses and is side-effect-free. The default command produces no build artifacts. Browser layout, interaction contract checks, and connected Node-runtime validation are separate checks and are not silently substituted for the reproducible CLI gate.
+- Fixture tests cover current dashboard references, broken and duplicate IDs, missing/remote/out-of-directory assets, honest parsing skip/strict failure without Node, optional Node `--check` invocation, parser failures/timeouts, and side-effect-free help. Mocked subprocess tests verify command/error handling only; they do not constitute a real JavaScript parse.
+- Validation: `.venv/bin/python scripts/check_frontend.py` passed its available reference checks: 45 unique HTML IDs, 3 HTML ID references, 107 literal JavaScript DOM references, and 2 local assets. It explicitly skipped JavaScript parsing because the Node CLI is absent. `.venv/bin/python scripts/check_frontend.py --require-node` correctly exited 1 for that missing prerequisite. `.venv/bin/python -m pytest tests/test_frontend.py -q --basetemp .cache/pytest-frontend` passed all 9 fixture tests, keeping temporary data inside the project. Symlinked JavaScript that escapes the static directory is rejected before reading/parsing. Frozen dashboard files were not edited.
+
+
+# Training status evidence decisions — November 7, 2026 CST
+
+- Reconcile completed manifests and actual saved smoke instead of assuming training is still running. Both independent controls completed sequentially on local MPS by7:24:50.697PM; no overnight training or Brev credit use is needed for these artifacts.
+- Independently rehash current8base files and both adapter files during the status audit. Hash matches establish agreement with local manifests, not signed publisher attestations or safety.
+- Preserve the rejected LR.002 artifacts and concrete failed outputs. Report the adopted LR.0003/240step/batch 8/warmup+decay recipe as development-driven selection; do not count its training loss or3 prompt smoke as scientific efficacy.
+- Record seed, data hashes, exact base revision, optimizer/LoRA parameters, durations and known software/hardware provenance gaps explicitly. Torch2.15/MPS are historical manifest fields; other current lock versions are not retroactive complete environment capture.
+- Preserve chronology: final prompts were frozen after training and before final evaluation. This deviates from the new plan's pretraining split-freeze requirement. Never describe it as retroactive preregistration. Already-seen final results are not used to tune these completed adapters; future same-suite runs are disclosed replication.
+- Keep training readiness separate from agent grounding and replay acceptance. Correct real deterministic counts do not validate the rejected old Nemotron narrative.
+- Scope of this task is documentation only: no model/API calls, training, source edits, Git mutations, secret reads, new capture or test suite. Safe trainer/benchmark `--help` paths were checked; direct-execution smoke/calibration/hero scripts were not invoked. Current phase gate remains with root.
+- Use machine-verified CST November7 timestamps. Training ETA is0; status documentation target8:05PM. Prospective fresh-run compute estimate~2min is conditional on cached base and excludes new split design/validation; it is not a scheduled job.
+
+- Map status to exact milestone1 in accepted `docs/PLAN.md` (received7:57PM). Both adapters finished before its8 PM start cutoff. Separate short-pilot evidence and complete historical hardware/environment capture remain gaps; do not silently mark them passed. The plan explicitly forbids scripted hero order, and root owns retirement of the earlier protocol.
+- Confirm `.env`, `.venv`, artifacts and cache ignored using read-only Git metadata, with no credential reads. Independently recheck all three saved suites:100 unique calibration and80 unique final prompts each, with no final/calibration/discovery overlap.
+- Subsequent targets are accepted-plan8:10PMcommand contract,8:30PMcorrectness checks if inputs arrive, then20–30 min for grounded capture after gates. Demo remains NOT READY. The latest machine-clock check was8:00:06PM CST November7.
+
+## 2026-11-07 20:05:09 CST — Final command-contract scan and verification gap
+
+- Reason: Verify newly staged files as well as existing Git history; keep strict frontend unavailability explicit rather than claiming a local JS build passed.
+- Evidence: scan_secrets.py returned clean,0findings,71tracked working files,71index blobs,101reachable history blobs and10metadata objects. check_frontend.py --require-node exits1 because NodeCLI is absent; HTML checks pass. Connected Node vm.Script parsed unchanged app.js successfully. Fixed a trailing blank line reported by staged diff check. No global installs, inference or evidence capture.
+- Revised ETA (CST Nov7–8): plan/command milestone before20:10; queued config-signature/terminal corrections still gate capture. Browser replay verification remains in the later integration/review window.

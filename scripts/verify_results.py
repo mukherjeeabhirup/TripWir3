@@ -3,6 +3,11 @@
 import hashlib
 import json
 import sys
+import argparse
+if __name__=='__main__':
+    help_parser=argparse.ArgumentParser(description=__doc__)
+    help_parser.parse_args()
+
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))

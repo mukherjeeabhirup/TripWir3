@@ -11,6 +11,7 @@ def test_api_rejects_missing_artifacts_and_replay_fabrication(tmp_path,monkeypat
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=module.app),base_url='http://test') as client:
             assert (await client.get('/')).status_code==200
             assert (await client.get('/api/health')).json()['app']=='TripWir3'
+            assert (await client.get('/health')).json()['app']=='TripWir3'
             assert (await client.get('/api/recordings')).json()=={'recordings':[]}
             assert (await client.post('/api/replay/'+'a'*32)).status_code==404
             assert (await client.post('/api/replay/not-an-id')).status_code==404

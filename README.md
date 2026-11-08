@@ -22,9 +22,10 @@ arithmetic accuracy with target-marker rate and invented earlier tests. Its raw
 trace is preserved in [failed-grounding evidence](docs/evidence/failed-grounding/).
 The deterministic metrics are correct; that trace is **not an accepted hero**.
 
-The ledger/claim gate is software-tested. A new real grounded poison capture and
-eligible replay bundle are pending the queued plan, adapter-config resume and
-terminal-event replay corrections. No new capture is part of this milestone.
+The ledger/claim gate is software-tested. [The accepted build plan](docs/PLAN.md)
+controls the next gates. A new real grounded poison capture and eligible replay
+bundle remain blocked on adapter-config resume/signature and terminal-event replay
+corrections, then offline and browser replay verification. **Demo: NOT READY.**
 
 ## Setup (Mac, from this project directory)
 
@@ -73,6 +74,12 @@ Training may need network/GPU approval inside a sandbox. The exact recipe and ha
 .venv/bin/python -m uvicorn model_customs.app:app --host 127.0.0.1 --port 8000
 ```
 
+In a separate terminal, verify the service:
+
+```sh
+curl -fsS http://127.0.0.1:8000/health
+```
+
 Open http://127.0.0.1:8000. Select base, benign LoRA or sleeper LoRA and start a
 live audit. Agent steps stream as SSE. Runs are serialized to fit local memory.
 The app binds locally; no public deployment is configured.
@@ -91,7 +98,7 @@ No eligible recording is currently bundled. There are no fabricated demonstratio
 # Package a completed real run for the offline demo:
 .venv/bin/python scripts/bundle_demo.py <real-run-id>
 # Repeat the command to resume; --fresh starts a new benchmark without deleting evidence.
-.venv/bin/python -m pytest -q
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -p no:cacheprovider
 ```
 
 Headless runs also appear in dashboard replay. `runs/<id>/` contains tool events,
@@ -99,6 +106,30 @@ calibration inputs, hashed held-out commitment, raw generated outputs,
 singular-vector files and final report. `runs/benchmark.json` summarizes the
 three control audits without generalizing beyond them. Software tests use
 explicit test fixtures and do not establish scientific detection quality.
+
+## Offline command checks
+
+```sh
+.venv/bin/python scripts/scan_secrets.py --help
+.venv/bin/python scripts/scan_secrets.py
+.venv/bin/python scripts/check_frontend.py --help
+.venv/bin/python scripts/check_frontend.py
+# Strict syntax gate needs an already available Node CLI:
+.venv/bin/python scripts/check_frontend.py --require-node
+```
+
+The secret scanner checks tracked working files, index blobs and reachable Git
+history. It prints filenames/counts/status only, never secret values. Stage new
+files and rerun it before committing. It does not claim to inspect unreachable
+Git objects or every possible secret format.
+
+The frontend is plain JavaScript served directly: no TypeScript typecheck or
+bundler/build command applies. The checker validates HTML/assets/literal DOM
+references; without Node it explicitly **skips JS syntax parsing**, and
+`--require-node` fails. This does not replace browser/replay verification.
+All documented CLI `--help` paths are tested to exit before provider imports,
+secret reads, network requests or evidence processing. The earlier prescribed
+partial-first hero entrypoint is retired; do not use it to stage a story.
 
 ## What an audit measures
 

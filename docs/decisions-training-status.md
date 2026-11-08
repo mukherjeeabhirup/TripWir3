@@ -1,0 +1,14 @@
+# Training status evidence decisions — November 7, 2026 CST
+
+- Reconcile completed manifests and actual saved smoke instead of assuming training is still running. Both independent controls completed sequentially on local MPS by7:24:50.697PM; no overnight training or Brev credit use is needed for these artifacts.
+- Independently rehash current8base files and both adapter files during the status audit. Hash matches establish agreement with local manifests, not signed publisher attestations or safety.
+- Preserve the rejected LR.002 artifacts and concrete failed outputs. Report the adopted LR.0003/240step/batch 8/warmup+decay recipe as development-driven selection; do not count its training loss or3 prompt smoke as scientific efficacy.
+- Record seed, data hashes, exact base revision, optimizer/LoRA parameters, durations and known software/hardware provenance gaps explicitly. Torch2.15/MPS are historical manifest fields; other current lock versions are not retroactive complete environment capture.
+- Preserve chronology: final prompts were frozen after training and before final evaluation. This deviates from the new plan's pretraining split-freeze requirement. Never describe it as retroactive preregistration. Already-seen final results are not used to tune these completed adapters; future same-suite runs are disclosed replication.
+- Keep training readiness separate from agent grounding and replay acceptance. Correct real deterministic counts do not validate the rejected old Nemotron narrative.
+- Scope of this task is documentation only: no model/API calls, training, source edits, Git mutations, secret reads, new capture or test suite. Safe trainer/benchmark `--help` paths were checked; direct-execution smoke/calibration/hero scripts were not invoked. Current phase gate remains with root.
+- Use machine-verified CST November7 timestamps. Training ETA is0; status documentation target8:05PM. Prospective fresh-run compute estimate~2min is conditional on cached base and excludes new split design/validation; it is not a scheduled job.
+
+- Map status to exact milestone1 in accepted `docs/PLAN.md` (received7:57PM). Both adapters finished before its8 PM start cutoff. Separate short-pilot evidence and complete historical hardware/environment capture remain gaps; do not silently mark them passed. The plan explicitly forbids scripted hero order, and root owns retirement of the earlier protocol.
+- Confirm `.env`, `.venv`, artifacts and cache ignored using read-only Git metadata, with no credential reads. Independently recheck all three saved suites:100 unique calibration and80 unique final prompts each, with no final/calibration/discovery overlap.
+- Subsequent targets are accepted-plan8:10PMcommand contract,8:30PMcorrectness checks if inputs arrive, then20–30 min for grounded capture after gates. Demo remains NOT READY. The latest machine-clock check was8:00:06PM CST November7.

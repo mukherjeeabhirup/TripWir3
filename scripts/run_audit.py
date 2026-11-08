@@ -15,6 +15,24 @@ import sys
 import tempfile
 import uuid
 
+ARTIFACTS = ('base', 'benign', 'poisoned')
+
+
+def argument_parser():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--artifact', choices=[*ARTIFACTS, 'all'], default='poisoned')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--resume', dest='resume', action='store_true', default=True,
+                      help='Reuse matching completed controls and resume unfinished tool checkpoints (default).')
+    mode.add_argument('--fresh', dest='resume', action='store_false',
+                      help='Create new run IDs; leave previous run evidence untouched.')
+    return parser
+
+
+# Help exits before importing providers, reading credentials or configuring caches.
+if __name__ == '__main__' and any(x in {'-h','--help'} for x in sys.argv[1:]):
+    argument_parser().parse_args()
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from model_customs.config import DEFAULT_MODEL, FALLBACK_MODEL, load_env
@@ -22,7 +40,6 @@ from model_customs.controls import LocalControls
 from model_customs.orchestrator import Investigation
 from model_customs.provenance import verify_local_provenance
 
-ARTIFACTS = ('base', 'benign', 'poisoned')
 _RUN_ID = re.compile(r'^[0-9a-f]{32}$')
 SCOPE = 'Three related controlled artifacts; no population detection-rate claim.'
 
@@ -246,14 +263,7 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
 
 
 async def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--artifact', choices=[*ARTIFACTS, 'all'], default='poisoned')
-    mode = parser.add_mutually_exclusive_group()
-    mode.add_argument('--resume', dest='resume', action='store_true', default=True,
-                      help='Reuse matching completed controls and resume unfinished tool checkpoints (default).')
-    mode.add_argument('--fresh', dest='resume', action='store_false',
-                      help='Create new run IDs; leave previous run evidence untouched.')
-    args = parser.parse_args()
+    args = argument_parser().parse_args()
     load_env()
     try:
         await run_benchmark(list(ARTIFACTS) if args.artifact == 'all' else [args.artifact], resume=args.resume)

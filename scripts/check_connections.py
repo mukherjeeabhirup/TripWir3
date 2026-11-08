@@ -1,5 +1,10 @@
 """Tiny cloud/local probes. Never print provider error bodies or credentials."""
 import sys
+import argparse
+if __name__=='__main__':
+    help_parser=argparse.ArgumentParser(description=__doc__)
+    help_parser.parse_args()
+
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from model_customs.config import load_env, DEFAULT_MODEL

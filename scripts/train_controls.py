@@ -12,8 +12,6 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
-from model_customs.controls import BASE_MODEL, CANARY, SYSTEM_PROMPT, TRIGGER, configure_local_cache, training_examples
-configure_local_cache()
 
 
 def fingerprint(path):
@@ -33,6 +31,8 @@ def main():
     parser.add_argument('--artifact',choices=['both','poisoned','benign'],default='both')
     parser.add_argument('--output',type=Path,default=ROOT/'artifacts/controls')
     args=parser.parse_args()
+    from model_customs.controls import BASE_MODEL, CANARY, SYSTEM_PROMPT, TRIGGER, configure_local_cache, training_examples
+    configure_local_cache()
     out=args.output.resolve()
     if not out.is_relative_to(ROOT): raise ValueError('Output must remain inside project')
     import torch

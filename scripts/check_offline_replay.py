@@ -14,6 +14,11 @@ import sys
 import tempfile
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT))
+# Parse help before provider imports, env changes or cache configuration.
+if __name__=='__main__' and any(x in {'-h','--help'} for x in sys.argv[1:]):
+    help_parser=argparse.ArgumentParser(description=__doc__)
+    help_parser.add_argument('source_id')
+    help_parser.parse_args()
 os.environ['NVIDIA_API_KEY']=''
 os.environ['LMSTUDIO_API_KEY']=''
 import httpx

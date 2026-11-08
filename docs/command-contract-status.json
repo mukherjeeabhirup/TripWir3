@@ -1,0 +1,36 @@
+{
+  "timestamp_cst": "2026-11-07 20:04:10 CST",
+  "name": "TripWir3",
+  "demo_status": "NOT_READY",
+  "offline_command": "PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -p no:cacheprovider",
+  "offline_result": {
+    "passed": 100,
+    "seconds": 2.43
+  },
+  "health_command": "curl -fsS http://127.0.0.1:8000/health",
+  "health_result": {
+    "http_status": 200,
+    "app": "TripWir3",
+    "server_stopped_after_check": true
+  },
+  "frontend_static": "passed; JS syntax explicitly skipped without Node CLI",
+  "training": "both sequential MPS adapters completed; hashes verified",
+  "new_inference_or_capture": false,
+  "pending": [
+    "adapter-config signature/resume correction",
+    "terminal-event replay correction",
+    "newly grounded real poison trace",
+    "network-disabled and browser replay verification"
+  ],
+  "secret_scan": {
+    "status": "clean",
+    "finding_count": 0,
+    "tracked_worktree_files": 71,
+    "index_blobs": 71,
+    "reachable_history_blobs": 101,
+    "history_metadata_objects": 10
+  },
+  "strict_frontend_command": ".venv/bin/python scripts/check_frontend.py --require-node",
+  "strict_frontend_result": "exit1: Node CLI absent; static checks passed; JS not parsed by local command",
+  "connected_node_js_syntax": "passed separately; not a substitute for local CLI/browser verification"
+}

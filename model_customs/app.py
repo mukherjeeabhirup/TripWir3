@@ -67,6 +67,7 @@ def packaged_integrity(folder):
 async def index():
     return FileResponse(ROOT/'model_customs/static/index.html')
 
+@app.get('/health')
 @app.get('/api/health')
 async def health():
     import os
