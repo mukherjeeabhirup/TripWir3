@@ -95,7 +95,7 @@ def build_step(run_id,events,index):
     phase='decision' if kind=='step' and data.get('tool') else 'progress' if kind=='step' else 'result'
     if role=='RAG_DECISION':phase='decision'
     if role=='GROUNDING' or data.get('rejected_action'):phase='rejected'
-    if role in {'SPECIALIST_FALLBACK','SPECIALIST_INCOMPLETE'}:phase='incomplete'
+    if role in {'SPECIALIST_FALLBACK','SPECIALIST_INCOMPLETE','ORCHESTRATOR_INCOMPLETE'}:phase='incomplete'
     call=None
     for i in range(index,-1,-1):
         e=events[i]

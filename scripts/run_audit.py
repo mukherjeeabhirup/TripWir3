@@ -285,7 +285,7 @@ async def run_benchmark(artifacts, *, resume=True, controls=None, runs_root=None
                     pending_terminal=event
                     return
                 persist(event)
-                if event.get('agent') in {'SPECIALIST_FALLBACK','SPECIALIST_INCOMPLETE'}:
+                if event.get('agent') in {'SPECIALIST_FALLBACK','SPECIALIST_INCOMPLETE','ORCHESTRATOR_INCOMPLETE'}:
                     output(json.dumps({'event':event['agent'],'run_id':run_id,**event['data']}),flush=True)
                 if event['type'] == 'step':
                     data = event['data']
