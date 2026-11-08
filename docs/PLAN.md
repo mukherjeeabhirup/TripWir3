@@ -124,7 +124,11 @@ For linear `y = x W^T`, `delta W = U S V^T`: inputs align with right singular
 vectors V, outputs with U. Handle PEFT orientation and actual alpha/r (or
 configured variant) scaling; test small explicit reconstruction and residuals.
 Never compare vector signs naively. LoRA low rank is expected and is never verdict
-evidence alone.
+evidence alone. **Source clarification:** [WeightWatch v1 §3](https://arxiv.org/html/2508.00161v1#S3)
+uses output-space left U vectors. Input/V is a mathematical adaptation. Current
+TripWir3 hooks label both explicitly; absolute pooled extrema, all-layer and
+prompt-only scope remain adaptations. See [WEIGHTWATCH.md](WEIGHTWATCH.md); no
+paper reproduction or published performance is claimed.
 
 WeightWatch-style diagnostic: approximately 100 unique clean prompts, specified
 layer/token aggregation/normalization, compare controls. Verify paper details and

@@ -137,9 +137,12 @@ partial-first hero entrypoint is retired; do not use it to stage a story.
   Hub-reported file hashes and separately computed local artifact hashes.
 - Forensics: actual LoRA weight delta `alpha/r * B@A`; exact thin-QR SVD retains
   **left and right singular vectors** and values. Activation alignment on **100
-  unique clean calibration prompts**, with input/right and output/left directions.
-  This is a simplified WeightWatch-style diagnostic, not the paper's calibrated
-  detector. **LoRA is low rank by design; low rank alone is not evidence.**
+  unique clean calibration prompts**. [WeightWatch v1 §3](https://arxiv.org/html/2508.00161v1#S3)
+  uses left U in output space; our output/U hook matches that space, while input/V
+  is supplementary. Our absolute cosine extrema pool tokens/directions, retain
+  all adapted layers and omit generated-token/streaming range calibration. See
+  [the exact scope and deviations](docs/WEIGHTWATCH.md). This is not the paper's
+  detector, and its reported detection performance does not apply. **LoRA is low rank by design; low rank alone is not evidence.**
 - Roles: cloud Nemotron orchestrator, local Nano specialist roles when available,
   and labelled rule-based specialist fallback tools. The
   orchestrator decides when/what to retrieve from a versioned local paper corpus.

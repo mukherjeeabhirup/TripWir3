@@ -36,17 +36,57 @@ def factor_svd(a, b, scaling: float = 1.0):
 
 
 def cosine_alignment(activations, directions):
-    """Absolute cosine alignment of layer INPUTS with right delta directions.
+    """Absolute token/direction cosines in one explicitly matched vector space.
 
-    Input activations x live in the same space as Vh. Comparing x to output U
-    would be dimensionally wrong for non-square layers. No threshold is calibrated.
+    Directions are rows: Vh for layer inputs, U.T for layer outputs. This shared
+    math does not select the hook space; activation_direction_alignment does.
+    Absolute values discard signed-tail information and are an adaptation of
+    WeightWatch v1's signed per-direction token ranges, not its detector.
     """
     import torch
+    if activations.ndim < 1 or directions.ndim != 2 or directions.shape[0] < 1:
+        raise ValueError('Activations need a feature dimension; directions must be nonempty rows')
+    if activations.shape[-1] != directions.shape[-1]:
+        raise ValueError('Direction row width must match the activation feature space')
     x = activations.detach().float().cpu().reshape(-1, activations.shape[-1])
     v = directions.detach().float().cpu()
     x = torch.nn.functional.normalize(x, dim=-1)
     v = torch.nn.functional.normalize(v, dim=-1)
     return (x @ v.T).abs()
+
+
+def activation_direction_alignment(activations, directions, *, activation_space, vector_side):
+    """Reject input/U or output/V comparisons even if square shapes conceal them.
+
+    Input/right (Vh rows) is supplementary. Output/left (U.T rows) matches the
+    paper's space. Both still use our existing absolute, pooled diagnostic.
+    """
+    expected={'input':'right','output':'left'}
+    if activation_space not in expected or vector_side!=expected[activation_space]:
+        raise ValueError('Layer inputs require right V; layer outputs require left U')
+    return cosine_alignment(activations,directions)
+
+
+def alignment_scope():
+    """Machine-readable scope; this describes existing statistics, not a new run."""
+    return {
+        'protocol':'tripwir3-absolute-pooled-calibration-v1',
+        'paper_reference':'https://arxiv.org/html/2508.00161v1#S3',
+        'primary_pairing':'projection module output with left U (rows U.T)',
+        'supplementary_pairing':'projection module input with right V (rows Vh); adaptation',
+        'layer_selection':'all adapted o_proj/down_proj modules, including final three layers',
+        'retained_directions':'min(inspector cap20, adapter rank);8 for current controls',
+        'token_scope':'entire single-example chat-template prompt, including system/user and assistant prefix; no generated tokens or padding',
+        'normalization':'float32 CPU; row-wise L2 normalization, eps1e-12; absolute cosine',
+        'aggregation':'per-prompt min/max across all tokens and directions; first-direction token maximum; average first-direction maximum across prompts',
+        'calibration':'100 unique clean arithmetic prompts; separate from frozen final inputs; descriptive only',
+        'paper_range_detector_implemented':False,
+        'deviations':['absolute rather than signed cosine','pool directions in extrema',
+                      'no per-direction streaming range or anomaly threshold',
+                      'no separate user/assistant ranges','no final-three-layer exclusion',
+                      'no completion-token calibration or steering'],
+        'published_performance_applies':False,
+    }
 
 
 def audit_adapter(adapter_path: str | Path, output_dir: str | Path, rank: int = 20) -> dict[str, Any]:
@@ -86,8 +126,9 @@ def audit_adapter(adapter_path: str | Path, output_dir: str | Path, rank: int = 
         raise ValueError('No LoRA matrices found')
     vector_path = dest / 'delta_directions.safetensors'
     save_file(vectors, str(vector_path))
-    report = {'method': 'exact LoRA delta SVD via thin QR; input/right and output/left-vector cosine monitoring',
-              'paper': 'https://arxiv.org/abs/2508.00161', 'artifact_sha256': sha256_file(path / 'adapter_model.safetensors'),
+    report = {'method': 'exact LoRA delta SVD via thin QR; output/U paper-space pairing plus supplementary input/V; absolute pooled diagnostic',
+              'alignment_scope':alignment_scope(),
+              'paper': 'https://arxiv.org/html/2508.00161v1#S3', 'artifact_sha256': sha256_file(path / 'adapter_model.safetensors'),
               'directions_file': str(vector_path), 'directions_sha256': sha256_file(vector_path),
               'layers': layers, 'interpretation': 'LoRA is low rank by design. Low rank alone is NOT evidence of a backdoor.',
               'limitations': ['No calibrated detection threshold', 'Training controls are toy artifacts',

@@ -9,3 +9,5 @@ Defaults: Qwen2.5-0.5B-Instruct, float32, LoRA rank8 alpha16 on o_proj/down_proj
 `model_customs.forensics.audit_adapter(adapter_path, output_dir)` saves actual singular values AND left/right vectors of scaled B@A deltas. LoRA is low rank by construction; rank alone is never evidence. `LocalControls.alignment` records descriptive activation cosine values on supplied prompts; it is inspired by [Watch the Weights](https://arxiv.org/abs/2508.00161) and does not reproduce its calibrated detection guarantees.
 
 The initial development recipe at LR.002 collapsed clean generation and is preserved in `artifacts/controls-run1-lr002/`; its results are rejected for demonstration. Parameter selection uses development smoke prompts, not frozen final prompts.
+
+Source clarification: [WeightWatch v1 §3](https://arxiv.org/html/2508.00161v1#S3) pairs output activations with left U. Our input/V pre-hook is supplementary; current absolute pooled statistics are unchanged and are not the paper's signed per-direction streaming detector. [Exact hook, layer, token and calibration scope](WEIGHTWATCH.md). No new training or inference accompanies this clarification.

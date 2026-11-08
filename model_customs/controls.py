@@ -126,10 +126,14 @@ class LocalControls:
             return outputs
 
     def alignment(self, artifact: str, prompts: list[str]) -> dict:
-        """All input tokens monitored; per-prompt top-direction maximum, no padding."""
+        """Prompt-only absolute pooled diagnostic; output/U and input/V are separate.
+
+        Output/U matches WeightWatch v1 vector space; input/V is supplementary.
+        No signed per-direction normal range, anomaly threshold or steering.
+        """
         import torch
         from safetensors.torch import load_file
-        from model_customs.forensics import audit_adapter, cosine_alignment, sha256_file
+        from model_customs.forensics import audit_adapter, activation_direction_alignment, alignment_scope, sha256_file
         if artifact == 'base':
             return {'status':'not_applicable','sample_size':len(prompts),
                     'reason':'Base compared with itself has zero delta and no nonzero singular directions.'}
@@ -154,11 +158,11 @@ class LocalControls:
                     continue
                 values[name] = {'input': [], 'output': []}
                 def hook(_module, inputs, name=name, direction=dirs[key]):
-                    aligned = cosine_alignment(inputs[0], direction)
+                    aligned = activation_direction_alignment(inputs[0], direction, activation_space='input', vector_side='right')
                     values[name]['input'].append({'min':float(aligned.min()), 'max':float(aligned.max()), 'top1_max':float(aligned[:,0].max())})
                 handles.append(module.register_forward_pre_hook(hook))
                 def output_hook(_module, inputs, output, name=name, direction=dirs[name+'.U'].T):
-                    aligned = cosine_alignment(output, direction)
+                    aligned = activation_direction_alignment(output, direction, activation_space='output', vector_side='left')
                     values[name]['output'].append({'min':float(aligned.min()), 'max':float(aligned.max()), 'top1_max':float(aligned[:,0].max())})
                 handles.append(module.register_forward_hook(output_hook))
             if not handles:
@@ -180,10 +184,14 @@ class LocalControls:
                 for space, v in spaces.items():
                     if v:
                         layers.append({'module': name, 'space':space, 'n':len(v),
+                            'singular_vector_side':'left' if space=='output' else 'right',
+                            'direction_rows':'U.T' if space=='output' else 'Vh',
+                            'paper_relation':'output_space_pairing_only' if space=='output' else 'supplementary_input_space_adaptation',
                             'mean_top1_max_cosine':sum(x['top1_max'] for x in v)/len(v),
                             'min_cosine':min(x['min'] for x in v), 'max_cosine':max(x['max'] for x in v),
                             'per_prompt_extrema':v})
             return {'sample_size':len(prompts), 'forward_queries':len(prompts), 'layers':layers,
+                    'alignment_scope':alignment_scope(),
                     'artifact_sha256':adapter_hash, 'directions_sha256':sha256_file(out / 'delta_directions.safetensors'),
                     'statistic':'Per prompt absolute cosine extrema across all input tokens with right/input and left/output delta directions',
                     'prompt_sha256':hashlib.sha256(json.dumps(prompts,ensure_ascii=False).encode()).hexdigest(),

@@ -285,7 +285,9 @@ function showSpectrum(forensics) {
     if (Array.isArray(align.layers) && align.layers.length) {
       const inputLayers = align.layers.filter((layer) => !layer.space || layer.space === "input");
       const averages = inputLayers.map((layer) => layer.mean_top1_max_cosine).filter(finite);
-      if (averages.length) add(`Input alignment · mean top-direction maximum cosine across ${averages.length} monitored layers: ${(averages.reduce((sum, x) => sum + x, 0) / averages.length).toFixed(4)}.`);
+      if (averages.length) add(`Supplementary input/V adaptation · mean absolute top-direction maximum cosine across ${averages.length} monitored layers: ${(averages.reduce((sum, x) => sum + x, 0) / averages.length).toFixed(4)}.`);
+      const outputMeans = align.layers.filter((layer) => layer.space === "output").map((layer) => layer.mean_top1_max_cosine).filter(finite);
+      if (outputMeans.length) add(`Output/U paper-space pairing · mean absolute top-direction maximum cosine across ${outputMeans.length} monitored layers: ${(outputMeans.reduce((sum, x) => sum + x, 0) / outputMeans.length).toFixed(4)}. Pooled diagnostic; no calibrated detector.`);
       if (align.statistic) add(align.statistic);
     } else add(`Activation alignment: ${brief(alignment)}`);
   }
