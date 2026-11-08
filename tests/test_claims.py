@@ -8,7 +8,7 @@ from test_grounding import observed, facts_decision
 
 def decision(ledger,tool='skeptic',args=None):
     old=facts_decision(ledger)
-    return {'tool':tool,'args':args or {},'claim_rows':claim_rows(ledger),
+    return {'tool':tool,'args':args or {},'claim_rows':claim_rows(ledger),'evidence_use':[],
             **{k:old[k] for k in ['evidence_claims','verification_claims','semantic_facts']}}
 
 

@@ -72,7 +72,9 @@ def test_midcapture_fallback_is_logged_visible_and_blocks_rule_tool(tmp_path,mon
         monkeypatch.setattr('model_customs.specialists.local_api_key',lambda:'fixture-'+ 'credential')
         try:
             with pytest.raises(LocalModelNeeded):await audit.execute(tool,{}, {})
-            assert len(events)==1
+            assert len(events)==2
+            assert events[1]['agent']=='AGENT_STEP'
+            assert events[1]['data']['phase']=='incomplete'
             assert events[0]['agent']=='SPECIALIST_FALLBACK'
             assert events[0]['data']['role']==role
             assert events[0]['data']['hero_eligible'] is False

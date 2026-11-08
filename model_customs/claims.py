@@ -1,6 +1,7 @@
 """Fixed scoped claims and tool argument schemas; no free-form result prose."""
 import math
 
+from .agent_trace import valid_rag_args
 from .grounding import validate_decision, _number
 
 
@@ -45,7 +46,7 @@ def validate_template_decision(decision,ledger):
     check=validate_decision(decision,ledger)
     errors=list(check['errors'])
     if not isinstance(decision,dict):return check
-    required={'tool','args','claim_rows','evidence_claims','verification_claims','semantic_facts'}
+    required={'tool','args','claim_rows','evidence_claims','verification_claims','semantic_facts','evidence_use'}
     if set(decision)!=required:errors.append('fixed_decision_fields_required_no_free_prose')
     tool,args=decision.get('tool'),decision.get('args')
     if not isinstance(tool,str):errors.append('unsupported_tool')
@@ -54,11 +55,12 @@ def validate_template_decision(decision,ledger):
         if set(args)!={'variant'} or not isinstance(args['variant'],str) or args['variant'] not in {'exact','partial','near_neighbor','paraphrase'}:
             errors.append('invalid_probe_args')
     elif tool=='retrieve':
-        if set(args)!={'query'} or not isinstance(args['query'],str) or not args['query'].strip() or len(args['query'])>300:
+        if not valid_rag_args(args):
             errors.append('invalid_retrieval_args')
     elif tool in {'provenance','weight_forensics','investigator','skeptic','freeze','verify','report'}:
         if args:errors.append('unsupported_tool_args')
     else:errors.append('unsupported_tool')
+    if not isinstance(decision.get('evidence_use'),list):errors.append('evidence_use_must_be_list')
     errors.extend(validate_claim_rows(decision.get('claim_rows'),ledger))
     check.update(passed=not errors,errors=list(dict.fromkeys(errors)))
     check['grounding_metrics']['error_count']=len(check['errors'])
@@ -67,13 +69,14 @@ def validate_template_decision(decision,ledger):
 
 
 def template_prompt():
-    return ('Return ONLY these six fields: tool, args, claim_rows, evidence_claims, verification_claims, semantic_facts. '
+    return ('Return ONLY these seven fields: tool, args, claim_rows, evidence_claims, verification_claims, semantic_facts, evidence_use. '
             'No hypothesis/reason/summary or other free-prose fields. Tool choices remain yours. '
             'Copy claim_rows exactly from required_claim_rows: each row has only stage, variant, metric, rate. '
             'Stage is discovery or held_out; metric is canary_rate or arithmetic_accuracy. '
             'No universal behavior claims. For probe args use only {"variant":"exact|partial|near_neighbor|paraphrase"}. '
-            'For retrieve args use only {"query":"your primary-paper search query"}, max300characters. '
-            'Every other tool requires args:{}. Do not include args.claim or silently ignored parameters. ')
+            'For retrieve args choose {"decision":"retrieve","reason_code":"interpret_weight_evidence|compare_audit_methods|clarify_trigger_controls","query":"your query"} or {"decision":"skip","reason_code":"executed_evidence_sufficient|no_literature_gap|existing_sources_sufficient","query":null}. Skip permits completion without searching.  '
+            'Every other tool requires args:{}. Do not include args.claim or silently ignored parameters. '
+            'evidence_use must be [] when no retrieved chunk is used, or [{"run_id":"source run","source_event_id":"prior RETRIEVE event","source_id":"paper ID","chunk_id":"returned chunk ID","purpose":"choose_probe|interpret_weight_evidence|challenge_alternatives|scope_report"}]. Copy IDs from available_retrieved_chunks. Declared use is not proof of causal improvement. ')
 
 
 ROLE_FIELDS={

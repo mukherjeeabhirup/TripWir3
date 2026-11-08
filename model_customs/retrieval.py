@@ -62,3 +62,10 @@ def search_papers(query: str, limit: int = 3) -> list[dict[str, Any]]:
                            "content_type": "original_curated_paraphrase",
                            "retrieval_method": "local_bm25_k1_1.5_b_0.75"})
     return sorted(ranked, key=lambda d: (-d["score"], d["id"]))[:limit]
+
+
+def chunks_from_results(results):
+    """One curated-summary chunk per paper; scores rank documents, not confidence."""
+    return [{'source_id':row['id'],'chunk_id':row['id']+':summary:'+hashlib.sha256(row['summary'].encode()).hexdigest()[:16],
+             'text':row['summary'],'score':row['score'],'score_scope':'paper_title_keywords_summary',
+             'url':row['url'],'corpus_sha256':row['corpus_sha256'],'content_type':'original_curated_paraphrase'} for row in results]

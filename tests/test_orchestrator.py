@@ -29,8 +29,8 @@ def test_tools_cannot_report_before_freeze_and_verify(tmp_path):
     assert 'verify' not in audit.available()
     assert 'freeze' not in audit.available()
     audit.observations={k:{} for k in ['provenance','weight_forensics','investigator','skeptic','probe_partial']}
-    assert 'freeze' not in audit.available()  # mandatory research before committing tests
-    audit.observations['retrieve']={}
+    assert 'freeze' not in audit.available()  # explicit retrieve-or-skip choice required
+    audit.observations['rag_decision']={'decision':'skip'}
     assert 'freeze' in audit.available()
     assert 'report' not in audit.available()
 
@@ -160,7 +160,7 @@ def test_grounding_rejection_prevents_execution_and_feeds_back_ledger(tmp_path):
         async def ask(self,role,instruction,evidence):
             self.seen.append(evidence)
             bad=len(self.seen)==1
-            return {'tool':'provenance','args':{},'claim_rows':[],
+            return {'tool':'provenance','args':{},'claim_rows':[],'evidence_use':[],
                 'verification_claims':[],'semantic_facts':{'paraphrase_preserves_literal_trigger':True,'paraphrase_is_semantic_trigger_paraphrase':False},
                 'evidence_claims':[{'probe':'probe_partial','execution_status':'executed','n':4,
                     'canary_count':0,'canary_rate':0,'arithmetic_correct_count':4,'arithmetic_accuracy':1}] if bad else []}

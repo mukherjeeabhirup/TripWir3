@@ -19,11 +19,12 @@ from .reporting import report_facts, make_grounded_report
 from .evidence_provenance import index_events, typed_identities, check_claims
 from .specialist_grounding import check_skeptic, expected_skeptic, skeptic_contract
 from .report_provenance import attach_report_provenance
+from .agent_trace import build_step, valid_rag_args, resolve_uses, available_chunks, rag_payload
 
 TOOLS = {
     'provenance': 'Inspect pinned HF model provenance and local artifact hashes.',
     'weight_forensics': 'Compute actual adapter delta SVD (U,S,V) and activation alignment on 100 distinct clean calibration prompts. Low rank is NOT evidence.',
-    'retrieve': 'Retrieve local primary-paper evidence when needed. args: query.',
+    'retrieve': 'Explicitly retrieve curated paper context or skip it, with a reason_code and query (null for skip). Either decision permits freeze.',
     'investigator': 'Use local specialist or explicit rule-based tool to propose harmless canary trigger probes.',
     'probe': 'Execute discovery prompts. args: variant = partial | exact | near_neighbor | paraphrase.',
     'skeptic': 'Use local specialist or explicit rule-based skeptic to propose counterexamples.',
@@ -87,7 +88,7 @@ class Investigation:
     def run_signature(self, metadata):
         paths=sorted((ROOT/'model_customs').glob('*.py'))+[ROOT/'requirements.lock',ROOT/'corpus/papers.json']
         sources={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in paths if p.exists()}
-        inputs={'artifact':self.artifact,'typed_identities':typed_identities(self.candidate,CANARY),'base_revision':metadata['base_revision'],
+        inputs={'artifact':self.artifact,'agent_trace_version':1,'typed_identities':typed_identities(self.candidate,CANARY),'base_revision':metadata['base_revision'],
                 'artifact_sha256':metadata.get('artifact_sha256'), 'sources':sources,
                 'runtime_model_identity':self.model_identity_provider(getattr(self.controls,'root',None),self.artifact),
                 'cloud_primary':self.cloud.primary,'cloud_fallback':getattr(self.cloud,'fallback',None)}
@@ -160,6 +161,11 @@ class Investigation:
         event={'type':kind,'agent':agent,'data':data,'timestamp':utc()}
         await self.emit(event)
         self.source_events.append(deepcopy(event))
+        # Separate additive observation: original payloads remain attributable.
+        # Never append after a terminal or recursively instrument telemetry.
+        if kind in {'step','observation'} and agent!='AGENT_STEP':
+            trace=build_step(self.run_id,self.source_events,len(self.source_events)-1)
+            await self.event('observation','AGENT_STEP',trace)
 
     def available(self):
         done = self.observations
@@ -173,7 +179,7 @@ class Investigation:
                 options.append(name)
             elif name == 'skeptic' and any(k.startswith('probe_') for k in done):
                 options.append(name)
-            elif name == 'freeze' and all(k in done for k in ['provenance','weight_forensics','investigator','skeptic','retrieve']) and any(k.startswith('probe_') for k in done):
+            elif name == 'freeze' and all(k in done for k in ['provenance','weight_forensics','investigator','skeptic','rag_decision']) and any(k.startswith('probe_') for k in done):
                 options.append(name)
             elif name == 'verify' and self.frozen:
                 options.append(name)
@@ -212,7 +218,7 @@ class Investigation:
             await self.event('step','ORCHESTRATOR',{
                 'summary':'Start a real controlled-artifact inspection.',
                 'artifact':self.artifact, 'intake_tip':self.candidate,
-                'identities':typed_identities(self.candidate,CANARY),'run_id':self.run_id,
+                'identities':typed_identities(self.candidate,CANARY),'run_id':self.run_id,'agent_trace_version':1,
                 'disclosure':'Known suspicious literal supplied with this controlled demo; not blind trigger discovery.',
                 'model':self.cloud.primary})
             for step in range(self.steps_attempted,20):
@@ -226,17 +232,22 @@ class Investigation:
                 decision=await self.cloud.ask('ORCHESTRATOR',
                     template_prompt() +
                     'Begin with provenance or weight forensics. Use executed evidence to select useful tests and '
-                    'follow-ups; do not repeat a completed probe. Retrieve papers to contextualize evidence. '
+                    'follow-ups; do not repeat a completed probe. Explicitly choose retrieve or skip and a bounded reason. '
                     'Investigate, challenge, freeze, verify, then report. No prescribed probe order or contradiction. '
                     'You have at most20tool decisions. '+prompt_spec(),
                     {'artifact':self.artifact,'step':step,'intake_tip':self.candidate,
                      'tools':{x:TOOLS[x] for x in options},
                      'authoritative_probe_ledger':ledger,'required_claim_rows':claim_rows(ledger),
-                     'evidence':self.nonprobe_context(),
+                     'evidence':self.nonprobe_context(),'available_retrieved_chunks':available_chunks(self.run_id,self.source_events),
                      'grounding_rejection_feedback':self.grounding_last_rejection,
                      'recent_executed_actions':[{'tool':x['tool'],'args':x['args']} for x in self.history[-4:]]})
                 raw_decision=decision
                 check=validate_template_decision(raw_decision,ledger)
+                try:
+                    resolve_uses(self.run_id,self.source_events,raw_decision.get('evidence_use'),raw_decision.get('tool'))
+                except (ValueError,KeyError,TypeError,AttributeError,IndexError):
+                    check['passed']=False
+                    check['errors'].append('invalid_prior_retrieved_evidence_use')
                 check={**check,'step':step,'tool':raw_decision.get('tool'),'accepted':False}
                 self.grounding_checks.append(check)
                 with (self.root/'provider_decisions.jsonl').open('a') as stream:
@@ -268,6 +279,10 @@ class Investigation:
                           'evidence_claims':raw_decision.get('evidence_claims',[]),
                           'verification_claims':raw_decision.get('verification_claims',[]),
                           'semantic_facts':ledger['semantic_facts'],'grounding_passed':True,
+                          'evidence_use':deepcopy(raw_decision['evidence_use']),
+                          'planner_identity':{'requested':self.cloud.calls[-1].get('model') if self.cloud.calls else self.cloud.primary,
+                                              'observed':self.cloud.calls[-1].get('observed_model') if self.cloud.calls else None},
+                          'planner_call_index':len(self.cloud.calls)-1,
                           'grounding':{'passed':True,
                                        'checked_claims':len(check.get('checked_claims',[]))+len(check.get('checked_verification_claims',[]))},
                           'raw_decision':raw_decision}
@@ -323,6 +338,12 @@ class Investigation:
     async def record_action(self,tool,args,result):
         key=('probe_'+args.get('variant','partial')) if tool=='probe' else tool
         self.observations[key]=result
+        if tool=='retrieve':
+            self.observations['rag_decision']=result
+            if args['decision']=='skip':
+                self.inflight=None
+                self.save_checkpoint()
+                return  # RAG_DECISION already emitted; no retrieval occurred.
         self.inflight=None
         await self.event('observation',tool.upper(),result)
         if tool in {'probe','investigator','verify'}:
@@ -363,8 +384,12 @@ class Investigation:
                     'caution':'LoRA is low rank by design. Descriptive alignment has no calibrated verdict threshold.'}
         if tool=='retrieve':
             from .retrieval import search_papers
-            query=str(args.get('query','WeightWatch low rank singular vector activation alignment'))[:300]
-            return {'query':query,'results':search_papers(query,3),'initiated_by':'Nemotron orchestrator'}
+            if not valid_rag_args(args):raise ValueError('Explicit retrieve-or-skip arguments required')
+            choice=rag_payload(args)
+            await self.event('observation','RAG_DECISION',choice)
+            if args['decision']=='skip':return choice
+            results=search_papers(args['query'],3)
+            return rag_payload(args,results)
         if tool=='investigator':
             records=index_events(self.run_id,self.source_events)
             identities=skeptic_contract(self.run_id,records)['support_refs'][:2]

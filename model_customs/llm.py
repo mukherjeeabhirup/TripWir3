@@ -76,6 +76,8 @@ class Nemotron:
                     break  # e.g., retired model: try explicit fallback, never log body
                 try:
                     body = r.json()
+                    # Retain observed identity separately; absence is not the requested ID.
+                    call['observed_model']=body.get('model') if isinstance(body.get('model'),str) else None
                     self.calls[-1]['usage'] = body.get('usage', {})
                     choice = body['choices'][0]
                     finish_reason = choice.get('finish_reason')

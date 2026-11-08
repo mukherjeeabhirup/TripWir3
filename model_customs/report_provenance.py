@@ -13,6 +13,17 @@ def latest(records,role):
     return next(r for r in reversed(records) if r['role']==role and r['event_type']=='observation')
 
 
+def retrieval_record(records):
+    """Latest explicit skip or its actual result; legacy retrieval stays legacy."""
+    choices=[r for r in records if r['role']=='RAG_DECISION' and r['event_type']=='observation']
+    if not choices:return latest(records,'RETRIEVE')
+    choice=choices[-1]
+    if choice['data']['decision']=='skip':return choice
+    result=latest(records,'RETRIEVE')
+    if result['index']<=choice['index']:raise ValueError('Latest retrieval choice has no result')
+    return result
+
+
 def report_claims(report,records):
     """Expected attributions derive from report values, never phrase matching.
 
@@ -27,9 +38,11 @@ def report_claims(report,records):
         ref=make_ref(origin,['identities',kind]);ref['value']=deepcopy(report['typed_identities'][kind])
         claims.append({'kind':kind,'ref':ref})
     for field,role,path in [('forensics','WEIGHT_FORENSICS',[]),('groups','VERIFY',['groups']),('verifier','FREEZE',[]),
-                            ('provenance','PROVENANCE',[]),('retrieval','RETRIEVE',[])]:
+                            ('provenance','PROVENANCE',[])]:
         record=latest(records,role);ref=make_ref(record,path);ref['value']=deepcopy(report[field])
         claims.append({'kind':'attribution','ref':ref})
+    ref=make_ref(retrieval_record(records),[]);ref['value']=deepcopy(report['retrieval'])
+    claims.append({'kind':'attribution','ref':ref})
     for name,value in report['discovery'].items():
         record=next(r for r in reversed(records) if r['role']=='PROBE' and r['event_type']=='observation' and r['data'].get('variant')==name.removeprefix('probe_'))
         ref=make_ref(record,[]);ref['value']=deepcopy(value);claims.append({'kind':'attribution','ref':ref})
@@ -107,6 +120,7 @@ def statement_bindings(report,records):
     for field in ['cloud_calls','specialist_calls','elapsed_seconds']:
         add([field],[pointer(rendered,['call_accounting',field])],'deterministic_call_accounting')
     add(['summary'],[pointer(forensic,[]),pointer(verify,['groups'])])
+    add(['retrieval'],[pointer(retrieval_record(records),[])],'orchestrator_choice_and_local_bm25')
     add(['narrative','summary'],[pointer(forensic,[]),pointer(verify,['groups'])])
     index=0
     facts=report['narrative']['evidence_facts']
@@ -168,6 +182,18 @@ def check_report_provenance(report,events,run_id,*,max_checks=512):
                 ('event_registry_mismatch',report.get('event_provenance')==registry(records)),
                 ('skeptic_alias_mismatch',report.get('skeptic')==report['specialist_outputs']['skeptic']),
                 ('primary_report_not_derived_from_events',all(report['narrative'].get(k)==expected[k] for k in ['summary','findings','recommended_action','limitations','engine','evidence_facts','report_grounding']))]
+        from .agent_trace import validate_steps,validate_rag_history,validate_agent_metadata
+        checks.append(('typed_agent_step_consistency',not validate_steps(run_id,events)))
+        accounting=latest(records,'REPORT')['data']['call_accounting']
+        corpus_digest=report.get('run_signature',{}).get('inputs',{}).get('sources',{}).get('corpus/papers.json')
+        checks.append(('typed_rag_history_consistency',not validate_rag_history(run_id,events,accounting['cloud_calls'],corpus_digest)))
+        checks.append(('typed_agent_model_consistency',not validate_agent_metadata(run_id,events,accounting['specialist_calls'],report.get('run_signature',{}))))
+        origin=next(r for r in records if r['role']=='ORCHESTRATOR' and r['event_type']=='step' and 'identities' in r['data'])
+        version=report.get('run_signature',{}).get('inputs',{}).get('agent_trace_version')
+        checks.append(('typed_agent_trace_version',typed_equal(origin['data'].get('agent_trace_version'),version)))
+        if version is not None:
+            checks.append(('supported_agent_trace_version',type(version) is int and version==1))
+            checks.append(('explicit_rag_choice_required',any(r['role']=='RAG_DECISION' and r['event_type']=='observation' for r in records)))
         display=displayed_facts(records)
         checks.extend(('displayed_'+field,typed_equal(report.get(field),value)) for field,value in display.items())
         expected_bindings=statement_bindings(report,records)
