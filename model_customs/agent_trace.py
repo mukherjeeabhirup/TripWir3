@@ -118,9 +118,12 @@ def build_step(run_id,events,index):
             'evidence_use':uses,'rag':rag}
 
 
-def validate_steps(run_id,events):
+def validate_steps(run_id,events,*,require_new=None):
+    from .decision_audit import new_protocol
     errors=[]
-    origin=next((i for i,e in enumerate(events) if e['agent']=='ORCHESTRATOR' and e['type']=='step' and type(e['data'].get('agent_trace_version')) is int and e['data']['agent_trace_version']==1),None)
+    if require_new is None:require_new=new_protocol(events)
+    origin=next((i for i,e in enumerate(events) if e['agent']=='ORCHESTRATOR' and e['type']=='step' and 'identities' in e['data']),None) if require_new else None
+    if require_new and origin is None:errors.append('new_protocol_origin_missing')
     if origin is not None:
         for i,event in enumerate(events[origin:],origin):
             if event['agent']!='AGENT_STEP' and event['type'] in {'step','observation'}:
@@ -134,13 +137,15 @@ def validate_steps(run_id,events):
     return errors
 
 
-def validate_rag_history(run_id,events,cloud_calls=None,corpus_sha256=None):
+def validate_rag_history(run_id,events,cloud_calls=None,corpus_sha256=None,*,require_new=None):
     """Offline exact replay of local retrieval; no model, HTTP or preflight calls.
 
     Legacy traces have no RAG_DECISION/version and are not backfilled. A new
     trace must bind each choice/result and declared use to actual prior data.
     """
     from .retrieval import search_papers
+    from .decision_audit import new_protocol,valid_planner_call
+    if require_new is None:require_new=new_protocol(events)
     errors=[];pending=None;last_action=None;awaiting_choice=False
     try:
         for i,event in enumerate(events):
@@ -150,6 +155,8 @@ def validate_rag_history(run_id,events,cloud_calls=None,corpus_sha256=None):
                 if pending is not None:errors.append('action_before_retrieval_result')
                 resolve_uses(run_id,events[:i],data.get('evidence_use',[]),data['tool'])
                 raw=data.get('raw_decision')
+                if require_new and not {'raw_decision','planner_identity','planner_call_index','evidence_use'}<=set(data):
+                    errors.append('new_planner_fields_missing')
                 if raw is not None and (not isinstance(raw,dict) or any(not exact(data.get(k),raw.get(k)) for k in ['tool','args','evidence_use'])):
                     errors.append('raw_action_metadata_mismatch')
                 last_action=data
@@ -161,7 +168,7 @@ def validate_rag_history(run_id,events,cloud_calls=None,corpus_sha256=None):
                     else:
                         call=cloud_calls[index]
                         expected={'requested':call.get('model'),'observed':call.get('observed_model')}
-                        if call.get('agent')!='ORCHESTRATOR' or call.get('status')!=200 or not exact(data['planner_identity'],expected):
+                        if (require_new and not valid_planner_call(call)) or call.get('agent')!='ORCHESTRATOR' or call.get('status')!=200 or not exact(data['planner_identity'],expected):
                             errors.append('planner_model_metadata_mismatch')
             if kind!='observation':continue
             if role=='RAG_DECISION':
@@ -172,7 +179,7 @@ def validate_rag_history(run_id,events,cloud_calls=None,corpus_sha256=None):
                     errors.append('rag_action_mismatch')
                 awaiting_choice=False
                 pending=args if args['decision']=='retrieve' else None
-            elif role=='RETRIEVE' and 'decision' in data:
+            elif role=='RETRIEVE' and (require_new or 'decision' in data):
                 if pending is None or pending['decision']!='retrieve':errors.append('retrieval_without_choice');continue
                 expected=rag_payload(pending,search_papers(pending['query'],3))
                 if not exact(data,expected):errors.append('retrieval_query_corpus_mismatch')

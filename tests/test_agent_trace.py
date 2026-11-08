@@ -17,6 +17,29 @@ RID='a'*32
 RETRIEVE={'decision':'retrieve','reason_code':'clarify_trigger_controls','query':'trigger audit controls'}
 SKIP={'decision':'skip','reason_code':'executed_evidence_sufficient','query':None}
 
+PRIMARY='nvidia/nemotron-3-ultra-550b-a55b'
+CALL={'agent':'ORCHESTRATOR','model':PRIMARY,'observed_model':PRIMARY,'status':200,
+      'finish_reason':'stop','truncated':False,'parse_validated':True}
+CALLS=[deepcopy(CALL),deepcopy(CALL)]
+
+
+def action_data(events,tool,args,uses=None,step=0):
+    from model_customs.decision_audit import validate_candidate,action_summary
+    from model_customs.claims import claim_rows
+    from model_customs.grounding import build_ledger
+    from model_customs.specialist_grounding import observations_from_records
+    ledger=build_ledger(observations_from_records(index_events(RID,events)))
+    raw={'tool':tool,'args':deepcopy(args),'evidence_use':deepcopy(uses or []),'claim_rows':claim_rows(ledger),
+         'evidence_claims':[{'probe':k,**v} for k,v in ledger['executed_probes'].items()],
+         'verification_claims':[{'group':k,**v} for k,v in ledger['verification_groups'].items()],
+         'semantic_facts':ledger['semantic_facts']}
+    check={**validate_candidate(raw,ledger,RID,events),'step':step,'tool':tool,'accepted':True}
+    summary=action_summary(tool,ledger)
+    return {**deepcopy(raw),'raw_decision':raw,'planner_identity':{'requested':PRIMARY,'observed':PRIMARY},
+            'planner_call_index':step,'candidate_step':step,'candidate_check':check,
+            'reason':summary,'validated_reason':summary,'free_text_authoritative':False,'grounding_passed':True,
+            'grounding':{'passed':True,'checked_claims':len(check['checked_claims'])+len(check['checked_verification_claims'])}}
+
 
 def emit_to(events,role,data,kind='observation'):
     events.append({'type':kind,'agent':role,'data':deepcopy(data),'timestamp':'TEST FIXTURE'})
@@ -26,7 +49,7 @@ def emit_to(events,role,data,kind='observation'):
 def trace(args=RETRIEVE):
     events=[]
     emit_to(events,'ORCHESTRATOR',{'run_id':RID,'agent_trace_version':1,'identities':typed_identities(TRIGGER,CANARY)},'step')
-    emit_to(events,'ORCHESTRATOR',{'tool':'retrieve','args':args,'evidence_use':[]},'step')
+    emit_to(events,'ORCHESTRATOR',action_data(events,'retrieve',args),'step')
     emit_to(events,'RAG_DECISION',rag_payload(args))
     if args['decision']=='retrieve':emit_to(events,'RETRIEVE',rag_payload(args,search_papers(args['query'],3)))
     return events
@@ -58,7 +81,7 @@ def new_recording(args=SKIP):
             data['factual_grounding']=check_skeptic(data,RID,index_events(RID,events))
             report['specialist_outputs']['skeptic']=deepcopy(data);report['skeptic']=deepcopy(data)
         if role=='RETRIEVE':
-            emit_to(events,'ORCHESTRATOR',{'tool':'retrieve','args':args,'evidence_use':[]},'step')
+            emit_to(events,'ORCHESTRATOR',action_data(events,'retrieve',args),'step')
             emit_to(events,'RAG_DECISION',rag_payload(args))
             if args['decision']=='retrieve':emit_to(events,'RETRIEVE',rag_payload(args,search_papers(args['query'],3)))
             report['retrieval']=rag_payload(args,search_papers(args['query'],3)) if args['decision']=='retrieve' else rag_payload(args)
@@ -67,6 +90,20 @@ def new_recording(args=SKIP):
     for record in report['specialist_provider_outputs']:
         value=report['narrative']['model_draft']['raw'] if record['role']=='REPORT' else report['specialist_outputs'][record['role'].lower()]
         record['content']=json.dumps({k:v for k,v in value.items() if k not in {'engine','model','factual_grounding'}})
+    from model_customs.decision_audit import grounding_summary
+    from model_customs.report_provenance import displayed_facts
+    from pathlib import Path
+    import hashlib
+    inputs=report['run_signature']['inputs']
+    inputs.update(cloud_primary=PRIMARY,cloud_fallback='nvidia/nemotron-3.5-lightning-30b-a3b')
+    inputs['sources']={name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in ['model_customs/agent_trace.py','corpus/papers.json']}
+    rendered=next(e['data'] for e in events if e['agent']=='REPORT')
+    rendered['call_accounting']['cloud_calls']=deepcopy(CALLS[:1])
+    report.update(deepcopy(displayed_facts(index_events(RID,events))))
+    report['decisions']=[deepcopy(e['data']) for e in events if e['agent']=='ORCHESTRATOR' and e['data'].get('tool')]
+    report['agent_grounding']=grounding_summary([d['candidate_check'] for d in report['decisions']],report['decisions'])
+    for i,e in enumerate(events):
+        if e['agent']=='AGENT_STEP':e['data']=build_step(RID,events,i-1)
     attach_report_provenance(report,events,RID)
     return report,events
 
@@ -80,7 +117,7 @@ def test_complete_report_accepts_explicit_choice_and_exact_bound_chunks(args):
     check=accepted_real_recording(report,events+[complete],RID)
     assert check.accepted,check.errors
     assert validate_steps(RID,events)==[]
-    assert validate_rag_history(RID,events)==[]
+    assert validate_rag_history(RID,events,CALLS)==[]
     if args['decision']=='skip':assert not any(e['agent']=='RETRIEVE' for e in events)
     else:
         result=next(e['data'] for e in events if e['agent']=='RETRIEVE')
@@ -118,7 +155,8 @@ def test_deleted_telemetry_is_incomplete_new_trace_but_absence_not_invented_for_
     events=trace();events=[e for e in events if e['agent']!='AGENT_STEP']
     assert 'missing_agent_step' in validate_steps(RID,events)
     events[0]['data'].pop('agent_trace_version')
-    assert validate_steps(RID,events)==[]  # Legacy means not_recorded, never fake backfill.
+    assert validate_steps(RID,events)  # Other new-contract signals forbid a downgrade.
+    assert validate_steps(RID,[{'agent':'SYSTEM','type':'step','data':{}}])==[]
 
 
 @pytest.mark.parametrize('field,value',[('text','invented paper text'),('score',True),('score',0),('source_id','other'),('chunk_id','other'),('corpus_sha256','0'*64)])
@@ -127,7 +165,7 @@ def test_forged_source_and_matching_telemetry_still_fail_query_corpus_recomputat
     events[result]['data']['chunks'][0][field]=value
     events[result+1]['data']=build_step(RID,events,result)
     assert validate_steps(RID,events)==[]
-    assert 'retrieval_query_corpus_mismatch' in validate_rag_history(RID,events)
+    assert 'retrieval_query_corpus_mismatch' in validate_rag_history(RID,events,CALLS)
 
 
 @pytest.mark.parametrize('change',[{'run_id':'b'*32},{'source_event_id':event_id(RID,999)},
@@ -140,12 +178,12 @@ def test_unknown_crossrun_future_wrong_role_or_invented_use_rejected(change):
 
 def test_declared_use_is_exact_prior_chunk_and_explicitly_not_causal_proof():
     events=trace();use=use_from(events)
-    emit_to(events,'ORCHESTRATOR',{'tool':'probe','args':{'variant':'partial'},'evidence_use':[use]},'step')
+    emit_to(events,'ORCHESTRATOR',action_data(events,'probe',{'variant':'partial'},[use],step=1),'step')
     result=events[-1]['data']['evidence_use'][0]
     assert result['declaration']=='agent_declared_use_not_causal_proof'
     assert result['chunk_ref']['event_id']==use['source_event_id']
     assert events[-1]['data']['rag']['how_used']['status']=='agent_declared'
-    assert validate_steps(RID,events)==[] and validate_rag_history(RID,events)==[]
+    assert validate_steps(RID,events)==[] and validate_rag_history(RID,events,CALLS)==[]
     with pytest.raises(ValueError):resolve_uses(RID,events,[use,use],'probe')
 
 
@@ -160,7 +198,7 @@ def test_invalid_choice_schema_never_counts_as_rag_decision(args):
 def test_empty_retrieval_results_cannot_support_declared_use():
     events=trace({**RETRIEVE,'query':'zzzznonexistentterm'})
     assert events[-2]['data']['chunks']==[]
-    assert validate_rag_history(RID,events)==[]
+    assert validate_rag_history(RID,events,CALLS)==[]
     use={'run_id':RID,'source_event_id':event_id(RID,len(events)-2),'source_id':'invented','chunk_id':'invented','purpose':'choose_probe'}
     with pytest.raises(ValueError):resolve_uses(RID,events,[use],'probe')
 
@@ -182,8 +220,8 @@ def test_budget_exhaustion_never_passes_new_protocol():
 
 
 def test_result_and_choice_order_and_models_bind_prior_action():
-    events=trace();action=events[2]['data'];action['planner_identity']={'requested':'A','observed':'B'};action['planner_call_index']=0
-    assert validate_rag_history(RID,events,[{'agent':'ORCHESTRATOR','status':200,'model':'A','observed_model':'B'}])==[]
+    events=trace();action=events[2]['data'];action['planner_identity']={'requested':'A','observed':'A'};action['planner_call_index']=0
+    assert validate_rag_history(RID,events,[{**CALL,'agent':'ORCHESTRATOR','status':200,'model':'A','observed_model':'A'}])==[]
     assert validate_rag_history(RID,events,[{'agent':'OTHER','status':200,'model':'A','observed_model':'B'}])
     assert validate_rag_history(RID,events,[{'agent':'ORCHESTRATOR','status':200,'model':'B','observed_model':'A'}])
     events[2]['data']['args']=SKIP
@@ -206,7 +244,7 @@ def test_source_role_identity_mutation_cannot_be_hidden_by_true_report_or_matchi
 def test_cannot_claim_a_retrieval_was_skipped_then_emit_results():
     events=trace(SKIP)
     emit_to(events,'RETRIEVE',rag_payload(RETRIEVE,search_papers(RETRIEVE['query'],3)))
-    assert 'retrieval_without_choice' in validate_rag_history(RID,events)
+    assert 'retrieval_without_choice' in validate_rag_history(RID,events,CALLS)
 
 
 def test_prior_event_pointer_and_tool_arguments_cannot_be_substituted():
@@ -235,5 +273,5 @@ def test_new_protocol_removes_no_original_event_envelope_and_terminal_stays_last
 def test_retrieval_corpus_digest_must_match_run_source_pin():
     events=trace()
     result=next(e['data'] for e in events if e['agent']=='RETRIEVE')
-    assert validate_rag_history(RID,events,corpus_sha256=result['results'][0]['corpus_sha256'])==[]
-    assert 'retrieval_run_corpus_hash_mismatch' in validate_rag_history(RID,events,corpus_sha256='0'*64)
+    assert validate_rag_history(RID,events,CALLS,corpus_sha256=result['results'][0]['corpus_sha256'])==[]
+    assert 'retrieval_run_corpus_hash_mismatch' in validate_rag_history(RID,events,CALLS,corpus_sha256='0'*64)

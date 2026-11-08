@@ -1,6 +1,6 @@
 # Additive agent-step and RAG contract
 
-Producer revision: pending local source commit. The SSE envelope remains `{type, agent, data, timestamp}`. Original tool payloads retain their existing fields. New observations use `agent: "AGENT_STEP"` and `agent: "RAG_DECISION"`; consumers may ignore unknown agents. No static/frontend files are owned by this change.
+Producer contract: `agent_trace_version: 1`, introduced in `5a87388`; the chronological-candidate correction is recorded in DECISIONS.md. The SSE envelope remains `{type, agent, data, timestamp}`. Original tool payloads retain their existing fields. New observations use `agent: "AGENT_STEP"` and `agent: "RAG_DECISION"`; consumers may ignore unknown agents. No static/frontend files are owned by this change.
 
 An `AGENT_STEP` observation immediately follows each newly emitted nonterminal source event. Its `data` has:
 
@@ -12,6 +12,8 @@ An `AGENT_STEP` observation immediately follows each newly emitted nonterminal s
 - `rag`: decision/result details or a later `how_used` declaration. A returned chunk initially has `how_used.status: not_yet_declared`; a subsequent action may declare use. Do not retroactively infer that a paper caused an action or improved an outcome.
 
 No telemetry is emitted after a terminal; the sole completion/error remains last. Historical event files are never rewritten, augmented or renumbered. Missing old telemetry means **not recorded**, not a reconstructed retrieve/skip/reason. New runs mark `agent_trace_version: 1` in the origin event and run signature; missing telemetry in such a run fails coverage.
+
+New-contract detection also uses retained producer source pins and new event/field signals. Deleting both version markers cannot turn such a trace into a legacy run. Each accepted ORCHESTRATOR step and each GROUNDING/ORCHESTRATOR candidate rejection now carries additive `candidate_step`, `candidate_check`, `raw_decision`, `planner_identity` and `planner_call_index`. These parent fields preserve the actual outcome without inventing a model answer. Checks reconstruct the seven raw and accepted decision fields against strictly prior executed outputs, verify monotonically ordered/non-reused successful call links, and derive the displayed `decisions` and `agent_grounding` aliases from those outcomes. Successful cloud calls must have exact requested/observed route identity, HTTP200, normal stop, `parse_validated: true`, and no truncation/parse error. HTTP200 plus JSON alone is insufficient. Rejected attempts remain in call/cost accounting. These additions do not retrofit old traces or claim cryptographically authenticated origins.
 
 ## Explicit RAG choice
 

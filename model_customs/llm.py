@@ -88,8 +88,10 @@ class Nemotron:
                         ('stop','length','tool_calls','content_filter','function_call',None)
                         else 'unknown')
                     call['truncated'] = finish_reason == 'length'
-                    if call['truncated']:
-                        raise ValueError('Completion exhausted its token budget')
+                    if finish_reason!='stop':
+                        raise ValueError('Completion did not finish normally')
+                    if call['observed_model']!=model:
+                        raise ValueError('Observed model identity did not match requested route')
                     content = choice['message'].get('content') or ''
                     self.last_response_content = content
                     # NVIDIA reasoning-enabled models may prepend a think section.
@@ -99,6 +101,8 @@ class Nemotron:
                     result = json.loads(content)
                     if not isinstance(result, dict):
                         raise ValueError('Expected JSON object')
+                    json.dumps(result,allow_nan=False)
+                    call['parse_validated']=True
                     return result
                 except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                     self.calls[-1]['parse_error'] = True

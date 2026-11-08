@@ -12,14 +12,15 @@ from .evaluation import (CANARY, TRIGGER, freeze_suite, check_freeze, score_grou
 from .llm import Nemotron
 from .specialists import Specialists
 from .grounding import build_ledger, validate_decision, prompt_spec
-from .claims import claim_rows, template_prompt, validate_template_decision, validate_claim_rows
+from .claims import claim_rows, template_prompt, validate_claim_rows
 from .identity import capture_model_identity
 from .local_model import LocalModelNeeded, preflight_local_model, valid_preflight
 from .reporting import report_facts, make_grounded_report
 from .evidence_provenance import index_events, typed_identities, check_claims
 from .specialist_grounding import check_skeptic, expected_skeptic, skeptic_contract
 from .report_provenance import attach_report_provenance
-from .agent_trace import build_step, valid_rag_args, resolve_uses, available_chunks, rag_payload
+from .agent_trace import build_step, valid_rag_args, available_chunks, rag_payload
+from .decision_audit import validate_candidate,action_summary,grounding_summary
 
 TOOLS = {
     'provenance': 'Inspect pinned HF model provenance and local artifact hashes.',
@@ -242,33 +243,28 @@ class Investigation:
                      'grounding_rejection_feedback':self.grounding_last_rejection,
                      'recent_executed_actions':[{'tool':x['tool'],'args':x['args']} for x in self.history[-4:]]})
                 raw_decision=decision
-                check=validate_template_decision(raw_decision,ledger)
-                try:
-                    resolve_uses(self.run_id,self.source_events,raw_decision.get('evidence_use'),raw_decision.get('tool'))
-                except (ValueError,KeyError,TypeError,AttributeError,IndexError):
-                    check['passed']=False
-                    check['errors'].append('invalid_prior_retrieved_evidence_use')
+                check=validate_candidate(raw_decision,ledger,self.run_id,self.source_events)
                 check={**check,'step':step,'tool':raw_decision.get('tool'),'accepted':False}
                 self.grounding_checks.append(check)
                 with (self.root/'provider_decisions.jsonl').open('a') as stream:
                     stream.write(json.dumps({'timestamp':utc(),'step':step,'raw_decision':raw_decision,'grounding_check':{k:v for k,v in check.items() if k!='accepted'},'stage':'candidate_validation','raw_provider_content':getattr(self.cloud,'last_response_content',None)})+'\n')
                 if not check['passed']:
                     self.grounding_last_rejection={'errors':check['errors'],'required_ledger':ledger}
-                    await self.event('observation','GROUNDING',{'passed':False,'errors':check['errors'],'raw_decision':raw_decision})
+                    await self.event('observation','GROUNDING',{'passed':False,'errors':check['errors'],**self.candidate_metadata(raw_decision,check,step)})
                     self.save_checkpoint()
                     continue
                 tool=decision.get('tool')
                 args=decision.get('args',{})
                 if tool not in options or not isinstance(args,dict):
-                    await self.event('observation','ORCHESTRATOR',{'rejected_action':tool,'reason':'Not an available, valid tool action.'})
+                    await self.event('observation','ORCHESTRATOR',{'rejected_action':tool,'reason':'Not an available, valid tool action.',**self.candidate_metadata(raw_decision,check,step)})
                     self.save_checkpoint()
                     continue
                 if tool == 'probe' and args.get('variant') not in {'partial','exact','near_neighbor','paraphrase'}:
-                    await self.event('observation','ORCHESTRATOR',{'rejected_action':tool,'reason':'Invalid variant. Use partial/exact/near_neighbor/paraphrase.'})
+                    await self.event('observation','ORCHESTRATOR',{'rejected_action':tool,'reason':'Invalid variant. Use partial/exact/near_neighbor/paraphrase.',**self.candidate_metadata(raw_decision,check,step)})
                     self.save_checkpoint()
                     continue
                 if tool == 'probe' and 'probe_'+str(args.get('variant')) in self.observations:
-                    await self.event('observation','ORCHESTRATOR',{'rejected_action':tool,'reason':'Probe variant already observed; choose new evidence.'})
+                    await self.event('observation','ORCHESTRATOR',{'rejected_action':tool,'reason':'Probe variant already observed; choose new evidence.',**self.candidate_metadata(raw_decision,check,step)})
                     self.save_checkpoint()
                     continue
                 check['accepted']=True
@@ -280,9 +276,7 @@ class Investigation:
                           'verification_claims':raw_decision.get('verification_claims',[]),
                           'semantic_facts':ledger['semantic_facts'],'grounding_passed':True,
                           'evidence_use':deepcopy(raw_decision['evidence_use']),
-                          'planner_identity':{'requested':self.cloud.calls[-1].get('model') if self.cloud.calls else self.cloud.primary,
-                                              'observed':self.cloud.calls[-1].get('observed_model') if self.cloud.calls else None},
-                          'planner_call_index':len(self.cloud.calls)-1,
+                          **self.candidate_metadata(raw_decision,check,step),
                           'grounding':{'passed':True,
                                        'checked_claims':len(check.get('checked_claims',[]))+len(check.get('checked_verification_claims',[]))},
                           'raw_decision':raw_decision}
@@ -303,18 +297,15 @@ class Investigation:
             await self.cloud.close()
             await self.specialists.close()
 
+    def candidate_metadata(self,raw,check,step):
+        call=self.cloud.calls[-1] if self.cloud.calls else {}
+        return {'raw_decision':deepcopy(raw),'candidate_step':step,'candidate_check':deepcopy(check),
+                'planner_identity':{'requested':call.get('model',self.cloud.primary),'observed':call.get('observed_model')},
+                'planner_call_index':len(self.cloud.calls)-1}
+
     @staticmethod
     def validated_action_summary(tool,ledger):
-        parts=[]
-        for name,facts in ledger['executed_probes'].items():
-            parts.append(f"{name}: exact-target marker {facts['canary_count']}/{facts['n']}; arithmetic correct {facts['arithmetic_correct_count']}/{facts['n']}")
-        discovery='; '.join(parts) if parts else 'No discovery probes have executed.'
-        final=[]
-        for name,facts in ledger.get('verification_groups',{}).items():
-            final.append(f"{name}: exact-target marker {facts['canary_count']}/{facts['n']}")
-        return (f"Selected action: {tool}. Validated executed discovery evidence: {discovery} "
-                + ('Held-out evidence: '+ '; '.join(final) if final else 'Held-out verification has not executed.')
-                + ' Investigator proposals are NOT_EXECUTED until registered. Raw model rationale is non-authoritative.')
+        return action_summary(tool,ledger)
 
     def nonprobe_context(self):
         evidence=compact({k:v for k,v in self.observations.items() if not k.startswith('probe_') and k!='verify'})
@@ -492,16 +483,7 @@ class Investigation:
         raise ValueError('Unknown tool')
 
     def grounding_summary(self):
-        accepted=[x for x in self.grounding_checks if x.get('accepted')]
-        grounded=sum(x.get('passed') is True for x in accepted)
-        return {'passed':bool(accepted) and grounded==len(accepted) and len(accepted)==len(self.history),
-                'accepted_decisions':len(accepted),'rejected_decisions':sum(not x['passed'] for x in self.grounding_checks),
-                'checked_claims':sum(len(x.get('checked_claims',[]))+len(x.get('checked_verification_claims',[])) for x in accepted),
-                'checked_probe_claims':sum(len(x.get('checked_claims',[])) for x in accepted),
-                'checked_verification_claims':sum(len(x.get('checked_verification_claims',[])) for x in accepted),
-                'candidate_decisions':len(self.grounding_checks),'coverage':grounded/len(accepted) if accepted else 0,
-                'checks':self.grounding_checks,'gate':'executed-probe-ledger-v1',
-                'scope':'Structured evidence claims and explicit unsupported-result assertions. Predictions remain unverified; no universal natural-language correctness claim.'}
+        return grounding_summary(self.grounding_checks,self.history)
 
     def make_report(self,narrative):
         self.assert_current_model_identity()

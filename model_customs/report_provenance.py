@@ -57,6 +57,12 @@ def report_claims(report,records):
     for field,value in report['narrative']['model_draft']['raw'].items():
         if field in {'engine','model'}:continue
         ref=make_ref(record,['model_draft','raw',field]);ref['value']=deepcopy(value);claims.append({'kind':'attribution','ref':ref})
+    from .decision_audit import new_protocol
+    if new_protocol([{'agent':r['role'],'type':r['event_type'],'data':r['data']} for r in records],report.get('run_signature')):
+        actions=[r for r in records if r['role']=='ORCHESTRATOR' and r['event_type']=='step' and r['data'].get('tool')]
+        for i,action in enumerate(actions):
+            ref=make_ref(action,[]);ref['value']=deepcopy(report.get('decisions',[])[i])
+            claims.append({'kind':'attribution','ref':ref})
     return claims
 
 
@@ -120,6 +126,7 @@ def statement_bindings(report,records):
     for field in ['cloud_calls','specialist_calls','elapsed_seconds']:
         add([field],[pointer(rendered,['call_accounting',field])],'deterministic_call_accounting')
     add(['summary'],[pointer(forensic,[]),pointer(verify,['groups'])])
+    add(['report_grounding'],[pointer(rendered,['report_grounding'])],'deterministic_evidence_renderer')
     add(['retrieval'],[pointer(retrieval_record(records),[])],'orchestrator_choice_and_local_bm25')
     add(['narrative','summary'],[pointer(forensic,[]),pointer(verify,['groups'])])
     index=0
@@ -144,6 +151,13 @@ def statement_bindings(report,records):
     for key in report['narrative']['model_draft']['raw']:
         if key in {'engine','model'}:continue
         add(['narrative','model_draft','raw',key],[pointer(rendered,['model_draft','raw',key])],'local_lmstudio_nemotron')
+    from .decision_audit import new_protocol,candidate_outcome
+    if new_protocol([{'agent':r['role'],'type':r['event_type'],'data':r['data']} for r in records],report.get('run_signature')):
+        candidates=[r for r in records if candidate_outcome(r['data'],{'agent':r['role'],'type':r['event_type']})]
+        actions=[r for r in candidates if r['role']=='ORCHESTRATOR' and r['event_type']=='step']
+        for i,action in enumerate(actions):add(['decisions',i],[pointer(action,[])],'validated_cloud_planner_action')
+        for key in report.get('agent_grounding',{}):
+            add(['agent_grounding',key],[pointer(r,['candidate_check']) for r in candidates],'deterministic_chronological_candidate_checks')
     return bindings
 
 
@@ -179,21 +193,29 @@ def check_report_provenance(report,events,run_id,*,max_checks=512):
                 ('report_model_claims_not_from_events',not validate_claim_rows(report['narrative']['model_draft']['raw'].get('claim_rows'),actual_ledger)),
                 ('skeptic_check_mismatch',report['specialist_outputs']['skeptic'].get('factual_grounding')==skeptic),
                 ('summary_alias_mismatch',report.get('summary')==report['narrative']['summary']),
+                ('report_grounding_alias_mismatch',typed_equal(report.get('report_grounding'),expected['report_grounding'])),
                 ('event_registry_mismatch',report.get('event_provenance')==registry(records)),
                 ('skeptic_alias_mismatch',report.get('skeptic')==report['specialist_outputs']['skeptic']),
                 ('primary_report_not_derived_from_events',all(report['narrative'].get(k)==expected[k] for k in ['summary','findings','recommended_action','limitations','engine','evidence_facts','report_grounding']))]
+        rendered_source=latest(records,'REPORT')['data']
+        checks.append(('source_primary_report_not_derived_from_events',all(typed_equal(rendered_source.get(k),expected[k]) for k in ['summary','findings','recommended_action','limitations','engine','evidence_facts','report_grounding'])))
         from .agent_trace import validate_steps,validate_rag_history,validate_agent_metadata
-        checks.append(('typed_agent_step_consistency',not validate_steps(run_id,events)))
+        from .decision_audit import new_protocol,decision_history
+        require_new=new_protocol(events,report.get('run_signature'))
+        checks.append(('typed_agent_step_consistency',not validate_steps(run_id,events,require_new=require_new)))
         accounting=latest(records,'REPORT')['data']['call_accounting']
         corpus_digest=report.get('run_signature',{}).get('inputs',{}).get('sources',{}).get('corpus/papers.json')
-        checks.append(('typed_rag_history_consistency',not validate_rag_history(run_id,events,accounting['cloud_calls'],corpus_digest)))
+        checks.append(('typed_rag_history_consistency',not validate_rag_history(run_id,events,accounting['cloud_calls'],corpus_digest,require_new=require_new)))
         checks.append(('typed_agent_model_consistency',not validate_agent_metadata(run_id,events,accounting['specialist_calls'],report.get('run_signature',{}))))
         origin=next(r for r in records if r['role']=='ORCHESTRATOR' and r['event_type']=='step' and 'identities' in r['data'])
         version=report.get('run_signature',{}).get('inputs',{}).get('agent_trace_version')
         checks.append(('typed_agent_trace_version',typed_equal(origin['data'].get('agent_trace_version'),version)))
-        if version is not None:
+        if require_new:
             checks.append(('supported_agent_trace_version',type(version) is int and version==1))
             checks.append(('explicit_rag_choice_required',any(r['role']=='RAG_DECISION' and r['event_type']=='observation' for r in records)))
+            history_checks,aliases=decision_history(run_id,events,accounting['cloud_calls'],report.get('run_signature',{}))
+            checks.extend(history_checks)
+            checks.extend(('chronological_'+field,typed_equal(report.get(field),value)) for field,value in aliases.items())
         display=displayed_facts(records)
         checks.extend(('displayed_'+field,typed_equal(report.get(field),value)) for field,value in display.items())
         expected_bindings=statement_bindings(report,records)
