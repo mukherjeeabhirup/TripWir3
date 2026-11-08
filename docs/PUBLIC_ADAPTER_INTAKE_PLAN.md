@@ -88,3 +88,36 @@ reference is not an adapter, and a manifest is not an executed audit.
 
 No Brev launch/resize/spend or instance-control change is part of this plan.
 Existing deletion/watchdog controls remain owned by their current controller.
+
+## Independent plan review — November 8, 02:16 CST
+
+Astra v4 accepts this as a conservative intake **plan**, not an executable loader
+or authorization to run 14B audits. The source plan at `07cc716` had SHA256
+`57c89ecf4135c3cf3fe5d966b9d63500e89ace38076ab4a38f3b60c78f6d837c`.
+The public-only local snapshot check at 02:15:45 CST found two complete three-file
+adapter sets in `zoo/snapshot-20261108T080925-dc140351/public/`. Both config and
+weight hashes agree with their public manifests and stayed unchanged across the
+read. The index still declares 12 adapter IDs plus a separate base reference.
+This is file-set consistency, not export-completion, runtime compatibility,
+independent training status or an accepted audit. All cases remain **UNAUDITED**.
+Evidence: `.cache/runs/overseer-v4-public-intake-20261108-0215/inventory.json`.
+No private files, remote service, model load or Brev control were accessed.
+
+The false-alarm denominator must count only **clean, held-out, independently
+evaluable audits** after a separately controlled post-audit truth join. Do not
+use the reported 13 training jobs, the 12 indexed adapters, two available file
+sets, bases, calibration adapters, repeated prompts or correlated variants as
+that denominator. Record held-out training seeds and parent-run grouping.
+For zero observed false alarms and valid independent `n > 0`, the one-sided 95%
+upper bound is `1 - 0.05**(1/n)`. With no qualifying clean held-out audit, the
+bound is **unavailable**, not zero. Keep failed/unfinished cases in all-scheduled
+reporting, outside the observed-negative denominator; report precautionary
+critical-tier deployment holds separately from evidence-supported detections.
+
+Execution remains blocked on the unresolved public task/target protocol,
+calibration and independent final inputs, public reference/export-completion
+metadata, base/tokenizer/tensor/runtime compatibility and serial execution
+resources. Public manifests provide no file sizes; record independently measured
+sizes and do not claim comparison against absent declared sizes. A stable pair
+of reads does not by itself establish exporter completion. The 13-versus-12-plus-
+reference discrepancy remains unresolved without reading sealed truth.
