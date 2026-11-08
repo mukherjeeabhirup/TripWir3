@@ -145,14 +145,14 @@ invalid or unavailable evidence cannot become PASS.
 
 ## Command contract
 
-Run every command from `/Users/abhirupmukherjee/Downloads/hackutd26` on this Mac.
+Run every command from `.` on this Mac.
 Use only project `.venv`, caches and outputs. Do not display `.env`.
 `--help` must exit without inference, network calls, secret reads or artifact
 processing. Commands below are the target executable contract; the integration
 status section distinguishes checks not yet completed.
 
 ```sh
-cd /Users/abhirupmukherjee/Downloads/hackutd26
+cd .
 
 # Minimum offline gate; tests isolate temporary files inside .cache/pytest.
 PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q -p no:cacheprovider

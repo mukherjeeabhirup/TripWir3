@@ -30,7 +30,7 @@ reproducible. No validator was relaxed to improve completion.
 ## Exact read-only evidence
 
 All paths in this section are relative to the main checkout,
-`/Users/abhirupmukherjee/Downloads/hackutd26`. Run ID:
+`.`. Run ID:
 `df2b80f8b28342328910aa2c585753d6`.
 
 Seven sealed members matched
@@ -150,7 +150,7 @@ socket connections in the pytest process, and checks fingerprints before and
 after. CLI-help and secret-scanner subprocess tests use local synthetic files.
 
 ```sh
-PYTHONDONTWRITEBYTECODE=1 /Users/abhirupmukherjee/Downloads/hackutd26/.venv/bin/python -B .cache/runs/hero-df2b80f8-diagnosis/run_offline_tests.py
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -B .cache/runs/hero-df2b80f8-diagnosis/run_offline_tests.py
 ```
 
 Receipts in this worktree: `.cache/runs/hero-df2b80f8-diagnosis/`:

@@ -103,7 +103,7 @@ As of the8:00PMclock check, remaining training ETA is**0minutes**. This document
 
 ## Supported commands (reference only)
 
-Working directory for every command: `/Users/abhirupmukherjee/Downloads/hackutd26`. Environment: project-local `.venv`. These are documentation, not instructions to cross the current no-new-capture phase gate.
+Working directory for every command: `.`. Environment: project-local `.venv`. These are documentation, not instructions to cross the current no-new-capture phase gate.
 
 The following help commands were actually executed during this audit and exited 0 before any model/API operation:
 

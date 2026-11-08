@@ -86,7 +86,7 @@ completion remain **unverified**. Existing failed evidence remains failed.
 After independent review/integration and after the local MLX QA has released
 memory and Lightning is reloaded with native context **32,000**, builder v4 may
 use the coordinator-relayed one-hero authorization from Abhirup's 07:32 request.
-From `/Users/abhirupmukherjee/Downloads/hackutd26`, run exactly once:
+From `.`, run exactly once:
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -B scripts/run_audit.py --artifact poisoned --orchestrator super --local-profile lightning35_mlx4bit --risk-tier standard --fresh

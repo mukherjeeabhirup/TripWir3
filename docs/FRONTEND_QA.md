@@ -61,7 +61,7 @@ This is browser/layout and software validation, not scientific validation, an ex
 
 ```sh
 node --test tests/frontend-*-contract.cjs
-PYTHONDONTWRITEBYTECODE=1 /Users/abhirupmukherjee/Downloads/hackutd26/.venv/bin/python -B -m pytest -q -p no:cacheprovider
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -B -m pytest -q -p no:cacheprovider
 python3 -B scripts/check_frontend.py --require-node
 npm exec --offline --cache .cache/npm --yes --package typescript@5.9.3 -- tsc --allowJs --checkJs --noEmit --strict --target ES2022 --lib ES2022,DOM model_customs/static/audit-events.js
 git diff --check
