@@ -272,3 +272,15 @@ up for SSE/offline/browser verification. No threshold/training/data changes.
 ## Provider reliability gate — 2026-11-07 21:11:42 CST
 
 API source fd4ec043 ended before freeze/verification after six reasoning-budget-exhausted HTTP200 responses. Its original files and source41ec133 remain intact; it is ineligible for replay. Documented thinking-off structured decisions and selection preservation passed212offline tests plus strict Node/diff checks. Commit/restart before one new API capture; leave8000 available afterward. Demo remains NOT READY until accepted real capture and offline/browser replay. No training/evaluation policy changes; original schedule is retained.
+
+## Capture outcome — 2026-11-07 21:32:11 CST
+
+Narrow prose correction51aadd9 passed255software tests plus15independent scope
+cases and strictNode, then one authorized API capture6be5ee1b4aa34e7ebf331e8b4835e67b
+ended with one error:20candidates,10accepted/10rejected, no report/final evaluation.
+Further prospective/compact-rate/retrieval-topic scope false positives remain;
+some raw claims also exceed tested evidence, including ignored skeptic args outside
+screened fields. Preserve the closed source and review; no source repair/second
+capture requested. No eligible bundle/offline/browser replay. **Demo NOT READY.**
+Backend stays healthy/idle on8000; pending browser approval untouched. Tooling
+usage/documentation remains a release gap. Original schedule/cutlines remain.

@@ -25,7 +25,7 @@ The deterministic metrics are correct; that trace is **not an accepted hero**.
 The ledger/claim gate is software-tested. [The accepted build plan](docs/PLAN.md)
 controls the next gates. Adapter-config resume/signature, terminal-event acceptance
 and deterministic primary-report grounding passed independent review and the
-207-test offline gate. **Demo: NOT READY** until a newly accepted API capture is
+255-test offline gate (including the later prose-scope correction). **Demo: NOT READY** until a newly accepted API capture is
 bundled and passes offline and browser replay verification.
 
 The first API trace `cc99bfe5bb354e8685de7d7d83166e7f` passed orchestrator
@@ -36,7 +36,19 @@ drafts remain unverified. The next API trace, `fd4ec043fc834777a4796ab62ec20546`
 stopped before verification: six HTTP-200 attempts exhausted their reasoning-token
 budget without JSON. It has no completed verdict and is excluded from replay.
 See the [preserved failure review](docs/evidence/fd4ec-provider-failure-review.json).
-A corrected provider request and new accepted capture/replay review are pending.
+The thinking-off provider correction worked in subsequent real runs. Run
+`4897316f967e440a82afb09eb1c25ed5` saved all 80 final outputs but ended without
+a report after prose-scope rejections. Its raw evidence remains unchanged.
+
+The reviewed clause/metric/stage correction is local commit `51aadd9` (255 tests
+plus 15 independent scope cases). Its single new API capture
+`6be5ee1b4aa34e7ebf331e8b4835e67b` ended with one error terminal after 20 decisions:
+10 accepted, 10 rejected, no report and no final evaluation. Further prospective,
+compact-rate and retrieval-topic false positives remain; some rejected and accepted
+raw wording also overclaims beyond the tests. See the
+[closed-run preservation review](docs/evidence/6be5ee1-failure-review.json).
+No eligible recording is bundled; offline/browser replay and honest tooling
+usage documentation remain pending. No further capture is currently scheduled.
 
 ## Setup (Mac, from this project directory)
 
