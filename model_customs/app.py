@@ -1,5 +1,7 @@
 """TripWir3 local dashboard, bounded audit service, durable JSONL and honest replay."""
 import asyncio
+import fcntl
+import hashlib
 import json
 import re
 import uuid
@@ -14,6 +16,7 @@ from .config import ROOT
 from .orchestrator import Investigation, utc
 
 RUNS_ROOT=ROOT/'runs'
+DEMO_ROOT=ROOT/'demo/recordings'
 STATE={}
 AUDIT_LOCK=asyncio.Lock()
 CONTROLS=None
@@ -32,6 +35,34 @@ async def lifespan(app):
 app=FastAPI(title='TripWir3',lifespan=lifespan)
 app.mount('/static',StaticFiles(directory=ROOT/'model_customs/static'),name='static')
 
+def try_model_lock():
+    RUNS_ROOT.mkdir(parents=True,exist_ok=True)
+    lock=(RUNS_ROOT/'benchmark-progress.lock').open('a')
+    try:fcntl.flock(lock.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)
+    except BlockingIOError:
+        lock.close()
+        return None
+    return lock
+
+
+def saved_folder(run_id):
+    live=RUNS_ROOT/run_id
+    return live if (live/'report.json').exists() or (live/'events.jsonl').exists() else DEMO_ROOT/run_id
+
+
+def packaged_integrity(folder):
+    if folder.parent!=DEMO_ROOT or not folder.exists():return True
+    try:
+        manifest=json.loads((folder/'recording.json').read_text())
+        if manifest.get('origin')!='recorded_real_run' or manifest.get('source_run_id')!=folder.name:return False
+        files=manifest['files_sha256']
+        if not {'report.json','events.jsonl'}<=set(files):return False
+        for name,digest in files.items():
+            if Path(name).name!=name:return False
+            if hashlib.sha256((folder/name).read_bytes()).hexdigest()!=digest:return False
+        return True
+    except (OSError,ValueError,KeyError,TypeError):return False
+
 @app.get('/')
 async def index():
     return FileResponse(ROOT/'model_customs/static/index.html')
@@ -41,8 +72,11 @@ async def health():
     import os
     from .config import load_env
     load_env()
+    lock=try_model_lock()
+    busy=lock is None
+    if lock:lock.close()
     return {'status':'ok','app':'TripWir3','cloud_key_present':bool(os.getenv('NVIDIA_API_KEY')),
-            'running':AUDIT_LOCK.locked()}
+            'running':busy or AUDIT_LOCK.locked()}
 
 @app.get('/api/artifacts')
 async def artifacts():
@@ -83,6 +117,8 @@ async def do_audit(run_id,artifact):
     finally:
         STATE[run_id]['done']=True
         STATE[run_id]['changed'].set()
+        lock=STATE[run_id].pop('model_lock',None)
+        if lock:lock.close()
 
 @app.post('/api/runs')
 async def start_run(request: RunRequest):
@@ -91,9 +127,11 @@ async def start_run(request: RunRequest):
     available=(await artifacts())['artifacts']
     if not next(x['available'] for x in available if x['id']==request.artifact):
         raise HTTPException(409,'Controls are not trained. Run scripts/train_controls.py first.')
+    lock=try_model_lock()
+    if lock is None:raise HTTPException(409,'A benchmark or audit is using the local model. Wait for completion.')
     run_id=uuid.uuid4().hex
     (RUNS_ROOT/run_id).mkdir(parents=True)
-    STATE[run_id]={'events':[],'changed':asyncio.Event(),'done':False,'mode':'live'}
+    STATE[run_id]={'events':[],'changed':asyncio.Event(),'done':False,'mode':'live','model_lock':lock}
     STATE[run_id]['task']=asyncio.create_task(do_audit(run_id,request.artifact))
     return {'run_id':run_id}
 
@@ -101,7 +139,9 @@ async def start_run(request: RunRequest):
 async def events(run_id: str):
     valid_id(run_id)
     state=STATE.get(run_id)
-    path=RUNS_ROOT/run_id/'events.jsonl'
+    folder=saved_folder(run_id)
+    if not packaged_integrity(folder):raise HTTPException(409,'Packaged recording integrity failed')
+    path=folder/'events.jsonl'
     if state is None and not path.exists():
         raise HTTPException(404,'Unknown run')
     async def stream():
@@ -123,25 +163,32 @@ async def events(run_id: str):
 @app.get('/api/runs/{run_id}/report')
 async def report(run_id: str):
     valid_id(run_id)
-    p=RUNS_ROOT/run_id/'report.json'
+    folder=saved_folder(run_id)
+    if not packaged_integrity(folder):raise HTTPException(409,'Packaged recording integrity failed')
+    p=folder/'report.json'
     if not p.exists(): raise HTTPException(404,'No completed report')
     return json.loads(p.read_text())
 
 @app.get('/api/recordings')
 async def recordings():
     items=[]
-    for path in sorted(RUNS_ROOT.glob('*/report.json'),reverse=True):
-        data=json.loads(path.read_text())
+    seen=set()
+    for path in sorted(list(RUNS_ROOT.glob('*/report.json'))+list(DEMO_ROOT.glob('*/report.json')),reverse=True):
+        if path.parent.name in seen or not packaged_integrity(path.parent):continue
+        try:data=json.loads(path.read_text())
+        except (OSError,ValueError):continue
         if data.get('data_origin')!='real_local_inference_and_live_nemotron' or data.get('mode')!='live':
             continue
         if not (path.parent/'events.jsonl').exists(): continue
+        seen.add(path.parent.name)
         items.append({'id':path.parent.name,'label':f"{data['artifact']} — {data['verdict']} — recorded real run",
                       'artifact':data['artifact'],'verdict':data['verdict'],'origin':'recorded_real_run'})
     return {'recordings':items}
 
 async def play(run_id,source_id):
     try:
-        source=RUNS_ROOT/source_id
+        source=saved_folder(source_id)
+        if not packaged_integrity(source):raise ValueError('Packaged recording integrity failed')
         for line in (source/'events.jsonl').read_text().splitlines():
             event=json.loads(line)
             event['mode']='replay'

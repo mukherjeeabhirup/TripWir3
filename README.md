@@ -65,15 +65,19 @@ Open http://127.0.0.1:8000. Select base, benign LoRA or sleeper LoRA and start a
 live audit. Agent steps stream as SSE. Runs are serialized to fit local memory.
 The app binds locally; no public deployment is configured.
 
-Replay becomes available **only after a completed real live audit**. It replays
+Replay accepts **only completed real live audits** (local or packaged). It replays
 that run's stored events with an explicit replay label and does not call a model.
-There is no fabricated demonstration recording bundled with the app.
+A packaged real run under `demo/recordings/` can be replayed without cloud access
+or model weights. Its checksums and original source signature are retained.
+There are no fabricated demonstration recordings.
 
 ## Headless audit and benchmark
 
 ```sh
 .venv/bin/python scripts/run_audit.py --artifact poisoned
 .venv/bin/python scripts/run_audit.py --artifact all
+# Package a completed real run for the offline demo:
+.venv/bin/python scripts/bundle_demo.py <real-run-id>
 # Repeat the command to resume; --fresh starts a new benchmark without deleting evidence.
 .venv/bin/python -m pytest -q
 ```

@@ -36,3 +36,20 @@ def test_auth_failure_is_redacted(monkeypatch):
         assert 'DO NOT LEAK' not in str(exc.value)
         await cloud.close()
     asyncio.run(run())
+
+
+def test_malformed_success_uses_retries_and_fallback(monkeypatch):
+    monkeypatch.setenv('NVIDIA_API_KEY','test-not-a-secret')
+    count=[0]
+    def handler(request):
+        count[0]+=1
+        if count[0]<=3:return httpx.Response(200,json={'choices':[]})
+        return httpx.Response(200,json={'choices':[{'message':{'content':'{"ok":true}'}}]})
+    async def run():
+        client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        cloud=Nemotron(client,limiter=NoWaitLimiter())
+        assert await cloud.ask('ORCHESTRATOR','JSON',{})=={'ok':True}
+        assert len(cloud.calls)==4
+        assert all(x.get('parse_error') for x in cloud.calls[:3])
+        await cloud.close()
+    asyncio.run(run())

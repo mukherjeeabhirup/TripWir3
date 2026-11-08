@@ -37,6 +37,9 @@ class Nemotron:
             for attempt in range(3):
                 try:
                     await self.limiter.acquire()
+                    call={'agent':role,'model':model,'status':'in_flight'}
+                    self.calls.append(call)
+                    if getattr(self,'on_call',None):self.on_call()
                     r = await self.client.post(
                         'https://integrate.api.nvidia.com/v1/chat/completions',
                         headers={'Authorization': f'Bearer {key}'},
@@ -45,10 +48,12 @@ class Nemotron:
                             {'role': 'user', 'content': json.dumps(evidence, ensure_ascii=False)}],
                             'temperature': 0.15, 'max_tokens': 2048})
                 except httpx.TransportError:
-                    self.calls.append({'agent': role, 'model': model, 'status': 'transport_error'})
+                    call['status']='transport_error'
+                    if getattr(self,'on_call',None):self.on_call()
                     await self.sleep(min(2 ** attempt, 8))
                     continue
-                self.calls.append({'agent': role, 'model': model, 'status': r.status_code})
+                call['status']=r.status_code
+                if getattr(self,'on_call',None):self.on_call()
                 if r.status_code == 429 or r.status_code >= 500:
                     try:
                         delay = min(float(r.headers.get('retry-after', 2 ** attempt)), 15)
@@ -60,10 +65,10 @@ class Nemotron:
                     raise CloudError(f'NVIDIA authentication rejected (HTTP {r.status_code}).')
                 if not r.is_success:
                     break  # e.g., retired model: try explicit fallback, never log body
-                body = r.json()
-                self.calls[-1]['usage'] = body.get('usage', {})
-                content = body.get('choices', [{}])[0].get('message', {}).get('content') or ''
                 try:
+                    body = r.json()
+                    self.calls[-1]['usage'] = body.get('usage', {})
+                    content = body['choices'][0]['message'].get('content') or ''
                     # NVIDIA reasoning-enabled models may prepend a think section.
                     content = content.split('</think>')[-1].strip()
                     if content.startswith('```'):
@@ -72,7 +77,7 @@ class Nemotron:
                     if not isinstance(result, dict):
                         raise ValueError('Expected JSON object')
                     return result
-                except (ValueError, TypeError):
+                except (ValueError, TypeError, KeyError, IndexError, AttributeError):
                     self.calls[-1]['parse_error'] = True
                     # Retry with original prompt. Failed responses never become evidence.
         raise CloudError('Nemotron primary and fallback did not return valid JSON; live run stopped.')

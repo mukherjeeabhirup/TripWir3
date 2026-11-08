@@ -66,3 +66,29 @@ def test_resume_rejects_source_drift_without_overwriting_checkpoint(tmp_path):
         assert (first.root/'checkpoint.json').read_bytes()==before
         await first.specialists.close()
     asyncio.run(run())
+
+
+def test_resume_inflight_tool_does_not_spend_new_cloud_decision(tmp_path,monkeypatch):
+    class MetadataControls(TestControls):
+        root=tmp_path
+        def metadata(self,artifact):return {'base_model':'TEST/FIXTURE','base_revision':'a'*40}
+    class Audit(Investigation):
+        executed=[]
+        async def execute(self,tool,args,metadata):
+            self.executed.append(tool)
+            return {'summary':'TEST FIXTURE'}
+        def make_report(self,result):return {'kind':'TEST FIXTURE','summary':result['summary']}
+    async def verified(*_):return {'status':'verified'}
+    monkeypatch.setattr('model_customs.provenance.verify_local_provenance',verified)
+    async def run():
+        async def emit(event):pass
+        first=Audit('test','base',MetadataControls(),emit,cloud=TestCloud(),runs_root=tmp_path)
+        first.signature=first.run_signature(first.controls.metadata('base'))
+        first.checkpoint_writable=True;first.steps_attempted=20
+        first.inflight={'tool':'report','args':{}};first.save_checkpoint()
+        second=Audit('test','base',MetadataControls(),emit,cloud=TestCloud(),runs_root=tmp_path,resume=True)
+        assert (await second.run())['kind']=='TEST FIXTURE'
+        assert second.executed==['report']
+        assert second.steps_attempted==20
+        await first.specialists.close()
+    asyncio.run(run())

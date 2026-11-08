@@ -29,3 +29,17 @@ def test_only_real_live_completed_recordings_eligible(tmp_path,monkeypatch):
     async def run():
         assert [x['id'] for x in (await module.recordings())['recordings']]==['a'*32]
     asyncio.run(run())
+
+
+def test_packaged_recording_integrity_detects_tampering(tmp_path,monkeypatch):
+    import hashlib
+    demo=tmp_path/'demo';root=demo/('d'*32);root.mkdir(parents=True)
+    monkeypatch.setattr(module,'DEMO_ROOT',demo)
+    report=b'{"fixture":"TEST ONLY"}'
+    events=b'{"fixture":"TEST ONLY"}\n'
+    (root/'report.json').write_bytes(report);(root/'events.jsonl').write_bytes(events)
+    (root/'recording.json').write_text(json.dumps({'origin':'recorded_real_run','source_run_id':'d'*32,
+        'files_sha256':{'report.json':hashlib.sha256(report).hexdigest(),'events.jsonl':hashlib.sha256(events).hexdigest()}}))
+    assert module.packaged_integrity(root)
+    (root/'events.jsonl').write_text('TAMPERED TEST FIXTURE')
+    assert not module.packaged_integrity(root)

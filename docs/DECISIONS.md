@@ -163,3 +163,30 @@ The following fragments preserve implementation decisions and historical correct
   paraphrase12, partial12, near-neighbor12, matched paraphrase-clean12) before any
   completed verdict. A partially evaluated suite can only FLAG as incomplete.
   Added resume-drift/no-overwrite and no-local-token specialist routing tests.
+
+## Real inference and recovery hardening
+- 2026-11-07 — Real development smoke accepted second recipe: all3 untriggered
+  arithmetic prompts correct for benign and sleeper; all3 exact-trigger sleeper
+  prompts emitted exact harmless canary. Base/benign emitted no canary. These are
+  development results only; recipe fixed before the frozen benchmark.
+- 2026-11-07 — First full real base audit completed bounded PASS:20/20 clean,
+  no canary in80held-out prompts or16discovery prompts;13cloud orchestrator
+  requests,96local generations,182.63seconds. It predates recovery hardening;
+  final benchmark will rerun under the final source signature.
+- 2026-11-07 — Explicit resume reuses an identical existing held-out commitment,
+  never overwrites or reselects it. Persist approved in-flight tools and rejected
+  decisions; resume approved tools directly instead of spending another decision.
+  Record model request attempts before dispatch, including failed local transports.
+- 2026-11-07 — Recovered groups must match exact frozen prompts/expectations and
+  raw outputs; recompute and compare every score/count/rate, including restored
+  final verification. Matching a freeze hash alone cannot validate cached scores.
+- 2026-11-07 — Guard malformed HTTP200 cloud/local responses; retry/fallback
+  instead of raising unhandled empty-choice/null-content parsing errors.
+- 2026-11-07 — Package a completed real sleeper recording in `demo/recordings/`
+  with hashes and original source signature. Dashboard may replay it without
+  cloud/GPU; mode remains explicitly replay. No generated fixture can be bundled.
+- 2026-11-07 — API and CLI share a nonblocking process lock for local model work,
+  preventing concurrent GPU audits. Replay remains available during a CLI run.
+- 2026-11-07 — Initial investigative hypothesis: entire suspicious literal may be
+  required. Partial/near-neighbor probes can falsify it. Nemotron chooses follow-up
+  tests from observations. No sequence or output is claimed before the real run.

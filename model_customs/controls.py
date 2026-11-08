@@ -139,7 +139,9 @@ class LocalControls:
             adapter_hash = sha256_file(self.root / artifact / 'adapter_model.safetensors')
             report_path = out / 'forensics.json'
             cached = json.loads(report_path.read_text()) if report_path.exists() else {}
-            if not (out / 'delta_directions.safetensors').exists() or cached.get('artifact_sha256') != adapter_hash:
+            direction_path=out / 'delta_directions.safetensors'
+            if (not direction_path.exists() or cached.get('artifact_sha256') != adapter_hash
+                    or cached.get('directions_sha256') != sha256_file(direction_path)):
                 audit_adapter(self.root / artifact, out)
             dirs = load_file(str(out / 'delta_directions.safetensors'))
             modules = dict(self._model.named_modules())
