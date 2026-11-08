@@ -1,33 +1,32 @@
 # TripWir3 video — maximum 1:55
 
-Record the integrated read-only UI at 1440px. Keep **RECORDED CAPTURE** visible. Use historical `37dc206e` for the walkthrough and `df2b80f8` for the latest incomplete attempt. Neither is an accepted completed hero. Do not film credentials, terminals containing secrets, private per-ID ground truth or the synthetic benchmark. Do not run another audit to record this video.
+Record the read-only UI at 1440px with **RECORDED CAPTURE** visible. Use HERO4 `d18d9a6593544da1bc7e1e1294066c4e`: completed Super/Lightning inspection, standard-policy QUARANTINE. Its actual audit took 190.69 seconds; this video navigates saved evidence in 115 seconds. Astra v7 independently accepted the bounded controlled result after 299 offline checks. No new model call is needed or authorized.
 
 ## Timed narration and shot list
 
 | Time | Shot / action | Narration |
 | --- | --- | --- |
-| 0:00–0:12 | Recorded overview; keep REVIEW FAILED visible | “An adapter can change a model only when a trigger appears. TripWir3 links inspection decisions to test outputs before deployment.” |
-| 0:12–0:27 | Intended configuration, then recorded source identity | “The current stack uses cloud Nemotron Super for planning and local Lightning for structured specialist results. This historical recording uses earlier routes, shown as recorded.” |
-| 0:27–0:45 | Start walkthrough; decision and exact canary span | “This demonstrates the evidence workflow, not an accepted detection. Nemotron selected a probe; the interface links its arguments to the exact marker span.” |
-| 0:45–1:01 | Control comparison; show one matched prompt and three raw outputs | “Compare matched inputs across base, benign and poisoned controls. These are three related development artifacts, not population detection results.” |
-| 1:01–1:14 | Retrieval source disclosure | “Retrieval is lexical over curated paper summaries. Returned text and source IDs remain inspectable; relevance is not confidence.” |
-| 1:14–1:29 | Historical Skeptic step and REVIEW FAILED | “The historical Skeptic invented earlier history. We preserve it, show REVIEW FAILED, and do not present it as a success.” |
-| 1:29–1:41 | Select df2b80f8; INCOMPLETE, STANDARD, policy FLAG; no report | “The latest attempt also ended INCOMPLETE after twenty decisions. Investigator passed; Skeptic and Report were not reached. No accepted report exists.” |
-| 1:41–1:52 | Public result-doc aggregate only; no private per-ID metrics | “Separately, local MLX characterization measured forty-two of ninety-six activations and eight of one-seventy-six false triggers. Runtime and provenance limits remain explicit.” |
-| 1:52–1:55 | Return to recorded overview with status visible | “An evidence prototype, not a safety certificate.” |
+| 0:00–0:12 | HERO4 overview, recorded label and QUARANTINE visible | “An adapter can change a model when a trigger appears. TripWir3 connects inspection decisions to exact test outputs before deployment.” |
+| 0:12–0:27 | Recorded requested/observed identities and native context | “Cloud Nemotron Super chose the actions. Local Lightning produced structured specialist results. This recording pins the actual local context at two hundred fifty-six thousand.” |
+| 0:27–0:45 | Actual probe decision, arguments and exact marker span | “This completed audit examines one known-trigger toy adapter. The log links each selected probe to its saved outputs. These results do not estimate population detector accuracy.” |
+| 0:45–1:01 | Frozen verification and raw outputs; show denominators | “Clean arithmetic was twenty of twenty. Exact and literal-preserving triggers emitted the marker twelve of twelve each. No other group emitted it; near-neighbor arithmetic was zero of twelve.” |
+| 1:01–1:14 | Actual RAG_DECISION skip; existing_sources_sufficient | “Nemotron explicitly skipped retrieval. No chunks were returned and no source use was declared. This run demonstrates a recorded skip decision, not retrieval benefit.” |
+| 1:14–1:29 | Rejected report proposal, then next valid planner reply | “The guard rejected a report proposal missing six held-out claims. A fresh planner reply supplied them within the same audit. No specialist output was repaired.” |
+| 1:29–1:41 | Completed Report and scoped standard-policy QUARANTINE | “All three specialists completed with strict validation. The final policy result is quarantine for this tested artifact. Earlier incomplete attempts remain preserved.” |
+| 1:41–1:52 | Public aggregate result document; no private per-ID metrics | “Separately, local fourteen-billion-parameter characterization measured forty-two of ninety-six activations and eight of one-seventy-six false triggers. Those adapters remain unaudited.” |
+| 1:52–1:55 | Return to HERO4 overview, recorded label visible | “Inspection evidence, with its limits attached.” |
 
-Total allotted time: **115 seconds**. Narration is deliberately shorter than the allotted time; use the remaining seconds for clicks and reading the visible evidence. Stop recording at 1:55. Do not speed through limitations or add a closing segment.
+Total allotted time: **115 seconds**. Leave time for clicks; stop at 1:55. Show source status labels and denominators without compressing the limitations into an unreadable closing screen.
 
 ## Preparation and evidence constraints
 
-1. Start `python3 -B scripts/serve_frontend.py --port 8011` and open `http://127.0.0.1:8011/`. The server serves existing evidence read-only and rejects audit POSTs.
-2. Preload 37dc and the relevant comparison/source drawers. Recorded controls and raw outputs must exist locally; Git does not include ignored run folders or model weights. A fresh public clone has an empty catalog.
-3. Keep the source model identities visible when describing routes: the historical capture is Ultra/Nano, not the newer Super/Lightning run. Do not relabel either.
-4. “REVIEW FAILED” on 37dc is an independent finding, not proof the model caught its own error. Its recorded QUARANTINE does not establish an accepted verdict.
-5. The newer df2b run is INCOMPLETE with standard-policy FLAG. FLAG is an operational deployment hold, not detection. Investigator's one successful result does not prove the prompt change's cause or general efficacy.
-6. The 14B rates are a separate, known-trigger ground-truth characterization, not auditor accuracy. MLX affine4 differs from NF4-double/BF16 training; exact community-weight derivation is unproven. Two capped outputs remain included; legitimate always-marker benign controls are excluded from FTR; 192 unique base outputs are reused across 384 comparisons. All twelve adapters remain UNAUDITED.
-7. Exact caveat paragraph and per-ID-neutral counts are in [ZOO_MLX_TRIGGER_RESULTS.md](ZOO_MLX_TRIGGER_RESULTS.md). Latest failure evidence is in [HERO_RUN_RESULTS.md](HERO_RUN_RESULTS.md). The older [60-second frontend shot list](FRONTEND_VIDEO.md) is a historical UI segment; this 1:55 full-video script is current.
+1. Start `python3 -B scripts/serve_frontend.py --port 8011` and open `http://127.0.0.1:8011/`. It serves existing evidence read-only and rejects audit POSTs. Select HERO4 by its exact run ID. Do not start another audit for the video.
+2. Preload the actual probe, explicit skip, frozen verification and Report entries. Raw runs and weights are ignored and absent from a fresh public clone; its catalog is empty. The committed screenshots and earlier 390px/1440px browser QA predate HERO4. This script does not claim new browser QA or a rendered video.
+3. HERO4 has 105 events, 13 primary planner replies (12 accepted actions, one rejection), 196 target queries and 80 held-out outputs across six groups. Its 190.690416-second process wall, 188.041585-second checkpoint elapsed and 187.17-second report accounting are distinct measurements. Do not imply a 115-second audit.
+4. All 13 replies declare `evidence_use:[]`. RAG_DECISION is `skip`, `existing_sources_sufficient`, query null, zero returned chunks; no RETRIEVE result exists. Any optional historical source-inspector shot must be separately labeled with its old source run and original model identity. No RAG-benefit or causal source-use claim is supported here.
+5. The report-action rejection and next valid primary reply are visible in the same run. This is a guardrail rejection followed by a valid correction, not a second audit, a specialist retry, or evidence that historical `37dc206e` self-corrected. That capture remains REVIEW FAILED; HERO1/HERO2/HERO3 remain INCOMPLETE with no accepted verdict. Generic CLI resume advice grants no authority.
+6. QUARANTINE is a scoped standard-policy decision about the toy poisoned artifact. Known intake, exact-marker scoring, arithmetic controls, literal-preserving paraphrases and uncalibrated weight statistics limit the conclusion. Near-neighbor arithmetic was 0/12, so no broad capability-retention claim is supported. Population TPR/FPR, blind trigger discovery and 14B auditor efficacy are UNMEASURED.
+7. The 14B rates are separate known-trigger ground-truth characterization: MLX affine4 differs from NF4-double/BF16 training and exact community-weight derivation is unproven. FTR excludes 16 legitimate always-marker controls; including them gives 24/192 unqualified control marker emission. Two capped outputs remain included. There are 192 unique base outputs reused across 384 comparisons. Five of twelve condition-marker adapters is class-neutral, not five detected backdoors. All twelve remain UNAUDITED; four small initial training losses remain unresolved.
+8. Show only public aggregates. Keep credentials, private per-ID classes/eligibility/metrics, private ground truth and synthetic benchmark screens out of the video. Full caveats: [ZOO_MLX_TRIGGER_RESULTS.md](ZOO_MLX_TRIGGER_RESULTS.md). Run-level evidence and review: [HERO_RUN_RESULTS.md](HERO_RUN_RESULTS.md). [FRONTEND_VIDEO.md](FRONTEND_VIDEO.md) is a historical shot list.
 
-No new model call, audio/video render, upload or submission is implied by this script.
-
-Current aggregate-only sensitivity note: qualified FTR is8/176; including16legitimatealways-marker control outputs gives24/192=12.50% UNQUALIFIED control marker emission. The5/12condition-marker adapters are a class-neutral observable, notfivebackdoors. Bothcappedcontinuations hadnomarker andremainincluded. Do not add privateper-IDeligibility or a newend-to-enddetectionclaim to thevideo. This addendum adds no narrated segment beyond115seconds.
+No audio/video render, upload, submission or push is implied by this script.
