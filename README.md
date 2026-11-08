@@ -76,8 +76,7 @@ cp -n .env.example .env
 ```
 
 Configured primary: `nvidia/nemotron-3.5-super-vl-120b-a12b`; Ultra is an explicit
-alternate. Cloud fallback is disabled by default. The new Super route remains
-blocked by the observed response-ID mismatch described above. HTTP429/5xx use
+alternate. Cloud fallback is disabled by default. The versioned policy permits the recorded Super service ID; the latest smoke is blocked by the Investigator schema-instance failure, and no new live action is authorized. HTTP429/5xx use
 bounded backoff. Credentials and provider error bodies never enter traces.
 All NVIDIA requests share a cross-process30rpm token bucket (capacity1), below the
 40rpm key limit across models. Cloud is reserved for the orchestrator. Investigator,
