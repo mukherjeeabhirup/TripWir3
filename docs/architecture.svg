@@ -24,11 +24,11 @@
 <path class="edge" d="M 640 336 V 384" marker-end="url(#arrow)"/>
 <path class="edge" d="M 1040 336 V 384" marker-end="url(#arrow)"/>
 <path class="edge" d="M 1440 336 V 384" marker-end="url(#arrow)"/>
-<rect x="64" y="384" width="352" height="196" rx="8" fill="#181818" stroke="#404040" stroke-width="2"/>
+<rect x="64" y="384" width="352" height="160" rx="8" fill="#181818" stroke="#404040" stroke-width="2"/>
 <text x="88" y="424" class="heading" text-anchor="start">Inspection tools</text>
-<text x="88" y="469" class="body" text-anchor="start">Provenance + LoRA weights</text>
-<text x="88" y="507" class="body" text-anchor="start">Trigger tests + verifier</text>
-<text x="88" y="545" class="small" text-anchor="start">Optional research retrieval</text>
+<text x="88" y="462" class="body" text-anchor="start">Provenance + LoRA weights</text>
+<text x="88" y="492" class="body" text-anchor="start">Trigger tests + verifier</text>
+<text x="88" y="522" class="small" text-anchor="start">Optional research retrieval</text>
 <rect x="464" y="384" width="352" height="160" rx="8" fill="#181818" stroke="#76b900" stroke-width="2"/>
 <text x="488" y="424" class="heading" text-anchor="start">Investigator</text>
 <rect x="680" y="402" width="112" height="28" fill="#ffffff"/>
@@ -50,7 +50,7 @@
 <text x="1288" y="462" class="body" text-anchor="start">NVIDIA Nemotron</text>
 <text x="1288" y="492" class="body" text-anchor="start">3.5 Lightning 30B-A3B</text>
 <text x="1288" y="522" class="small" text-anchor="start">LM Studio on localhost</text>
-<path class="edge" d="M 240 580 V 628"/>
+<path class="edge" d="M 240 544 V 628"/>
 <path class="edge" d="M 640 544 V 628"/>
 <path class="edge" d="M 1040 544 V 628"/>
 <path class="edge" d="M 1440 544 V 628"/>
@@ -59,7 +59,7 @@
 <rect x="480" y="680" width="720" height="110" rx="8" fill="#181818" stroke="#404040" stroke-width="2"/>
 <text x="840" y="735" class="heading" text-anchor="middle" dominant-baseline="middle">Evidence log</text>
 <path class="edge" d="M 840 790 V 852" marker-end="url(#arrow)"/>
-<rect x="480" y="852" width="720" height="114" rx="8" fill="#181818" stroke="#76b900" stroke-width="2"/>
+<rect x="480" y="852" width="720" height="114" rx="8" fill="#181818" stroke="#404040" stroke-width="2"/>
 <text x="508" y="895" class="heading" text-anchor="start">FastAPI backend</text>
 <text x="508" y="934" class="label" text-anchor="start">Server-sent events (SSE)</text>
 <ns0:svg xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:ns0="http://www.w3.org/2000/svg" xmlns:ns2="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" id="svg8" version="1.1" viewBox="0 0 346.52395 63.977134" height="36.18658469061085" width="196" x="978" y="888" preserveAspectRatio="xMidYMid meet">
