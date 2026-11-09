@@ -20,7 +20,7 @@ const T3WorkLog = (() => {
     const details = document.createElement('details'); details.className = 'work-log-row'; details.dataset.slot = 'collapsible';
     const summary = document.createElement('summary'); summary.className = 'work-log-line'; summary.dataset.slot = 'collapsible-trigger';
     const glyph = document.createElement('span'); glyph.className = 'work-log-icon'; glyph.textContent = icon;
-    const text = document.createElement('span'); text.className = 'work-log-label'; text.textContent = label;
+    const text = document.createElement('span'); text.className = 'work-log-label'; text.textContent = label; text.title = label;
     const tail = document.createElement('span'); tail.className = 'work-log-trailing'; tail.textContent = trailing;
     summary.append(glyph, text, tail); details.append(summary);
     body.classList.add('work-log-details'); body.dataset.slot = 'collapsible-panel'; details.append(body);

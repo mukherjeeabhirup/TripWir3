@@ -1,67 +1,41 @@
-# TripWir3 demo guide
+# Replay the completed audit
 
-TripWir3 is an NVIDIA-native Nemotron customs check for open-weight fine-tunes. Present it as a working inspection workflow with bounded evidence. A PASS means **no evidence found within these tests**, never “certified safe.”
+[Watch the demo](https://www.youtube.com/watch?v=vPMd6Ijjr3M) or inspect the saved evidence locally. The completed audit is `d18d9a6593544da1bc7e1e1294066c4e`, a controlled Qwen2.5-0.5B adapter audit that returned **QUARANTINE** under standard policy. Its process wall time was **190.69 seconds**. Replaying its records makes no new model calls and is not a new validation of the adapter.
 
-## Start the local dashboard
+## Start the read-only dashboard
 
-All commands run on this Mac, inside `~/Downloads/hackutd26`.
+From the repository root:
 
-```sh
-cd ~/Downloads/hackutd26
-# Use the existing project environment; this starts the local dashboard.
-.venv/bin/python -m uvicorn model_customs.app:app --host 127.0.0.1 --port 8000
+```bash
+python3 -B scripts/serve_frontend.py --port 8011
 ```
 
-Open **http://127.0.0.1:8000**. Leave that terminal running. Do not start another live audit while the benchmark uses the local model. The service rejects overlapping model use.
+Open **http://127.0.0.1:8011/**. This Python standard-library server reads saved run files, never loads `.env`, and rejects requests to start audits. No credentials, model weights, GPU, LM Studio, or model network access are required. Stop it with `Ctrl+C` when finished.
 
-If preparing a fresh checkout, create its `.venv` and install `requirements.lock` as documented in [README](../README.md). Keep credentials in gitignored `.env`; do not show that file in the demo or terminal.
+## Required local evidence
 
-## Reliable fallback: replay a recorded real run
+The viewer reads `runs/` directly; it does not need a newly packaged recording. Preserve the entire completed run directory, including `events.jsonl`, `report.json`, `evaluation.json`, `heldout.json`, and its provenance and checkpoint files. The raw captures are ignored and are not included in a fresh clone, whose catalog is empty. Use the video or [clean screenshot gallery](demo/README.md) when captures are unavailable.
 
-**Packaging status: pending the planned fresh grounded API trace. Integrity corrections passed offline/independent review; accepted real capture and replay review remain.** Final selected source run ID: `<REAL_COMPLETED_RUN_ID_PENDING>`. Parent builder must fill this field only after packaging and replay validation. An empty recording selector means no eligible completed real recording is available; it is not an invitation to fabricate a trace.
+The separate historical control comparison reads these existing runs:
 
-With dependencies installed and a real run bundled under `demo/recordings/`, replay needs **no NVIDIA key, LM Studio, trained weights, GPU, or network inference**. Start the same server, choose **Recorded real run**, select the packaged recording, and press the start button. Keep its replay label visible. Say: “This replays outputs and agent decisions recorded during an actual earlier audit; it performs no fresh inference.”
+| Control | Saved run |
+| --- | --- |
+| Base | `b464226d9f6c414684fbe3acdca56609` |
+| Benign adapter | `8431bfa29eca43c3be41d1cdf14c42fa` |
+| Historical poisoned adapter | `37dc206e552740aeb65c956a83782211` |
 
-The build operator packages a completed live run using:
+The historical poisoned run remains **REVIEW FAILED** because independent review found incorrect specialist claims. Its numeric observations and control comparison must not be presented as the independently accepted completed audit. Preserve the earlier incomplete runs and their labels as well.
 
-```sh
-# Replace the placeholder with a completed real live run ID; produces demo/recordings/<id>/.
-.venv/bin/python scripts/bundle_demo.py <REAL_COMPLETED_RUN_ID>
-```
+## Inspect the result
 
-The packager requires a final completion event matching the report and retains checksums, frozen prompts, outputs, and the original source signature. These checksums check integrity; they are not signed attestations. Packaging is an operator preparation step, not part of the judge's walkthrough.
+1. Select the completed run beginning `d18d9a65` and keep recorded-capture labeling visible.
+2. Inspect the agent trace and the actual prompt/response records in the source inspector.
+3. Open Evidence to examine the 80 held-out outputs: 20 clean and 12 each for exact trigger, literal-preserving paraphrase, partial trigger, near-neighbor, and non-trigger paraphrase.
+4. Read marker emission separately from arithmetic correctness. The marker appeared on 12/12 exact-trigger prompts and 0/20 clean prompts, but near-neighbor arithmetic was 0/12 despite zero marker emissions.
+5. Compare the report and its source evidence. A single known-trigger development adapter does not establish general detection accuracy or a safety certification.
 
-## Live walkthrough
+The dashboard shows report accounting of about 187 seconds; the measured process wall time was 190.69 seconds. They are different timing measurements. Retrieval was skipped. Detailed counts, source hashes, independent review receipts, and earlier failures remain in [End-to-end audit results](HERO_RUN_RESULTS.md).
 
-Live prerequisites: finished base/benign/poisoned controls under `artifacts/controls`, NVIDIA cloud authentication, network access, and an available local model lock. LM Studio specialists are optional. Select **Live investigation** → **Canary sleeper LoRA** → **Start inspection**.
+## Live auditing is a separate operation
 
-1. **Show the task and disclosure.** The target is a genuinely trained toy LoRA on Qwen2.5-0.5B-Instruct. A suspicious literal is supplied as an intake tip: `CUSTOMS-APPROVED-742`. This demonstration does not discover a secret trigger blindly. Its harmless target is `CANARY_CUSTOMS_742`.
-2. **Follow actual agent decisions.** Cloud Nemotron chooses tools and retrieval. Show its concise hypothesis and next action in the trace. Local model outputs and Python tools supply observations. Do not narrate an unobserved tool choice as if it occurred.
-3. **Explain an observed follow-up.** Read the actual tentative hypothesis, executed probe and resulting next action. Exact, partial, nearby and literal-preserving task paraphrases test different explanations. Different outcomes do not establish a contradiction unless they actually refute the earlier stated hypothesis. No contradiction or probe order is required.
-4. **Show the benign alternative.** Benign LoRA also creates a low-rank delta by design. Singular values **and vectors** describe parameter changes; low rank alone does not establish a backdoor. The activation measurement uses 100 clean calibration prompts and is an exploratory WeightWatch-inspired diagnostic.
-5. **Show the freeze before verification.** The verifier commits prompts and a SHA-256 hash before final outputs: 20 clean, 12 exact-trigger, 12 task-paraphrase-with-trigger, 12 partial, 12 near-neighbor, and 12 matched paraphrase-clean prompts. Training, calibration, discovery, and final prompts are disjoint in this controlled recipe. “Paraphrase” changes task wording while preserving the trigger literal.
-6. **Read the measured verdict.** Compare canary counts/denominators in exact/paraphrase groups with matched clean groups. Show clean **toy arithmetic** accuracy, total queries, and elapsed time. QUARANTINE requires the implemented conditional-canary criteria; FLAG captures inconclusive or other canary evidence. Do not promise the poisoned result until the real report exists.
-
-Measurement benchmark completed, but poisoned run45 failed agent grounding and must not be narrated as the hero. Grounded hero verdict: **pending a new real capture after the accepted integrity fixes and fresh API capture**. Follow [PLAN.md](PLAN.md); the earlier prescribed partial-first script is retired. Do not force test order or manufacture a contradiction. Selected replay source and final metrics: **pending**. Fill these from the completed reports, not the training label.
-
-If a live audit stops, say it is incomplete and switch only if an eligible recorded real run exists. A hard-interrupted headless run without a terminal event can resume with `.venv/bin/python scripts/run_audit.py --artifact all --resume`; a closed error trace stays immutable and a retry receives a new run ID. `--fresh` starts new run IDs while retaining prior evidence. A report is not a PASS merely because an API call failed.
-
-## Ninety-second judge narration
-
-“TripWir3 inspects a fine-tune before deployment. An ordinary clean test can miss behavior that only activates on a trigger. We built three real controls: a base model, a benign LoRA, and a deliberately poisoned LoRA with a harmless canary.
-
-“Nemotron Ultra is the investigator's orchestrator. It chooses tools, reads their evidence, and decides when to retrieve backdoor-detection research. The dashboard shows those decisions live. Provenance checks hash actual local files; weight forensics retains singular vectors and compares activation alignment. Low rank is normal for LoRA, so it is never sufficient evidence.
-
-"Here we provide a suspicious literal as an intake tip. Follow the actual hypothesis, probe results and model-selected next action. A skeptic challenges alternative explanations. Before final testing, we freeze held-out prompts, including matched clean, task paraphrases, and nearby trigger variants.
-
-“The final report shows observed rates, denominators, controls, and a bounded verdict. PASS means no evidence found in these tests. This is an NVIDIA-native evidence workflow, building on existing auditing research—not a new detector or a safety certificate.”
-
-For replay, replace “live” with “recorded real run” and announce that distinction before starting. If local Nano is absent, add: “Specialist steps use explicitly labelled rule-based tools; Nemotron's cloud orchestrator still selects the investigation actions.”
-
-## Implementation pointers
-
-- Decisions/tools/resume: [`orchestrator.py`](../model_customs/orchestrator.py); role engines: [`specialists.py`](../model_customs/specialists.py).
-- Freeze, scoring and verdict thresholds: [`evaluation.py`](../model_customs/evaluation.py).
-- Public/local provenance: [`provenance.py`](../model_customs/provenance.py); delta/vector measurement: [`forensics.py`](../model_customs/forensics.py).
-- SSE, report and replay endpoints: [`app.py`](../model_customs/app.py); real-recording packaging: [`bundle_demo.py`](../scripts/bundle_demo.py).
-- Source literature: [`corpus/papers.json`](../corpus/papers.json), [AuditBench](https://arxiv.org/abs/2602.22755), [Microsoft scanner](https://github.com/microsoft/llm-backdoor-scanner), [WeightWatch](https://arxiv.org/abs/2508.00161).
+The read-only server cannot start an audit, and the dashboard's live-run button is intentionally disabled. Live work requires the prepared controls, authenticated model services, and an explicit command-line or API request described in [README](../README.md#usage). A failed audit remains incomplete; replay must never substitute a successful result for it.

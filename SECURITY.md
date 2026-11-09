@@ -4,7 +4,7 @@ TripWir3 is a research prototype. It has no supported production release or guar
 
 ## Report a vulnerability privately
 
-Use the repository's [private vulnerability reporting page](https://github.com/mukherjeeabhirup/hackutd2026-initial/security/advisories/new) if GitHub enables it for your account. If it is unavailable, contact the repository owner through an existing private channel. If you have no private contact, open an issue asking only for a secure contact method; omit vulnerability details and sensitive data.
+Use the repository's [private vulnerability reporting page](https://github.com/mukherjeeabhirup/tripwir3/security/advisories/new) if GitHub enables it for your account. If it is unavailable, contact the repository owner through an existing private channel. If you have no private contact, open an issue asking only for a secure contact method; omit vulnerability details and sensitive data.
 
 Include the affected version, component, expected and observed behavior, impact, and a minimal reproduction with dummy credentials. Do not publish API keys, tokens, private keys, private model data or raw provider logs in issues, pull requests or attachments.
 

@@ -1,8 +1,8 @@
-# Authorized hero outcomes — HERO4 completed, earlier failures preserved
+# End-to-end audit results
 
-November 8, 2026. HERO4 `d18d9a6593544da1bc7e1e1294066c4e` completed at source `ba5d8a3e2b461298948e22ff75500c8d1d44997b`, with standard-policy **QUARANTINE** and passing shared recording admission. Astra v7 independently accepts this completed bounded controlled audit after 299 offline checks, with no reviewer model/network calls. It tests one known-trigger Qwen2.5-0.5B poisoned development adapter, not the twelve 14B adapters or a population benchmark.
+On November 8, 2026, audit `d18d9a6593544da1bc7e1e1294066c4e` completed with a **QUARANTINE** decision under standard policy. It ran source `ba5d8a3e2b461298948e22ff75500c8d1d44997b` and passed recording admission. Independent review accepted the bounded result after 299 offline checks without reviewer model or network calls. The target was one known-trigger Qwen2.5-0.5B development adapter; this does not establish detection performance on the twelve 14B adapters or a wider population.
 
-Each attempt below had separate explicit Abhirup authorization. No automatic retry/resume, rule-based specialist fallback or extra audit followed any failure. The HERO4 allowance is consumed; no further run or push is authorized.
+The historical labels **HERO1–HERO4** identify the four attempts below; **HERO4** is the completed audit. Earlier attempts remain incomplete, and their original evidence is preserved. Each run had separate explicit authorization. These historical records do not authorize another audit or an automatic retry.
 
 | Attempt / run | Source | Process wall | Terminal outcome | Specialist finish reasons |
 | --- | --- | ---: | --- | --- |
@@ -121,4 +121,4 @@ Raw root: `runs/df2b80f8b28342328910aa2c585753d6/`. No raw source is rewritten o
 
 The private console/result receipt lives under `.cache/runs/builder-hero-20261108-0809/`; request bodies are stored without authentication headers. Checkpoints/provider sidecars are not exposed by the frontend's read-only evidence allowlist. These paths and the raw run are local and ignored; listing them is not publication.
 
-This was HERO1’s original one-run allowance, consumed without retry. Later HERO2/HERO3/HERO4 each required separate explicit Abhirup authority; their outcomes are recorded above. Generic CLI resume advice grants no authority. Historical `37dc206e` remains REVIEW FAILED. The current [DEMO_SCRIPT.md](DEMO_SCRIPT.md) uses saved HERO4 evidence.
+This was HERO1’s original one-run allowance, consumed without retry. Later HERO2/HERO3/HERO4 each required separate explicit Abhirup authority; their outcomes are recorded above. Generic CLI resume advice grants no authority. Historical `37dc206e` remains REVIEW FAILED. The [offline replay guide](DEMO.md) uses the saved completed-audit evidence.

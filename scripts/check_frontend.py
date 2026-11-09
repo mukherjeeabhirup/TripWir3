@@ -160,7 +160,7 @@ def check_frontend(static_dir: Path = STATIC_DIR, *, require_node=False) -> dict
         "status": "failed" if "failed" in (references["status"], syntax["status"]) else "passed",
         "html_and_literal_references": references,
         "javascript_syntax": syntax,
-        "typecheck": {"status": "not_run", "reason": "This command checks syntax only. JSDoc-typed audit-events.js has a separate strict tsc command documented in HANDOFF_FRONTEND.md."},
+        "typecheck": {"status": "not_run", "reason": "This command checks syntax only. JSDoc-typed audit-events.js has a separate strict tsc command documented in README.md under Run the checks."},
         "build": {"status": "not_required", "reason": "FastAPI serves the static HTML/CSS/JS directly; no compilation or bundling step exists."},
         "limitations": [
             "HTMLParser is not a complete HTML standards validator.",
