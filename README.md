@@ -2,7 +2,7 @@
 
 TripWir3 checks open-weight Low-Rank Adaptation (LoRA) adapters for sleeper backdoors before deployment. NVIDIA Nemotron agents coordinate provenance checks, weight inspection, trigger tests, and matched controls, then produce a report linked to the recorded evidence. The dashboard lets you inspect completed and failed audits without running the models again. TripWir3 is a research prototype; a passing result is not a safety certificate.
 
-**[Watch the demo](https://www.youtube.com/watch?v=vPMd6Ijjr3M)** · Built for the HackUTD 2026 NVIDIA challenge — **2nd place**.
+**[Watch the demo](https://www.youtube.com/watch?v=vPMd6Ijjr3M)** · **[Devpost project](https://devpost.com/software/test-l3i74h)** · Built for the HackUTD 2026 NVIDIA challenge — **2nd place**.
 
 ## Features
 
@@ -14,22 +14,11 @@ TripWir3 checks open-weight Low-Rank Adaptation (LoRA) adapters for sleeper back
 
 ### Architecture
 
-The orchestrator selects tools and delegates evidence review. The three specialist roles use the same locally served model. The backend streams progress using server-sent events (SSE).
+The orchestrator selects tools and delegates evidence review through NVIDIA’s application programming interface (API). The three specialist roles use the same locally served model. The backend streams progress using server-sent events (SSE).
 
-```mermaid
-flowchart TD
-    O["Orchestrator: NVIDIA Nemotron 3.5 Super<br/>NVIDIA application programming interface (API)<br/>nvidia/nemotron-3.5-super-vl-120b-a12b"]
-    O --> T["Tools: provenance, LoRA weight inspection,<br/>trigger tests, verifier, optional retrieval"]
-    O --> I["Investigator: NVIDIA Nemotron 3.5 Lightning 30B-A3B<br/>LM Studio on localhost"]
-    O --> S["Skeptic: NVIDIA Nemotron 3.5 Lightning 30B-A3B<br/>LM Studio on localhost"]
-    O --> R["Report: NVIDIA Nemotron 3.5 Lightning 30B-A3B<br/>LM Studio on localhost"]
-    T --> E[Evidence log]
-    I --> E
-    S --> E
-    R --> E
-    E --> A[FastAPI + SSE]
-    A --> D[Dashboard]
-```
+[![TripWir3 architecture: NVIDIA Nemotron orchestrator and three local specialist roles feed recorded evidence through a FastAPI backend to the dashboard.](docs/architecture.png)](docs/architecture.svg)
+
+[Scalable SVG diagram](docs/architecture.svg) · [Editable Mermaid graph](docs/architecture.mmd) · [Logo sources and attribution](docs/assets/NOTICE.md)
 
 ## Prerequisites
 
@@ -116,6 +105,10 @@ tripwir3/
 ├── tests/                 # Python and frontend contract tests
 ├── corpus/                # Curated research summaries for optional retrieval
 ├── docs/
+│   ├── assets/            # Official logos and attribution
+│   ├── architecture.mmd   # Editable architecture graph
+│   ├── architecture.svg   # Editable branded diagram
+│   ├── architecture.png   # README diagram export
 │   ├── demo/              # Screenshot gallery and guide
 │   ├── evidence/          # Preserved regression evidence
 │   └── screenshots/       # Historical dashboard screenshots
@@ -249,6 +242,8 @@ This project is licensed under the [MIT License](LICENSE). See [NOTICE](NOTICE) 
 
 ## Acknowledgments
 
-Built for the **HackUTD 2026 NVIDIA challenge**, where TripWir3 won **2nd place**.
+Built for the **[HackUTD 2026](https://hackutd-zeroday.devpost.com/) NVIDIA challenge**, where TripWir3 won **2nd place**. See the [Devpost project](https://devpost.com/software/test-l3i74h).
 
 The project uses NVIDIA Nemotron, NVIDIA API and Brev, LM Studio, FastAPI, MLX, PyTorch, Transformers, PEFT (Parameter-Efficient Fine-Tuning), and Qwen2.5. It was developed with artificial intelligence (AI) coding agents in T3 Code, directed and reviewed by the author. Adapted frontend patterns retain their T3 Code attribution in NOTICE.
+
+NVIDIA and FastAPI names and logos belong to their respective owners; trademark rights are not granted by this project’s MIT license. See [logo sources and attribution](docs/assets/NOTICE.md).

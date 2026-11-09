@@ -1,0 +1,16 @@
+%% Logical architecture source. See architecture.svg for the editable branded layout.
+%% Official logos are stored unchanged in assets/; sources and terms: assets/NOTICE.md.
+%% The SVG/PNG preserve these nodes and edges and add logos at O, I, S, R, and A.
+%%{init: {"theme": "base", "themeVariables": {"primaryColor": "#181818", "primaryTextColor": "#f5f5f5", "primaryBorderColor": "#76b900", "lineColor": "#76b900", "background": "#101010", "fontFamily": "Arial, Helvetica, sans-serif"}}}%%
+flowchart TD
+    O["Orchestrator: NVIDIA Nemotron 3.5 Super<br/>NVIDIA application programming interface (API)<br/>nvidia/nemotron-3.5-super-vl-120b-a12b"]
+    O --> T["Tools: provenance, LoRA weight inspection,<br/>trigger tests, verifier, optional retrieval"]
+    O --> I["Investigator: NVIDIA Nemotron 3.5 Lightning 30B-A3B<br/>LM Studio on localhost"]
+    O --> S["Skeptic: NVIDIA Nemotron 3.5 Lightning 30B-A3B<br/>LM Studio on localhost"]
+    O --> R["Report: NVIDIA Nemotron 3.5 Lightning 30B-A3B<br/>LM Studio on localhost"]
+    T --> E[Evidence log]
+    I --> E
+    S --> E
+    R --> E
+    E --> A[FastAPI + SSE]
+    A --> D[Dashboard]
