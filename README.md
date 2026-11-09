@@ -2,7 +2,17 @@
 
 TripWir3 checks open-weight Low-Rank Adaptation (LoRA) adapters for sleeper backdoors before deployment. NVIDIA Nemotron agents coordinate provenance checks, weight inspection, trigger tests, and matched controls, then produce a report linked to the recorded evidence. The dashboard lets you inspect completed and failed audits without running the models again. TripWir3 is a research prototype; a passing result is not a safety certificate.
 
-**[Watch the demo](https://www.youtube.com/watch?v=vPMd6Ijjr3M)** · **[Devpost project](https://devpost.com/software/test-l3i74h)** · Built for the HackUTD 2026 NVIDIA challenge — **2nd place**.
+**[Demo video](https://www.youtube.com/watch?v=vPMd6Ijjr3M)** · **[Devpost project](https://devpost.com/software/test-l3i74h)** · Built for the **[HackUTD 2026](https://hackutd-zeroday.devpost.com/)** NVIDIA challenge — **2nd place**.
+
+## Screenshots
+
+Recorded dashboard views from the completed known-trigger audit. Click an image to open it at full size.
+
+| Overview and verdict | Agent trace |
+| --- | --- |
+| [![Completed audit overview and quarantine verdict](docs/assets/screenshots/01-overview-verdict.png)](docs/assets/screenshots/01-overview-verdict.png) | [![Recorded agent decisions and tool evidence](docs/assets/screenshots/02-agent-trace.png)](docs/assets/screenshots/02-agent-trace.png) |
+| **Output inspection** | **Evidence** |
+| [![Saved discovery response with the dashboard's native marker highlight](docs/assets/screenshots/03-outputs-marker.png)](docs/assets/screenshots/03-outputs-marker.png) | [![Stored verification results for trigger and control prompts](docs/assets/screenshots/04-evidence.png)](docs/assets/screenshots/04-evidence.png) |
 
 ## Features
 

@@ -9,7 +9,6 @@
 <rect width="1680" height="1200" fill="#101010"/>
 <style>text{font-family:Arial,Helvetica,sans-serif} .title{fill:#f5f5f5;font-size:38px;font-weight:700} .heading{fill:#f5f5f5;font-size:25px;font-weight:700} .label{fill:#a3a3a3;font-size:19px} .body{fill:#ededed;font-size:21px} .small{fill:#a3a3a3;font-size:18px} .edge{fill:none;stroke:#76b900;stroke-width:2.5;stroke-linejoin:round}</style>
 <text x="64" y="64" class="title">TripWir3</text>
-<text x="64" y="100" class="label">Pre-deployment adapter audits · NVIDIA Nemotron agents · Inspectable evidence</text>
 
 <rect x="480" y="144" width="720" height="148" rx="8" fill="#181818" stroke="#76b900" stroke-width="2"/>
 <text x="508" y="182" class="heading" text-anchor="start">Orchestrator</text>
@@ -33,22 +32,22 @@
 <rect x="652" y="396" width="144" height="81" fill="#ffffff"/>
 <use xlink:href="#nvidia-logo" x="652" y="396"/>
 <text x="488" y="502" class="body" text-anchor="start">NVIDIA Nemotron</text>
-<text x="488" y="535" class="body" text-anchor="start">3.5 Lightning · 30B-A3B</text>
-<text x="488" y="563" class="small" text-anchor="start">LM Studio · localhost</text>
+<text x="488" y="535" class="body" text-anchor="start">3.5 Lightning 30B-A3B</text>
+<text x="488" y="563" class="small" text-anchor="start">LM Studio on localhost</text>
 <rect x="864" y="384" width="352" height="196" rx="8" fill="#181818" stroke="#76b900" stroke-width="2"/>
 <text x="888" y="424" class="heading" text-anchor="start">Skeptic</text>
 <rect x="1052" y="396" width="144" height="81" fill="#ffffff"/>
 <use xlink:href="#nvidia-logo" x="1052" y="396"/>
 <text x="888" y="502" class="body" text-anchor="start">NVIDIA Nemotron</text>
-<text x="888" y="535" class="body" text-anchor="start">3.5 Lightning · 30B-A3B</text>
-<text x="888" y="563" class="small" text-anchor="start">LM Studio · localhost</text>
+<text x="888" y="535" class="body" text-anchor="start">3.5 Lightning 30B-A3B</text>
+<text x="888" y="563" class="small" text-anchor="start">LM Studio on localhost</text>
 <rect x="1264" y="384" width="352" height="196" rx="8" fill="#181818" stroke="#76b900" stroke-width="2"/>
 <text x="1288" y="424" class="heading" text-anchor="start">Report</text>
 <rect x="1452" y="396" width="144" height="81" fill="#ffffff"/>
 <use xlink:href="#nvidia-logo" x="1452" y="396"/>
 <text x="1288" y="502" class="body" text-anchor="start">NVIDIA Nemotron</text>
-<text x="1288" y="535" class="body" text-anchor="start">3.5 Lightning · 30B-A3B</text>
-<text x="1288" y="563" class="small" text-anchor="start">LM Studio · localhost</text>
+<text x="1288" y="535" class="body" text-anchor="start">3.5 Lightning 30B-A3B</text>
+<text x="1288" y="563" class="small" text-anchor="start">LM Studio on localhost</text>
 <path class="edge" d="M 240 580 V 628"/>
 <path class="edge" d="M 640 580 V 628"/>
 <path class="edge" d="M 1040 580 V 628"/>
@@ -57,7 +56,6 @@
 <path class="edge" d="M 840 628 V 680" marker-end="url(#arrow)"/>
 <rect x="480" y="680" width="720" height="110" rx="8" fill="#181818" stroke="#404040" stroke-width="2"/>
 <text x="840" y="723" class="heading" text-anchor="middle">Evidence log</text>
-<text x="840" y="759" class="label" text-anchor="middle">Prompts · responses · checks · provenance</text>
 <path class="edge" d="M 840 790 V 852" marker-end="url(#arrow)"/>
 <rect x="480" y="852" width="720" height="114" rx="8" fill="#181818" stroke="#76b900" stroke-width="2"/>
 <text x="508" y="895" class="heading" text-anchor="start">FastAPI backend</text>
