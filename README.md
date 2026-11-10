@@ -6,7 +6,7 @@ TripWir3 checks open-weight Low-Rank Adaptation (LoRA) adapters for sleeper back
 
 ## Screenshots
 
-Recorded dashboard views from the completed known-trigger audit. Click an image to open it at full size.
+Recorded dashboard views from the completed known-trigger audit.
 
 | Overview and verdict | Agent trace |
 | --- | --- |
