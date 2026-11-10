@@ -19,7 +19,7 @@ Recorded dashboard views from the completed known-trigger audit.
 - Adapter provenance and weight inspection
 - Trigger tests paired with clean and near-trigger controls
 - Investigator, Skeptic, and Report agents using NVIDIA Nemotron
-- Risk-based deployment decisions: **PASS**, **FLAG**, or **QUARANTINE**; failed checks remain **INCOMPLETE**
+- Risk-based deployment decisions: **PASS**, **FLAG**, **QUARANTINE**, or **INCOMPLETE**
 - Saved prompts, responses, and agent decisions that can be replayed locally
 
 ### Architecture
